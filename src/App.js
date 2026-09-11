@@ -19,7 +19,8 @@ import {
   InvoiceStock,
   RFIDLabel,
   AddStock,
-  OrderList
+  OrderList,
+  StockTakingMatchedList
 } from './components/inventory/components';
 import ProductDetailsPage from './components/inventory/ProductDetailsPage';
 import CreateLabel from './components/inventory/CreateLabel';
@@ -1049,6 +1050,16 @@ const RoutesWrapper = () => {
               <AuthGuard>
                 <PageWrapper>
                   <StockVerification />
+                </PageWrapper>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/stock-taking-matched-list"
+            element={
+              <AuthGuard>
+                <PageWrapper>
+                  <StockTakingMatchedList />
                 </PageWrapper>
               </AuthGuard>
             }

@@ -526,12 +526,17 @@ const CreateInvoice = () => {
       return;
     }
 
-    const { rfidCodes } = buildTrayStockLookupPayload(scannedTags);
-    // Send resolved RFID (SJ…) only — never raw EPC hex.
-    if (!rfidCodes.length) {
+    const { rfidCodes, rawIdentities, epcKeys } = buildTrayStockLookupPayload(scannedTags);
+    const tagNumbers = Array.from(new Set([
+      ...(rawIdentities || []),
+      ...(epcKeys || []),
+      ...((scannedTags || []).map((t) => typeof t === 'string' ? t : (t?.epc || t?.tid || '')).filter(Boolean)),
+    ].map((x) => String(x || '').trim().toUpperCase()).filter(Boolean)));
+
+    if (!tagNumbers.length && !rfidCodes.length) {
       addNotification({
-        title: 'RFID codes not ready',
-        description: 'Wait until RFID codes resolve in the scan list (not EPC), then load stock.',
+        title: 'No tags detected',
+        description: 'Please scan tags before loading stock into invoice.',
         type: 'warning'
       });
       return;
@@ -549,15 +554,16 @@ const CreateInvoice = () => {
         TRAY_LABELLED_STOCK_BY_TID_URL,
         {
           ClientCode: clientCode,
-          RFIDCodes: rfidCodes,
-          RfidCodes: rfidCodes,
-          ItemCodes: [],
-          TIDNumbers: [],
-          TidNumbers: [],
-          TIDValues: [],
-          TidValues: [],
-          EPCValues: [],
-          EpcValues: [],
+          TIDNumbers: tagNumbers,
+          TidNumbers: tagNumbers,
+          EPCNumbers: tagNumbers,
+          EpcNumbers: tagNumbers,
+          EPCValues: tagNumbers,
+          EpcValues: tagNumbers,
+          TIDValues: tagNumbers,
+          TidValues: tagNumbers,
+          RFIDCodes: rfidCodes || [],
+          RfidCodes: rfidCodes || [],
         },
         {
           headers: {

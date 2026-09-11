@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import StockTakingMatchedList from './StockTakingMatchedList';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import { 
@@ -50,6 +51,7 @@ const SV = {
 
 const StockVerification = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const pick = (obj, keys, fallback = 0) => {
     if (!obj) return fallback;
     for (const key of keys) {
@@ -117,7 +119,25 @@ const StockVerification = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [pageInput, setPageInput] = useState('');
   const isInitialMount = useRef(true);
-  const [activeTab, setActiveTab] = useState('batches'); // 'batches' or 'combineReport'
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'matchedList' || tabParam === 'matched') return 'matchedList';
+    if (tabParam === 'combineReport' || tabParam === 'consolidation') return 'combineReport';
+    return 'batches';
+  }); // 'batches' | 'combineReport' | 'matchedList'
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'matchedList' || tabParam === 'matched') {
+      setActiveTab('matchedList');
+    } else if (tabParam === 'combineReport' || tabParam === 'consolidation') {
+      setActiveTab('combineReport');
+    } else if (tabParam === 'batches') {
+      setActiveTab('batches');
+    }
+  }, [location.search]);
   
   // Combine Report State
   const [consolidationData, setConsolidationData] = useState(null);
@@ -355,9 +375,9 @@ const StockVerification = () => {
     }
   };
 
-  // Load sessions on component mount and when clientCode changes
+  // Load sessions on component mount and when clientCode changes (only if on batches tab)
   useEffect(() => {
-    if (clientCode) {
+    if (clientCode && activeTab === 'batches') {
       fetchSessions(1, itemsPerPage);
     }
     
@@ -367,11 +387,18 @@ const StockVerification = () => {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [clientCode]);
+  }, [clientCode, activeTab]);
 
-  // Reload sessions when date filters change
+  // When switching to batches tab, fetch sessions if not loaded
   useEffect(() => {
-    if (clientCode) {
+    if (activeTab === 'batches' && clientCode && sessions.length === 0 && !loading) {
+      fetchSessions(1, itemsPerPage);
+    }
+  }, [activeTab]);
+
+  // Reload sessions when date filters change (only if on batches tab)
+  useEffect(() => {
+    if (clientCode && activeTab === 'batches') {
       // Skip on initial mount to avoid duplicate API call
       if (isInitialMount.current) {
         isInitialMount.current = false;
@@ -385,7 +412,7 @@ const StockVerification = () => {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [dateFrom, dateTo, clientCode]);
+  }, [dateFrom, dateTo, clientCode, activeTab]);
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -1625,7 +1652,7 @@ const StockVerification = () => {
         <div className="sv-top-inner">
           <PageHeader
             title="Stock Verification"
-            subtitle={`${activeTab === 'batches' ? `${totalRecords.toLocaleString()} batch rows` : 'Consolidated tree report'}${appliedFilterCount ? ` · ${appliedFilterCount} filter${appliedFilterCount === 1 ? '' : 's'}` : ''}`}
+            subtitle={`${activeTab === 'batches' ? `${totalRecords.toLocaleString()} batch rows` : activeTab === 'matchedList' ? 'Stock taking matched list' : 'Consolidated tree report'}${appliedFilterCount ? ` · ${appliedFilterCount} filter${appliedFilterCount === 1 ? '' : 's'}` : ''}`}
             barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
             actions={(
               <div className="sv-header-actions">
@@ -1647,6 +1674,15 @@ const StockVerification = () => {
                     onClick={() => setActiveTab('combineReport')}
                   >
                     <FaChartBar /> Consolidation
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'matchedList'}
+                    className={`sv-tab${activeTab === 'matchedList' ? ' is-active' : ''}`}
+                    onClick={() => setActiveTab('matchedList')}
+                  >
+                    <FaCheckCircle /> Matched List
                   </button>
                 </div>
                 <button
@@ -1695,7 +1731,7 @@ const StockVerification = () => {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'combineReport' ? (
             <div className="sv-toolbar">
               <div className="sv-search-wrap">
                 <FaCalendarAlt />
@@ -1750,7 +1786,7 @@ const StockVerification = () => {
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -3057,6 +3093,13 @@ const StockVerification = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Stock Taking Matched List Tab */}
+      {activeTab === 'matchedList' && (
+        <div style={{ animation: 'fadeIn 0.25s ease-in-out' }}>
+          <StockTakingMatchedList embedded={true} initialClientCode={clientCode} />
         </div>
       )}
 

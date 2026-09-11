@@ -2,7 +2,7 @@
   "name": "sparkle-rfid-dashboard",
   "homepage": ".",
   "main": "electron/main.js",
-  "version": "0.1.85",
+  "version": "0.1.87",
   "private": true,
   "proxy": "http://3.109.131.101:816",
   "dependencies": {

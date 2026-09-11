@@ -174,7 +174,7 @@ const labelListIconActionStyle = (disabled) => ({
 });
 const IMAGE_BASE_URL = 'https://rrgold.loyalstring.co.in/';
 const TRAY_LABELLED_STOCK_BY_TID_URL = process.env.REACT_APP_TRAY_LABELLED_STOCK_BY_TID_URL
-  || 'https://rrgold.loyalstring.co.in/api/ProductMaster/GetLabelledStockByTIDNumbers';
+  || toRrgoldApiUrl('/api/ProductMaster/GetLabelledStockByTIDNumbers');
 
 /** Get display image URL for an item: Images field, ImagePath, imageurl, or other image keys; supports full URLs and relative paths. */
 const absolutizeImageUrl = (rawPath) => {
@@ -234,8 +234,13 @@ const resolveClientCodeForTray = (userInfo) => {
 };
 
 const normalizeTrayProducts = (responseData) => {
-  const productsFromNested = Array.isArray(responseData?.Products)
-    ? responseData.Products.map((entry) => ({
+  const rawProducts =
+    responseData?.Products ||
+    responseData?.Data?.Products ||
+    responseData?.data?.Products;
+
+  const productsFromNested = Array.isArray(rawProducts)
+    ? rawProducts.map((entry) => ({
         ...(entry?.ProductDetails || {}),
         RequestedIdentifier: entry?.RequestedIdentifier || '',
         MatchedBy: entry?.MatchedBy || '',
@@ -1173,16 +1178,7 @@ const LabelStockList = () => {
   };
 
   const handleTrayFetchData = async (scannedTags = []) => {
-    const { rfidCodes } = buildTrayStockLookupPayload(scannedTags);
-    // Send resolved RFID (SJ…) only — never raw EPC hex in RFID / stock lookup fields.
-    if (!rfidCodes.length) {
-      addNotification({
-        type: 'warning',
-        title: 'RFID codes not ready',
-        description: 'Wait until RFID codes resolve in the scan list (not EPC), then load stock.',
-      });
-      return { success: false, message: 'RFID codes not resolved yet.' };
-    }
+    let { rfidCodes, rawIdentities, epcKeys } = buildTrayStockLookupPayload(scannedTags);
 
     const clientCode = resolveClientCodeForTray(userInfo);
     if (!clientCode) {
@@ -1191,7 +1187,25 @@ const LabelStockList = () => {
         title: 'Client code missing',
         description: 'Login session is missing client code. Please login again.',
       });
+      setShowTrayScanModal(false);
       return { success: false, message: 'Client code missing.' };
+    }
+
+    // Collect scanned tag identifiers (raw EPC / TID values like "E2801191A503006148659065")
+    const tagNumbers = Array.from(new Set([
+      ...(rawIdentities || []),
+      ...(epcKeys || []),
+      ...((scannedTags || []).map((t) => typeof t === 'string' ? t : (t?.epc || t?.tid || '')).filter(Boolean)),
+    ].map((x) => String(x || '').trim().toUpperCase()).filter(Boolean)));
+
+    if (!tagNumbers.length && !rfidCodes.length) {
+      addNotification({
+        type: 'warning',
+        title: 'No tags detected',
+        description: 'Please scan tags before loading stock data.',
+      });
+      setShowTrayScanModal(false);
+      return { success: false, message: 'No tags scanned.' };
     }
 
     setTrayFetchLoading(true);
@@ -1201,16 +1215,16 @@ const LabelStockList = () => {
         TRAY_LABELLED_STOCK_BY_TID_URL,
         {
           ClientCode: clientCode,
-          RFIDCodes: rfidCodes,
-          RfidCodes: rfidCodes,
-          ItemCodes: [],
-          // Do not send EPC hex — stock must match by resolved RFID codes.
-          TIDNumbers: [],
-          TidNumbers: [],
-          TIDValues: [],
-          TidValues: [],
-          EPCValues: [],
-          EpcValues: [],
+          TIDNumbers: tagNumbers,
+          TidNumbers: tagNumbers,
+          EPCNumbers: tagNumbers,
+          EpcNumbers: tagNumbers,
+          EPCValues: tagNumbers,
+          EpcValues: tagNumbers,
+          TIDValues: tagNumbers,
+          TidValues: tagNumbers,
+          RFIDCodes: rfidCodes || [],
+          RfidCodes: rfidCodes || [],
         },
         {
           headers: {
@@ -1226,8 +1240,9 @@ const LabelStockList = () => {
         addNotification({
           type: 'warning',
           title: 'No products found',
-          description: `No products returned for ${rfidCodes.length} RFID code(s): ${rfidCodes.join(', ')}.`,
+          description: `No products returned for ${tagNumbers.length || rfidCodes.length} scanned tag(s).`,
         });
+        setShowTrayScanModal(false);
         return { success: false, message: 'No products found.' };
       }
 
@@ -1251,7 +1266,7 @@ const LabelStockList = () => {
         title: 'Tray scan loaded',
         description: `Loaded ${mappedRows.length} item(s) for RFID: ${rfidCodes.join(', ')}.`,
       });
-      return { success: true };
+      return { success: true, count: mappedRows.length };
     } catch (error) {
       addNotification({
         type: 'error',
@@ -1262,6 +1277,7 @@ const LabelStockList = () => {
           error?.message ||
           'Failed to fetch data for scanned tray tags.',
       });
+      setShowTrayScanModal(false);
       return { success: false, message: error?.message || 'Tray fetch failed.' };
     } finally {
       setLoading(false);

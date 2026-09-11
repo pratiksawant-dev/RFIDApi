@@ -49,7 +49,7 @@ const getClientCode = () => {
 
 const normalizeHex = (value) => String(value || '').trim().toUpperCase();
 
-const extractRfidMapping = (raw) => {
+export const extractRfidMapping = (raw) => {
   const normalizeRows = (value) => {
     if (Array.isArray(value)) return value;
     if (Array.isArray(value?.items)) return value.items;
@@ -187,7 +187,9 @@ const TrayScanModal = ({
   const deviceRowsRef = useRef([]);
   const sdkConnectedCountRef = useRef(0);
   const tagsRef = useRef([]);
+  const rfidCodeMapRef = useRef({});
   const autoFetchPendingRef = useRef(false);
+  const fetchInProgressRef = useRef(false);
 
   const hasBridge = typeof window !== 'undefined' && !!window.electronAPI?.rfidBridgeCommand;
   const pageSize = compactLayout ? 20 : 10;
@@ -237,6 +239,10 @@ const TrayScanModal = ({
   useEffect(() => {
     tagsRef.current = tags;
   }, [tags]);
+
+  useEffect(() => {
+    rfidCodeMapRef.current = rfidCodeMap;
+  }, [rfidCodeMap]);
 
   useEffect(() => {
     if (!open || !hasBridge) return undefined;
@@ -389,22 +395,92 @@ const TrayScanModal = ({
     await window.electronAPI.rfidBridgeCommand(command);
   };
 
-  const runFetch = async () => {
-    if (!onFetchData || tags.length === 0) return;
-    setFetchMessage('');
+  const ensureRfidCodesResolved = async (tagsToResolve, currentMap = {}) => {
+    const rawLookupKeys = Array.from(new Set(
+      (tagsToResolve || []).flatMap((tag) => {
+        if (typeof tag === 'string') {
+          const epc = normalizeHex(tag);
+          return epc ? [epc] : [];
+        }
+        return [normalizeHex(tag?.epc), normalizeHex(tag?.tid)].filter(Boolean);
+      })
+    ));
+    const lookupKeys = expandTrayScanLookupKeys(rawLookupKeys);
+    const missingKeys = lookupKeys.filter((key) => !currentMap[key]);
+
+    if (!missingKeys.length) {
+      return currentMap;
+    }
+
+    try {
+      setResolvingCodes(true);
+      const response = await axios.post(
+        RFID_CODE_LOOKUP_URL,
+        {
+          ClientCode: getClientCode() || undefined,
+          EPCValues: missingKeys,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 45000,
+        }
+      );
+      const mapping = extractRfidMapping(response?.data);
+      const updated = {
+        ...currentMap,
+        ...propagateRfidMappingToRawEpcs(rawLookupKeys, { ...currentMap, ...mapping }),
+      };
+      setRfidCodeMap(updated);
+      rfidCodeMapRef.current = updated;
+      return updated;
+    } catch (err) {
+      console.error('Failed to resolve missing RFID codes:', err);
+      return currentMap;
+    } finally {
+      setResolvingCodes(false);
+    }
+  };
+
+  const closeModal = async () => {
+    try {
+      if (hasBridge) await run('stop');
+    } catch (_) {}
+    setIsScanning(false);
+    onClose?.();
+  };
+
+  const runFetch = async (forcedTags, forcedMap) => {
+    if (fetchInProgressRef.current) return;
+    const currentTags = forcedTags || tagsRef.current || [];
+    if (!onFetchData || currentTags.length === 0) return;
+
+    fetchInProgressRef.current = true;
+    setFetchMessage('Resolving RFID codes and loading stock data...');
     setAutoLoading(true);
     try {
-      const scanRows = tags.map((tag) => {
+      // 1. Ensure any missing RFID codes are resolved
+      const effectiveMap = await ensureRfidCodesResolved(
+        currentTags,
+        forcedMap || rfidCodeMapRef.current
+      );
+
+      // 2. Build rows with resolved RFID codes
+      const scanRows = currentTags.map((tag) => {
         const epc = typeof tag === 'string'
           ? normalizeHex(tag)
           : (normalizeHex(tag?.epc) || normalizeHex(tag?.tid));
         const tid = typeof tag === 'string' ? '' : normalizeHex(tag?.tid);
         const rfidCode = resolveRfidForTag(
           typeof tag === 'string' ? { epc: tag, tid: '' } : tag,
-          rfidCodeMap
+          effectiveMap
         );
         return { epc, tid, rfidCode };
       });
+
+      // 3. Send rows to consumer
       const result = await onFetchData(scanRows);
       const normalizedResult = typeof result === 'object' && result !== null
         ? result
@@ -413,12 +489,14 @@ const TrayScanModal = ({
       if (!isSuccess) {
         setFetchMessage(normalizedResult.message || 'No product data found for scanned tray tags.');
       }
-      const shouldClose = isSuccess;
-      if (shouldClose) {
-        await closeModal();
-      }
+      // Always automatically close the popup when loading finishes as requested
+      await closeModal();
+    } catch (err) {
+      setFetchMessage(err?.message || 'Failed to load stock data.');
+      await closeModal();
     } finally {
       setAutoLoading(false);
+      fetchInProgressRef.current = false;
     }
   };
 
@@ -428,11 +506,13 @@ const TrayScanModal = ({
     try {
       setTags([]);
       setRfidCodeMap({});
+      rfidCodeMapRef.current = {};
       setCurrentPage(1);
       deviceRowsRef.current = [];
       sdkConnectedCountRef.current = 0;
       setConnectedDeviceCount(0);
       autoFetchPendingRef.current = false;
+      fetchInProgressRef.current = false;
 
       const { errors } = buildTrayConnectCommands({
         connectionMode,
@@ -481,22 +561,28 @@ const TrayScanModal = ({
       setBusy(false);
     }
   };
+
   const stopScan = async () => {
     setBusy(true);
     try {
-      await run('stop');
+      if (hasBridge) {
+        try {
+          await run('stop');
+        } catch (_) {}
+      }
       setIsScanning(false);
+      const currentTags = tagsRef.current || [];
+      if (currentTags.length > 0) {
+        await runFetch(currentTags, rfidCodeMapRef.current);
+      } else {
+        await closeModal();
+      }
+    } catch (err) {
+      setIsScanning(false);
+      await closeModal();
     } finally {
       setBusy(false);
     }
-  };
-
-  const closeModal = async () => {
-    try {
-      if (hasBridge) await run('stop');
-    } catch (_) {}
-    setIsScanning(false);
-    onClose?.();
   };
 
   const savePorts = () => {
@@ -520,9 +606,9 @@ const TrayScanModal = ({
       autoFetchPendingRef.current = false;
       const timer = setTimeout(() => {
         if (tagsRef.current.length > 0) {
-          runFetch();
+          runFetch(tagsRef.current, rfidCodeMapRef.current);
         }
-      }, 280);
+      }, 200);
       return () => clearTimeout(timer);
     }
 
@@ -536,7 +622,7 @@ const TrayScanModal = ({
       setIsScanning(false);
 
       if (tagsRef.current.length > 0) {
-        await runFetch();
+        await runFetch(tagsRef.current, rfidCodeMapRef.current);
       } else {
         setFetchMessage('No tags detected. Adjust tray position and connect & start scan again.');
       }

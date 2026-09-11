@@ -4,8 +4,6 @@ import { attachGlobalLoader, beginGlobalLoader, endGlobalLoader } from './global
 
 const SONI_HOSTS = ['https://soni.loyalstring.co.in'];
 const RRGOLD_HOSTS = ['https://rrgold.loyalstring.co.in'];
-/** Legacy online auth host — offline RRGOLD APIs (ProductMaster, BoxRfid, etc.) use RRGOLD base */
-const LOCAL_RRGOLD_AUTH_HOSTS = ['https://localhost:7095', 'http://localhost:7095'];
 /** Default offline RRGOLD host — remap to active base when mode or user settings change */
 const OFFLINE_RRGOLD_HOSTS = ['http://localhost:8081'];
 
@@ -22,7 +20,6 @@ const configuredOrigin = (baseUrl) => safeParseUrl(baseUrl)?.origin || '';
 const mapKnownHost = (host) => {
   if (SONI_HOSTS.includes(host)) return getSoniApiBaseUrl();
   if (RRGOLD_HOSTS.includes(host)) return getRrgoldApiBaseUrl();
-  if (LOCAL_RRGOLD_AUTH_HOSTS.includes(host)) return getRrgoldApiBaseUrl();
   if (OFFLINE_RRGOLD_HOSTS.includes(host)) return getRrgoldApiBaseUrl();
   return '';
 };
@@ -30,6 +27,24 @@ const mapKnownHost = (host) => {
 export const remapApiUrl = (rawUrl) => {
   const parsed = safeParseUrl(rawUrl);
   if (!parsed) return rawUrl;
+
+  // NEVER rewrite localhost, 127.0.0.1, or port 7095 to rrgold
+  if (
+    parsed.hostname === 'localhost' ||
+    parsed.hostname === '127.0.0.1' ||
+    parsed.port === '7095' ||
+    parsed.host === 'localhost:7095'
+  ) {
+    return rawUrl;
+  }
+
+  // Stock taking APIs must strictly stay on their target host
+  if (
+    parsed.pathname.includes('GetBranchAddresses') ||
+    parsed.pathname.includes('GetStockTakingMatchedList')
+  ) {
+    return rawUrl;
+  }
 
   const rrgoldOrigin = configuredOrigin(getRrgoldApiBaseUrl());
   const soniOrigin = configuredOrigin(getSoniApiBaseUrl());
