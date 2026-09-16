@@ -69,6 +69,15 @@ const utilityMenus = [
     route: '/rfid-utility/item-images',
   },
   {
+    id: 'sync-labelled-tid',
+    title: 'Sync Labelled Stock TID',
+    subtitle: 'Live ProductMaster',
+    description: 'Copy EPC values from RFID tables into labelled stock TIDNumber.',
+    icon: FaSyncAlt,
+    theme: 'rfid-card-purple',
+    route: '/sync-labelled-stock-tid',
+  },
+  {
     id: 'firmware-tools',
     title: 'Firmware Tools',
     subtitle: 'Maintenance',

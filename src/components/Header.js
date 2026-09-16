@@ -968,6 +968,41 @@ const Header = () => {
                   </button>
                   <button
                     onClick={() => {
+                      navigate('/sync-labelled-stock-tid');
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer',
+                      color: '#38414a',
+                      fontSize: '13px',
+                      borderRadius: '8px',
+                      marginBottom: 2,
+                      fontWeight: 500,
+                      transition: 'all 0.2s ease',
+                      fontFamily: 'Inter, Poppins, sans-serif'
+                    }}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = '#f1f5f9';
+                      e.currentTarget.style.color = '#0077d4';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#38414a';
+                    }}
+                  >
+                    <FaSync style={{ fontSize: '16px', color: '#64748b' }} />
+                    <span>Sync Labelled Stock TID</span>
+                  </button>
+                  <button
+                    onClick={() => {
                       navigate('/automatic-datasync');
                       setDropdownOpen(false);
                     }}

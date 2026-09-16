@@ -827,6 +827,36 @@ const APIDocumentation = () => {
       responseFormat: {
         message: "TID value updated successfully"
       }
+    },
+    {
+      id: 'sync-labelled-stock-tid',
+      name: 'Sync Labelled Stock TID From RFID Table',
+      endpoint: 'SyncLabelledStockTIDFromRfidTable',
+      method: 'POST',
+      baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
+      description: 'Reads RFIDCode from labelled stock, looks up EPC in tblRFID and tblRFIDdetails, and writes TIDNumber. Multiple EPC values are joined with a comma.',
+      sampleBody: {
+        ClientCode: 'LS000641'
+      },
+      responseFormat: {
+        Message: 'Labelled stock TIDNumber updated from RFID table EPC values.',
+        ClientCode: 'LS000641',
+        TotalChecked: 500,
+        Updated: 420,
+        NotFoundInRfidTable: 80,
+        AlreadySame: 0,
+        RfidTableMappings: 450,
+        Samples: [
+          {
+            Id: 101,
+            ItemCode: 'LS12345',
+            RFIDCode: '3016',
+            OldTIDNumber: '',
+            NewTIDNumber: 'E280116060000204006625B6',
+            EpcCount: 1
+          }
+        ]
+      }
     }
   ];
 

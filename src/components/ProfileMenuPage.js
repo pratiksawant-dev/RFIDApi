@@ -8,6 +8,7 @@ import {
   RiFileDownloadFill,
   RiFolderDownloadFill,
   RiPriceTag3Fill,
+  RiBarcodeFill,
   RiFingerprintFill,
   RiCamera2Fill,
   RiGlobalLine,
@@ -33,6 +34,7 @@ const buildMenuItems = () => {
     { path: '/download-api-doc', icon: RiFileDownloadFill, label: 'Download API Doc', theme: 'blue', description: 'Download API documentation and reference files.' },
     { path: '/download-resources', icon: RiFolderDownloadFill, label: 'Download Resources', theme: 'green', description: 'Templates, guides, and other developer resources.' },
     { path: '/single-use-tags', icon: RiPriceTag3Fill, label: 'Single Use Tags', theme: 'purple', description: 'Manage and track single-use RFID tags.' },
+    { path: '/sync-labelled-stock-tid', icon: RiBarcodeFill, label: 'Sync Labelled Stock TID', theme: 'blue', description: 'Copy EPC values from RFID tables into labelled stock TIDNumber, with live progress.' },
     { path: '/fingerprint-register', icon: RiFingerprintFill, label: 'Fingerprint Login Settings', theme: 'blue', description: 'Morpho RD capture, PIN, and fingerprint login management.' },
     { path: '/face-register', icon: RiCamera2Fill, label: 'Face Login Settings', theme: 'purple', description: 'Register and manage Face ID for camera-based sign-in.' },
   ];

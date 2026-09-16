@@ -210,6 +210,23 @@ const API_GROUPS = [
       { id: 'get-all-purity', name: 'Get All Purity', endpoint: 'GetAllPurity', method: 'POST', description: 'Get purity master data.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
       { id: 'get-all-stock-android', name: 'Get All Stock (Android)', endpoint: 'GetAllStockAndroid', method: 'POST', description: 'Get stock data for Android app.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
       { id: 'export-labelled-stock', name: 'Export Labelled Stock to Excel', endpoint: 'ExportLabelledStockToExcel', method: 'POST', description: 'Export labelled stock to Excel (Label Stock List).', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY, BranchId: '', CounterId: '', CategoryId: '', ProductId: '', PurityId: '' } },
+      {
+        id: 'sync-labelled-stock-tid',
+        name: 'Sync Labelled Stock TID From RFID Table',
+        endpoint: 'SyncLabelledStockTIDFromRfidTable',
+        method: 'POST',
+        description: 'Reads labelled stock RFIDCode values, looks up EPC/TID in tblRFID and tblRFIDdetails, and writes TIDNumber. Multiple EPCs are comma-joined.',
+        sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY },
+        responseFormat: {
+          Message: 'Labelled stock TIDNumber updated from RFID table EPC values.',
+          ClientCode: 'LS000641',
+          TotalChecked: 500,
+          Updated: 420,
+          NotFoundInRfidTable: 80,
+          AlreadySame: 0,
+          RfidTableMappings: 450,
+        },
+      },
     ],
   },
   {

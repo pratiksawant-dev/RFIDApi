@@ -48,6 +48,7 @@ import NotFound from './components/NotFound';
 import { AdminLogin, AdminDashboard } from './components/admin';
 import AdminRfidTagsReport from './components/admin/AdminRfidTagsReport';
 import SingleUseTags from './components/SingleUseTags';
+import SyncLabelledStockTidPage from './components/SyncLabelledStockTidPage';
 import ThirdPartySoftwareIntegration from './integrations/third-party/clients/tamannaah/ThirdPartySoftwareIntegration';
 import FeroniaIntegration from './integrations/third-party/clients/feronia/FeroniaIntegration';
 import Kumar916StockMasterIntegration from './integrations/third-party/clients/kumar916/Kumar916StockMasterIntegration';
@@ -263,7 +264,7 @@ const useAuthProtection = () => {
         '/varakrupa-sync-order',
         '/download-api-doc',
         '/download-resources',
-        '/single-use-tags',
+        '/single-use-tags', '/sync-labelled-stock-tid',
         '/profile-menu',
         '/fingerprint-register',
         '/face-register',
@@ -289,7 +290,7 @@ const useAuthProtection = () => {
     }
 
     // If admin is authenticated but tries to access user routes
-    if (isAdminAuth && !isAuth && ['/dashboard', '/analytics', '/create-masters', '/api-documentation', '/rfid-integration', '/label-stock', '/label-stock/bulk-upload-images', '/bulk-upload-images', '/product-details', '/invoice-stock', '/rfid-label', '/rfid-devices', '/stock-tracking', '/box-rfid', '/box-rfid/box-list', '/rfid-tags', '/tag-usage', '/rfid-utility', '/rfid-utility/tray-connect', '/rfid-utility/auto-push-stock', '/rfid-utility/map-fields', '/rfid-utility/template', '/rfid-utility/item-images', '/rfid-utility/about-sparkle', '/stock-verification', '/stock-verification-rfid-tray', '/stock-transfer', '/upload-rfid', '/rfid-transactions', '/rfid-app-download', '/third-party-integration', '/feronia-integration', '/kumar916-stock-master', '/varakrupa-integration', '/varakrupa-sold-to-user', '/varakrupa-sync-order', '/download-api-doc', '/download-resources', '/single-use-tags', '/profile-menu', '/fingerprint-register', '/face-register', '/passkey-settings', '/offline-api-settings', '/download-folder-settings'].includes(currentPath)) {
+    if (isAdminAuth && !isAuth && ['/dashboard', '/analytics', '/create-masters', '/api-documentation', '/rfid-integration', '/label-stock', '/label-stock/bulk-upload-images', '/bulk-upload-images', '/product-details', '/invoice-stock', '/rfid-label', '/rfid-devices', '/stock-tracking', '/box-rfid', '/box-rfid/box-list', '/rfid-tags', '/tag-usage', '/rfid-utility', '/rfid-utility/tray-connect', '/rfid-utility/auto-push-stock', '/rfid-utility/map-fields', '/rfid-utility/template', '/rfid-utility/item-images', '/rfid-utility/about-sparkle', '/stock-verification', '/stock-verification-rfid-tray', '/stock-transfer', '/upload-rfid', '/rfid-transactions', '/rfid-app-download', '/third-party-integration', '/feronia-integration', '/kumar916-stock-master', '/varakrupa-integration', '/varakrupa-sold-to-user', '/varakrupa-sync-order', '/download-api-doc', '/download-resources', '/single-use-tags', '/sync-labelled-stock-tid', '/profile-menu', '/fingerprint-register', '/face-register', '/passkey-settings', '/offline-api-settings', '/download-folder-settings'].includes(currentPath)) {
       navigate('/admin-dashboard', { replace: true });
     }
   }, [location.pathname, navigate]);
@@ -346,7 +347,7 @@ const useAuthProtection = () => {
         '/varakrupa-sync-order',
         '/download-api-doc',
         '/download-resources',
-        '/single-use-tags',
+        '/single-use-tags', '/sync-labelled-stock-tid',
         '/profile-menu',
         '/fingerprint-register',
         '/face-register',
@@ -551,7 +552,7 @@ const AuthGuard = ({ children }) => {
       }
 
       // Protected user routes
-      const userRoutes = ['/analytics', '/dashboard', '/create-masters', '/api-documentation', '/rfid-integration', '/label-stock', '/label-stock/bulk-upload-images', '/bulk-upload-images', '/product-details', '/invoice-stock', '/rfid-label', '/rfid-devices', '/stock-tracking', '/box-rfid', '/box-rfid/box-list', '/rfid-tags', '/tag-usage', '/rfid-utility', '/rfid-utility/tray-connect', '/rfid-utility/auto-push-stock', '/rfid-utility/map-fields', '/rfid-utility/template', '/rfid-utility/item-images', '/rfid-utility/about-sparkle', '/stock-verification', '/stock-verification-rfid-tray', '/stock-transfer', '/upload-rfid', '/rfid-transactions', '/rfid-app-download', '/third-party-integration', '/feronia-integration', '/kumar916-stock-master', '/varakrupa-integration', '/varakrupa-sold-to-user', '/varakrupa-sync-order', '/download-api-doc', '/download-resources', '/single-use-tags', '/profile-menu', '/fingerprint-register', '/face-register', '/passkey-settings', '/rfid-sample-in-out', '/offline-api-settings', '/download-folder-settings'];
+      const userRoutes = ['/analytics', '/dashboard', '/create-masters', '/api-documentation', '/rfid-integration', '/label-stock', '/label-stock/bulk-upload-images', '/bulk-upload-images', '/product-details', '/invoice-stock', '/rfid-label', '/rfid-devices', '/stock-tracking', '/box-rfid', '/box-rfid/box-list', '/rfid-tags', '/tag-usage', '/rfid-utility', '/rfid-utility/tray-connect', '/rfid-utility/auto-push-stock', '/rfid-utility/map-fields', '/rfid-utility/template', '/rfid-utility/item-images', '/rfid-utility/about-sparkle', '/stock-verification', '/stock-verification-rfid-tray', '/stock-transfer', '/upload-rfid', '/rfid-transactions', '/rfid-app-download', '/third-party-integration', '/feronia-integration', '/kumar916-stock-master', '/varakrupa-integration', '/varakrupa-sold-to-user', '/varakrupa-sync-order', '/download-api-doc', '/download-resources', '/single-use-tags', '/sync-labelled-stock-tid', '/profile-menu', '/fingerprint-register', '/face-register', '/passkey-settings', '/rfid-sample-in-out', '/offline-api-settings', '/download-folder-settings'];
 
       // Admin routes
       const adminRoutes = ['/admin-dashboard'];
@@ -790,6 +791,16 @@ const RoutesWrapper = () => {
               <AuthGuard>
                 <PageWrapper>
                   <SingleUseTags />
+                </PageWrapper>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/sync-labelled-stock-tid"
+            element={
+              <AuthGuard>
+                <PageWrapper>
+                  <SyncLabelledStockTidPage />
                 </PageWrapper>
               </AuthGuard>
             }

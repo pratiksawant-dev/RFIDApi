@@ -34,6 +34,7 @@ import {
   FaShoppingBag,
   FaCog,
   FaChevronDown,
+  FaSync,
 } from 'react-icons/fa';
 import {
   HiDocumentText,
@@ -112,6 +113,7 @@ const SidebarLayout = ({ children }) => {
     { path: '/upload-rfid', icon: FaFileUpload, label: 'RFID Tags Sheet Upload', color: '#4f46e5' },
     { path: '/rfid-tags', icon: FaTags, label: 'RFID Tag List', color: '#b91c1c' },
     { path: '/tag-usage', icon: FaChartPie, label: 'RFID Tags Usage', color: '#0e7490' },
+    { path: '/sync-labelled-stock-tid', icon: FaSync, label: 'Sync Labelled Stock TID', color: '#6d28d9' },
   ];
 
   const clientCode = userInfo.ClientCode || userInfo.clientcode || userInfo.clientCode || 'N/A';
