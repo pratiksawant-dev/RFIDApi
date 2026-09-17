@@ -42,6 +42,8 @@ import {
   PLAYGROUND_AUTH_REGISTER_BODY,
   PLAYGROUND_ADD_MULTIPLE_BRANCH_AND_COUNTER_BODY,
   PLAYGROUND_CLIENT_CODE_ONLY,
+  PLAYGROUND_GET_STOCK_VERIFICATION_SESSIONS_BODY,
+  PLAYGROUND_GET_STOCK_VERIFICATION_SESSION_DETAIL_BODY,
   PLAYGROUND_DELETE_STOCK_VERIFICATION_BY_DATE_BODY,
   PLAYGROUND_GET_STOCK_TAKING_MATCHED_LIST_BODY,
   PLAYGROUND_DELETE_BRANCH_BODY,
@@ -186,7 +188,8 @@ const API_GROUPS = [
     icon: FaBolt,
     apis: [
       { id: 'get-tid-by-barcode', name: 'Get TID by Barcode', endpoint: 'GetTidByBarcode', method: 'POST', description: 'Get TID value for an RFID/barcode (rfidService.getTidByBarcode).', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY, BarcodeNumber: 'RFID123456' } },
-      { id: 'stock-verification', name: 'Stock Verification by Session', endpoint: 'GetAllStockVerificationBySession', method: 'POST', description: 'Get stock verification sessions.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY, ScanBatchId: '' } },
+      { id: 'stock-verification', name: 'Stock Verification sessions', endpoint: 'GetAllStockVerificationBySession', method: 'POST', description: 'List sessions (no ScanBatchId). Default 20 per page. Use PageNumber 2, 3, … and Paging.HasNextPage. Do not send ReturnAllData.', sampleBody: PLAYGROUND_GET_STOCK_VERIFICATION_SESSIONS_BODY },
+      { id: 'stock-verification-session', name: 'Stock Verification session detail', endpoint: 'GetAllStockVerificationBySession', method: 'POST', description: 'Open one session by ScanBatchId. Default 50 match + 50 unmatch rows. Totals are for the full session. Do not send ReturnAllData.', sampleBody: PLAYGROUND_GET_STOCK_VERIFICATION_SESSION_DETAIL_BODY },
       { id: 'consolidation-report', name: 'Consolidation Stock Verification Report', endpoint: 'GetConsolidationStockVerificationReport', method: 'POST', description: 'Get consolidation report for stock verification.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
       {
         id: 'delete-stock-verification-by-date',

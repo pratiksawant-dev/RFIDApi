@@ -35,9 +35,14 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { useLoading } from '../../App';
 import PageHeader from '../common/PageHeader';
 import {
+  STOCK_VERIFICATION_SESSION_URL,
+  SESSION_LIST_PAGE_SIZE,
   fetchFullStockVerificationSession,
   getSessionListDisplayQty,
   deleteStockVerificationByDate,
+  parseStockVerificationSessionsResponse,
+  buildStockVerificationListPayload,
+  resolveSessionListPageCount,
 } from '../../utils/stockVerificationSessionUtils';
 
 /** Outline UI — matches Label Stock List / global page kit */
@@ -99,8 +104,15 @@ const StockVerification = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'StartedOn', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage, setItemsPerPage] = useState(SESSION_LIST_PAGE_SIZE);
   const [totalSessions, setTotalSessions] = useState(0);
+  const [sessionsPaging, setSessionsPaging] = useState({
+    hasNextPage: false,
+    totalPages: 1,
+    totalRecords: 0,
+    pageNumber: 1,
+    pageSize: SESSION_LIST_PAGE_SIZE,
+  });
   const [userInfo, setUserInfo] = useState({});
   const [clientCode, setClientCode] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -118,7 +130,9 @@ const StockVerification = () => {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [pageInput, setPageInput] = useState('');
-  const isInitialMount = useRef(true);
+  const sessionsAbortRef = useRef(null);
+  const sessionsReqIdRef = useRef(0);
+  const sessionsRef = useRef([]);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
@@ -239,116 +253,87 @@ const StockVerification = () => {
     getUserInfo();
   }, []);
 
-  // Fetch sessions data
+  sessionsRef.current = sessions;
+
   const fetchSessions = async (pageOverride, pageSizeOverride) => {
     if (!clientCode) {
-      console.log('No clientCode available, skipping fetch');
       setError('Client code not found. Please login again.');
       setLoading(false);
       return;
     }
-    
+
+    if (sessionsAbortRef.current) {
+      sessionsAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    sessionsAbortRef.current = controller;
+    const reqId = ++sessionsReqIdRef.current;
+
     try {
-    setLoading(true);
+      setLoading(true);
       setError(null);
 
-      console.log('Fetching sessions for clientCode:', clientCode);
-
-      // Build payload with date filters if provided
-      const payload = {
+      const payload = buildStockVerificationListPayload({
         clientCode,
         pageNumber: pageOverride || currentPage,
         pageSize: pageSizeOverride || itemsPerPage,
-        returnAllData: false
-      };
+        dateFrom,
+        dateTo,
+      });
 
-      // Add date filters if provided
-      if (dateFrom) {
-        payload.dateFrom = dateFrom;
-      }
-      if (dateTo) {
-        payload.dateTo = dateTo;
-      }
+      const response = await axios.post(STOCK_VERIFICATION_SESSION_URL, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        timeout: 90000,
+        signal: controller.signal,
+      });
 
-      console.log('Fetching sessions with payload:', payload);
+      if (reqId !== sessionsReqIdRef.current) return;
 
-      const response = await axios.post(
-        'https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllStockVerificationBySession',
-        payload,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          timeout: 30000 // 30 second timeout
-        }
-      );
-
-      console.log('Sessions API Response:', response.data);
-
-      // Handle different response structures
-      let sessionsData = [];
-      let totalCount = 0;
-
-      if (response.data) {
-        const normalizeSession = (session) => ({
-          ...session,
-          SessionNumber: session.SessionNumber ?? session.sessionNumber,
-          SessionId: session.SessionId ?? session.sessionId,
-          ScanBatchId: session.ScanBatchId ?? session.scanBatchId,
-          BatchName: session.BatchName ?? session.batchName,
-          CounterId: session.CounterId ?? session.counterId,
-          CounterName: session.CounterName ?? session.counterName,
-          BranchId: session.BranchId ?? session.branchId,
-          BranchName: session.BranchName ?? session.branchName,
-          StartedOn: session.StartedOn ?? session.startedOn,
-          EndedOn: session.EndedOn ?? session.endedOn,
-          TotalQty: session.TotalQty ?? session.totalQty,
-          MatchQty: session.MatchQty ?? session.matchQty,
-          UnmatchQty: session.UnmatchQty ?? session.unmatchQty
-        });
-        const responseSessions = response.data.Sessions || response.data.sessions;
-        if (Array.isArray(responseSessions)) {
-          sessionsData = responseSessions.map(normalizeSession);
-          totalCount =
-            response.data.TotalSessions ||
-            response.data.totalSessions ||
-            response.data.Paging?.TotalRecords ||
-            response.data.paging?.totalRecords ||
-            sessionsData.length;
-        }
-        // Check if response.data is directly an array
-        else if (Array.isArray(response.data)) {
-          sessionsData = response.data.map(normalizeSession);
-          totalCount = response.data.length;
-        }
-        // Check for nested data structure
-        else if (response.data.data && Array.isArray(response.data.data)) {
-          sessionsData = response.data.data.map(normalizeSession);
-          totalCount = response.data.totalRecords || response.data.data.length;
-        }
-      }
+      const { list, total, paging } = parseStockVerificationSessionsResponse(response.data);
+      const sessionsData = list.map((session) => ({
+        ...session,
+        SessionNumber: session.SessionNumber ?? session.sessionNumber,
+        SessionId: session.SessionId ?? session.sessionId,
+        ScanBatchId: session.ScanBatchId ?? session.scanBatchId,
+        BatchName: session.BatchName ?? session.batchName,
+        CounterId: session.CounterId ?? session.counterId,
+        CounterName: session.CounterName ?? session.counterName,
+        BranchId: session.BranchId ?? session.branchId,
+        BranchName: session.BranchName ?? session.branchName,
+        StartedOn: session.StartedOn ?? session.startedOn,
+        EndedOn: session.EndedOn ?? session.endedOn,
+        TotalQty: session.TotalQty ?? session.totalQty,
+        MatchQty: session.MatchQty ?? session.matchQty,
+        UnmatchQty: session.UnmatchQty ?? session.unmatchQty,
+      }));
 
       setSessions(sessionsData);
-      setTotalSessions(totalCount);
-      
-      if (sessionsData.length > 0) {
-        addNotification({
-          title: 'Sessions Loaded',
-          description: `Found ${sessionsData.length} verification sessions`,
-          type: 'success'
-        });
-      } else {
-        console.log('No sessions found in response');
-      }
+      setTotalSessions(paging.totalRecords || total);
+      setSessionsPaging({
+        ...paging,
+        totalRecords: paging.totalRecords || total,
+        totalPages: resolveSessionListPageCount(
+          { ...paging, totalRecords: paging.totalRecords || total, pageSize: paging.pageSize || pageSizeOverride || itemsPerPage },
+          pageSizeOverride || itemsPerPage
+        ),
+        pageNumber: pageOverride || currentPage,
+        pageSize: pageSizeOverride || itemsPerPage,
+      });
+      setError(null);
     } catch (err) {
-      console.error('Error fetching sessions:', err);
-      console.error('Error response:', err.response?.data);
-      console.error('Error status:', err.response?.status);
-      console.error('Error config:', err.config);
-      
+      const canceled =
+        axios.isCancel?.(err) ||
+        err?.code === 'ERR_CANCELED' ||
+        err?.name === 'CanceledError' ||
+        err?.name === 'AbortError';
+      if (canceled || reqId !== sessionsReqIdRef.current) {
+        return;
+      }
+
       let errorMessage = 'Failed to fetch verification sessions';
-      
       if (err.code === 'ECONNABORTED') {
         errorMessage = 'Request timeout. Please check your internet connection and try again.';
       } else if (err.response?.status === 401) {
@@ -366,53 +351,29 @@ const StockVerification = () => {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
+      if (sessionsRef.current.length > 0) {
+        toast.error(`Error: ${errorMessage}`);
+        return;
+      }
+
       setError(errorMessage);
       toast.error(`Error: ${errorMessage}`);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (reqId === sessionsReqIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
-  // Load sessions on component mount and when clientCode changes (only if on batches tab)
   useEffect(() => {
-    if (clientCode && activeTab === 'batches') {
-      fetchSessions(1, itemsPerPage);
-    }
-    
-    // Handle window resize for responsive design
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [clientCode, activeTab]);
-
-  // When switching to batches tab, fetch sessions if not loaded
-  useEffect(() => {
-    if (activeTab === 'batches' && clientCode && sessions.length === 0 && !loading) {
-      fetchSessions(1, itemsPerPage);
-    }
-  }, [activeTab]);
-
-  // Reload sessions when date filters change (only if on batches tab)
-  useEffect(() => {
-    if (clientCode && activeTab === 'batches') {
-      // Skip on initial mount to avoid duplicate API call
-      if (isInitialMount.current) {
-        isInitialMount.current = false;
-        return;
-      }
-      
-      // Debounce to prevent too many API calls
-      const timeoutId = setTimeout(() => {
-        fetchSessions(1, itemsPerPage);
-      }, 300); // Small delay to debounce rapid date changes
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [dateFrom, dateTo, clientCode, activeTab]);
+  }, []);
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -528,7 +489,12 @@ const StockVerification = () => {
   // Pagination logic
   const hasLocalFilters = Boolean(searchQuery || selectedBranch);
   const totalRecords = hasLocalFilters ? sortedSessions.length : totalSessions;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / itemsPerPage));
+  const totalPages = hasLocalFilters
+    ? Math.max(1, Math.ceil(totalRecords / itemsPerPage))
+    : Math.max(1, sessionsPaging.totalPages || Math.ceil((totalRecords || 0) / itemsPerPage) || 1);
+  const hasNextPage = hasLocalFilters
+    ? currentPage < totalPages
+    : Boolean(sessionsPaging.hasNextPage) || currentPage < totalPages;
   const currentSessions = useMemo(() => {
     if (!hasLocalFilters) return sortedSessions;
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -541,9 +507,16 @@ const StockVerification = () => {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (!clientCode || hasLocalFilters) return;
-    fetchSessions(currentPage, itemsPerPage);
-  }, [currentPage, itemsPerPage, clientCode, hasLocalFilters]);
+    if (!clientCode || activeTab !== 'batches' || hasLocalFilters) return;
+    const debounceMs = dateFrom || dateTo ? 300 : 0;
+    const timeoutId = setTimeout(() => {
+      fetchSessions(currentPage, itemsPerPage);
+    }, debounceMs);
+    return () => {
+      clearTimeout(timeoutId);
+      sessionsAbortRef.current?.abort();
+    };
+  }, [clientCode, activeTab, currentPage, itemsPerPage, dateFrom, dateTo, hasLocalFilters]);
 
   // Handle page input
   const handlePageInputChange = (e) => {
@@ -2169,7 +2142,7 @@ const StockVerification = () => {
                     setCurrentPage(1);
                   }}
                 >
-                  {[15, 25, 50, 100, 200].map((n) => (
+                  {[20, 50, 100].map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
@@ -2205,8 +2178,8 @@ const StockVerification = () => {
               <button
                 type="button"
                 className="sv-page-btn"
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+                disabled={!hasNextPage}
               >
                 Next
               </button>

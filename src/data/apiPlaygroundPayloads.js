@@ -124,6 +124,19 @@ export const PLAYGROUND_CLIENT_CODE_ONLY = {
   ClientCode: 'LS000123',
 };
 
+export const PLAYGROUND_GET_STOCK_VERIFICATION_SESSIONS_BODY = {
+  ClientCode: 'LS000123',
+  PageNumber: 1,
+  PageSize: 20,
+};
+
+export const PLAYGROUND_GET_STOCK_VERIFICATION_SESSION_DETAIL_BODY = {
+  ClientCode: 'LS000123',
+  ScanBatchId: 'your-session-guid',
+  PageNumber: 1,
+  PageSize: 50,
+};
+
 /** Stock Verification → POST …/api/ProductMaster/DeleteStockVerificationByDate (RRGold) */
 export const PLAYGROUND_DELETE_STOCK_VERIFICATION_BY_DATE_BODY = {
   ClientCode: 'LS000123',

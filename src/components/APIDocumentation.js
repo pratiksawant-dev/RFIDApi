@@ -490,20 +490,29 @@ const APIDocumentation = () => {
       endpoint: 'GetAllStockVerificationBySession',
       method: 'POST',
       baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
-      description: 'Get all stock verification sessions with matched and unmatched items.',
+      description: 'List sessions without ScanBatchId (20 per page). Open one session with ScanBatchId (50 match + 50 unmatch). Use PageNumber / PageSize and Paging.HasNextPage. Do not send ReturnAllData.',
       sampleBody: {
         ClientCode: "LS000123",
-        ScanBatchId: "optional_batch_id"
+        PageNumber: 1,
+        PageSize: 20
       },
-      responseFormat: [
-        {
-          "SessionNumber": "1",
-          "StartedOn": "2024-01-01T10:00:00",
-          "EndedOn": "2024-01-01T11:00:00",
-          "MatchedItems": 150,
-          "UnmatchedItems": 5,
+      responseFormat: {
+        Sessions: [
+          {
+            SessionNumber: "1",
+            ScanBatchId: "your-session-guid",
+            StartedOn: "2024-01-01T10:00:00",
+            EndedOn: "2024-01-01T11:00:00",
+            MatchQty: 150,
+            UnmatchQty: 5
+          }
+        ],
+        Paging: {
+          PageNumber: 1,
+          PageSize: 20,
+          HasNextPage: true
         }
-      ]
+      }
     },
     {
       id: 'delete-stock-verification-by-date',

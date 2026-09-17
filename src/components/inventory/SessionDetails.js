@@ -14,8 +14,11 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
 import PageHeader from '../common/PageHeader';
 import {
-  fetchFullStockVerificationSession,
+  fetchStockVerificationSessionPage,
+  fetchStockVerificationSessionPages,
   getSessionListDisplayQty,
+  SESSION_DETAIL_PAGE_SIZE,
+  resolveSessionListPageCount,
 } from '../../utils/stockVerificationSessionUtils';
 
 const SV = {
@@ -25,7 +28,7 @@ const SV = {
   tableBg: '#fafafa',
 };
 
-const PAGE_SIZE_OPTIONS = [10, 15, 25, 50, 100];
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 const formatWeight = (value) => {
   const n = Number(value);
@@ -98,22 +101,22 @@ const SessionItemsCard = ({
   setPageSize,
   emptyLabel,
   isPhone,
+  totalCount,
+  hasNextPage,
+  totalPages,
 }) => {
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const serverTotalPages = Math.max(1, Number(totalPages) || 1);
   const start = items.length === 0 ? 0 : ((page - 1) * pageSize) + 1;
-  const end = Math.min(page * pageSize, items.length);
-  const qty = getSessionListDisplayQty(items);
-  const rows = items.slice((page - 1) * pageSize, page * pageSize);
-  const pages = generatePages(page, totalPages, isPhone);
+  const end = start === 0 ? 0 : start + items.length - 1;
+  const qty = totalCount ?? getSessionListDisplayQty(items);
+  const rows = items;
+  const pages = generatePages(page, serverTotalPages, isPhone);
   const [goto, setGoto] = useState('');
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages, setPage]);
+  const canNext = Boolean(hasNextPage) || page < serverTotalPages;
 
   const goToPage = (next) => {
     const n = Number(next);
-    if (n >= 1 && n <= totalPages) {
+    if (n >= 1 && (n <= serverTotalPages || (n === page + 1 && canNext))) {
       setPage(n);
       setGoto('');
     }
@@ -180,9 +183,8 @@ const SessionItemsCard = ({
       <div className="sv-pagination">
         <div className="sv-pagination-meta">
           <span>
-            {items.length.toLocaleString()} record{items.length === 1 ? '' : 's'}
-            {items.length > 0 ? ` · ${start}–${end}` : ''}
-            {items.length > 0 ? ` · ${qty} qty` : ''}
+            {Number(qty).toLocaleString()} total
+            {items.length > 0 ? ` · ${start}–${end} this page` : ''}
           </span>
           <label className="sv-pagination-size">
             <span>Per page</span>
@@ -204,7 +206,7 @@ const SessionItemsCard = ({
             Prev
           </button>
           {isPhone ? (
-            <span className="sv-page-indicator">{page} / {totalPages}</span>
+            <span className="sv-page-indicator">{page} / {serverTotalPages}</span>
           ) : (
             pages.map((p, index) =>
               p === '...' ? (
@@ -221,7 +223,7 @@ const SessionItemsCard = ({
               )
             )
           )}
-          <button type="button" className="sv-page-btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+          <button type="button" className="sv-page-btn" onClick={() => setPage((p) => p + 1)} disabled={!canNext}>
             Next
           </button>
           {!isPhone ? (
@@ -256,12 +258,10 @@ const SessionDetails = () => {
   const [sessionDetails, setSessionDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [matchedPage, setMatchedPage] = useState(1);
-  const [unmatchedPage, setUnmatchedPage] = useState(1);
+  const [listPage, setListPage] = useState(1);
+  const [listPageSize, setListPageSize] = useState(SESSION_DETAIL_PAGE_SIZE);
   const [matchedSearchQuery, setMatchedSearchQuery] = useState('');
   const [unmatchedSearchQuery, setUnmatchedSearchQuery] = useState('');
-  const [matchedPageSize, setMatchedPageSize] = useState(15);
-  const [unmatchedPageSize, setUnmatchedPageSize] = useState(15);
   const [clientCode, setClientCode] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
@@ -298,9 +298,6 @@ const SessionDetails = () => {
     );
   }, [sessionDetails?.UnmatchedList, unmatchedSearchQuery]);
 
-  useEffect(() => { setMatchedPage(1); }, [matchedSearchQuery, matchedPageSize]);
-  useEffect(() => { setUnmatchedPage(1); }, [unmatchedSearchQuery, unmatchedPageSize]);
-
   useEffect(() => {
     try {
       const stored = localStorage.getItem('userInfo');
@@ -321,19 +318,22 @@ const SessionDetails = () => {
 
   useEffect(() => {
     if (sessionId && clientCode) {
-      fetchSessionDetails(sessionId);
+      fetchSessionDetails(sessionId, listPage, listPageSize);
     }
-  }, [sessionId, clientCode]);
+  }, [sessionId, clientCode, listPage, listPageSize]);
 
-  const fetchSessionDetails = async (scanBatchId) => {
+  const fetchSessionDetails = async (scanBatchId, pageNumber = listPage, pageSize = listPageSize) => {
     try {
-      setLoading(true);
+      const isFirstLoad = !sessionDetails;
+      if (isFirstLoad) setLoading(true);
       setGlobalLoading(true);
       setError(null);
 
       const token = localStorage.getItem('token');
-      const session = await fetchFullStockVerificationSession(clientCode, scanBatchId, {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const session = await fetchStockVerificationSessionPage(clientCode, scanBatchId, {
+        pageNumber,
+        pageSize,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       setSessionDetails(session);
@@ -347,46 +347,50 @@ const SessionDetails = () => {
     }
   };
 
-  const exportSessionDetails = () => {
-    if (!sessionDetails) {
+  const exportSessionDetails = async () => {
+    if (!sessionDetails || !sessionId || !clientCode) {
       toast.error('No session data available for export');
       return;
     }
 
     try {
+      const token = localStorage.getItem('token');
+      const exportSession = await fetchStockVerificationSessionPages(clientCode, sessionId, {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      });
       const wb = XLSX.utils.book_new();
       const summaryData = [
         ['Stock Verification Export'],
         ['Generated on:', new Date().toLocaleString('en-IN')],
         [''],
         ['Branch Information'],
-        ['Branch Name:', sessionDetails.BranchName?.trim() || 'N/A'],
-        ['Counter Name:', sessionDetails.CounterName || 'N/A'],
+        ['Branch Name:', exportSession.BranchName?.trim() || 'N/A'],
+        ['Counter Name:', exportSession.CounterName || 'N/A'],
         [''],
         ['Summary Statistics'],
-        ['Total Items:', sessionDetails.Totals?.TotalQty || 0],
-        ['Matched Items:', sessionDetails.Totals?.TotalMatchQty || 0],
-        ['Unmatched Items:', sessionDetails.Totals?.TotalUnmatchQty || 0],
-        ['Total Gross Weight:', formatWeight(sessionDetails.Totals?.TotalGrossWeight)],
-        ['Total Net Weight:', formatWeight(sessionDetails.Totals?.TotalNetWeight)],
-        ['Match Weight:', formatWeight(sessionDetails.Totals?.TotalMatchGrossWeight)],
+        ['Total Items:', exportSession.Totals?.TotalQty || 0],
+        ['Matched Items:', exportSession.Totals?.TotalMatchQty || 0],
+        ['Unmatched Items:', exportSession.Totals?.TotalUnmatchQty || 0],
+        ['Total Gross Weight:', formatWeight(exportSession.Totals?.TotalGrossWeight)],
+        ['Total Net Weight:', formatWeight(exportSession.Totals?.TotalNetWeight)],
+        ['Match Weight:', formatWeight(exportSession.Totals?.TotalMatchGrossWeight)],
         [''],
         ['Export Details'],
-        ['Matched rows:', sessionDetails.MatchedList?.length || 0],
-        ['Unmatched rows:', sessionDetails.UnmatchedList?.length || 0],
-        ['Matched qty:', sessionDetails.Totals?.TotalMatchQty || 0],
-        ['Unmatched qty:', sessionDetails.Totals?.TotalUnmatchQty || 0],
+        ['Matched rows:', exportSession.MatchedList?.length || 0],
+        ['Unmatched rows:', exportSession.UnmatchedList?.length || 0],
+        ['Matched qty:', exportSession.Totals?.TotalMatchQty || 0],
+        ['Unmatched qty:', exportSession.Totals?.TotalUnmatchQty || 0],
       ];
 
       const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
       summaryWS['!cols'] = [{ width: 25 }, { width: 30 }];
       XLSX.utils.book_append_sheet(wb, summaryWS, 'Session Summary');
 
-      if (sessionDetails.MatchedList?.length > 0) {
+      if (exportSession.MatchedList?.length > 0) {
         const matchedHeaders = [
           'Item Code', 'Product Name', 'Category', 'RFIDCode', 'Gross Weight (g)', 'Net Weight (g)', 'Status',
         ];
-        const matchedData = sessionDetails.MatchedList.map((item) => [
+        const matchedData = exportSession.MatchedList.map((item) => [
           item.ItemCode || 'N/A',
           item.ProductName || 'N/A',
           item.CategoryName || 'N/A',
@@ -402,11 +406,11 @@ const SessionDetails = () => {
         XLSX.utils.book_append_sheet(wb, matchedWS, 'Matched Items');
       }
 
-      if (sessionDetails.UnmatchedList?.length > 0) {
+      if (exportSession.UnmatchedList?.length > 0) {
         const unmatchedHeaders = [
           'Item Code', 'Product Name', 'Category', 'RFIDCode', 'Gross Weight (g)', 'Net Weight (g)', 'Status',
         ];
-        const unmatchedData = sessionDetails.UnmatchedList.map((item) => [
+        const unmatchedData = exportSession.UnmatchedList.map((item) => [
           item.ItemCode || 'N/A',
           item.ProductName || 'N/A',
           item.CategoryName || 'N/A',
@@ -422,7 +426,7 @@ const SessionDetails = () => {
         XLSX.utils.book_append_sheet(wb, unmatchedWS, 'Unmatched Items');
       }
 
-      const branchName = sessionDetails.BranchName?.trim() || 'Unknown';
+      const branchName = exportSession.BranchName?.trim() || 'Unknown';
       const filename = `Stock_Verification_${branchName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, filename);
 
@@ -464,6 +468,11 @@ const SessionDetails = () => {
   }
 
   const totals = sessionDetails.Totals || {};
+  const listPaging = sessionDetails.Paging || {};
+  const listTotalPages = resolveSessionListPageCount(
+    { ...listPaging, pageNumber: listPage, pageSize: listPageSize },
+    listPageSize
+  );
   const branchName = sessionDetails.BranchName?.trim()
     || sessionDetails.MatchedList?.[0]?.BranchName
     || sessionDetails.UnmatchedList?.[0]?.BranchName
@@ -531,12 +540,15 @@ const SessionDetails = () => {
           items={filteredMatchedList}
           searchQuery={matchedSearchQuery}
           onSearch={setMatchedSearchQuery}
-          page={matchedPage}
-          setPage={setMatchedPage}
-          pageSize={matchedPageSize}
-          setPageSize={setMatchedPageSize}
+          page={listPage}
+          setPage={setListPage}
+          pageSize={listPageSize}
+          setPageSize={setListPageSize}
           emptyLabel="No matched items"
           isPhone={isPhone}
+          totalCount={totals.TotalMatchQty}
+          hasNextPage={listPaging.hasNextPage}
+          totalPages={listTotalPages}
         />
         <SessionItemsCard
           title="Unmatched items"
@@ -545,12 +557,15 @@ const SessionDetails = () => {
           items={filteredUnmatchedList}
           searchQuery={unmatchedSearchQuery}
           onSearch={setUnmatchedSearchQuery}
-          page={unmatchedPage}
-          setPage={setUnmatchedPage}
-          pageSize={unmatchedPageSize}
-          setPageSize={setUnmatchedPageSize}
+          page={listPage}
+          setPage={setListPage}
+          pageSize={listPageSize}
+          setPageSize={setListPageSize}
           emptyLabel="No unmatched items"
           isPhone={isPhone}
+          totalCount={totals.TotalUnmatchQty}
+          hasNextPage={listPaging.hasNextPage}
+          totalPages={listTotalPages}
         />
       </div>
 

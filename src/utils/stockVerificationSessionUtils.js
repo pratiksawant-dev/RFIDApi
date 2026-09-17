@@ -5,6 +5,110 @@ export const STOCK_VERIFICATION_SESSION_URL = toRrgoldApiUrl(
   '/api/ProductMaster/GetAllStockVerificationBySession'
 );
 
+export const SESSION_LIST_PAGE_SIZE = 20;
+export const SESSION_DETAIL_PAGE_SIZE = 50;
+
+export const parseStockVerificationPaging = (data = {}) => {
+  const paging = data?.Paging || data?.paging || {};
+  const pageNumber = Number(paging.PageNumber ?? paging.pageNumber ?? 1) || 1;
+  const pageSize = Number(paging.PageSize ?? paging.pageSize ?? 0) || 0;
+  const totalRecords =
+    Number(
+      paging.TotalRecords ??
+        paging.totalRecords ??
+        data.TotalSessions ??
+        data.totalSessions ??
+        data.TotalRecords ??
+        data.totalRecords ??
+        0
+    ) || 0;
+  const totalPages = Number(paging.TotalPages ?? paging.totalPages ?? 0) || 0;
+  const hasNextPage = Boolean(paging.HasNextPage ?? paging.hasNextPage);
+  const hasPreviousPage = Boolean(paging.HasPreviousPage ?? paging.hasPreviousPage);
+  return {
+    pageNumber,
+    pageSize,
+    totalRecords,
+    totalPages,
+    hasNextPage,
+    hasPreviousPage,
+  };
+};
+
+/** Normalize GetAllStockVerificationBySession list response (array or wrapped object). */
+export const parseStockVerificationSessionsResponse = (data) => {
+  const paging = parseStockVerificationPaging(data);
+  if (!data) return { list: [], total: 0, paging };
+
+  if (Array.isArray(data)) {
+    return { list: data, total: paging.totalRecords || data.length, paging };
+  }
+
+  const nested =
+    data.Sessions ||
+    data.sessions ||
+    data.Data ||
+    data.data ||
+    data.Result ||
+    data.result ||
+    data.Items ||
+    data.items;
+
+  if (Array.isArray(nested)) {
+    const total = paging.totalRecords || nested.length;
+    return { list: nested, total, paging: { ...paging, totalRecords: total } };
+  }
+
+  const innerSessions = nested?.Sessions || nested?.sessions;
+  if (Array.isArray(innerSessions)) {
+    const total = paging.totalRecords || nested.TotalSessions || nested.totalSessions || innerSessions.length;
+    return { list: innerSessions, total, paging: { ...paging, totalRecords: total } };
+  }
+
+  return { list: [], total: paging.totalRecords || 0, paging };
+};
+
+export const resolveSessionListPageCount = (paging, fallbackPageSize = SESSION_LIST_PAGE_SIZE) => {
+  if (paging?.totalPages > 0) return paging.totalPages;
+  const size = paging?.pageSize || fallbackPageSize;
+  if (paging?.totalRecords > 0 && size > 0) {
+    return Math.max(1, Math.ceil(paging.totalRecords / size));
+  }
+  const page = paging?.pageNumber || 1;
+  return paging?.hasNextPage ? page + 1 : page;
+};
+
+/** List all sessions — do not send ScanBatchId or ReturnAllData. */
+export const buildStockVerificationListPayload = ({
+  clientCode,
+  pageNumber = 1,
+  pageSize = SESSION_LIST_PAGE_SIZE,
+  dateFrom = '',
+  dateTo = '',
+} = {}) => {
+  const payload = {
+    ClientCode: clientCode,
+    PageNumber: pageNumber,
+    PageSize: pageSize,
+  };
+  if (dateFrom) payload.FromDate = dateFrom;
+  if (dateTo) payload.ToDate = dateTo;
+  return payload;
+};
+
+/** Open one session — page of match + unmatch rows. Totals are for the full session. */
+export const buildStockVerificationSessionPayload = ({
+  clientCode,
+  scanBatchId,
+  pageNumber = 1,
+  pageSize = SESSION_DETAIL_PAGE_SIZE,
+} = {}) => ({
+  ClientCode: clientCode,
+  ScanBatchId: scanBatchId,
+  PageNumber: pageNumber,
+  PageSize: pageSize,
+});
+
 /** Batch save — one ScanBatchId per tray verification session. */
 export const ADD_STOCK_VERIFICATION_BY_SESSION_URL = toRrgoldApiUrl(
   '/api/ProductMaster/AddStockVerificationBySession'
@@ -68,70 +172,61 @@ const mergeSessionItems = (existing, incoming) => {
   return merged;
 };
 
-const buildSessionRequestPayload = (clientCode, scanBatchId, overrides = {}) => ({
-  ClientCode: clientCode,
+/** Fetch one session page (50 match + 50 unmatch by default). Does not send ReturnAllData. */
+export const fetchStockVerificationSessionPage = async (
   clientCode,
-  ScanBatchId: scanBatchId,
-  pageNumber: 1,
-  pageSize: 50000,
-  returnAllData: true,
-  status: null,
-  counterName: null,
-  categoryName: null,
-  productName: null,
-  designName: null,
-  purityName: null,
-  companyName: null,
-  branchName: null,
-  fromDate: null,
-  toDate: null,
-  ...overrides,
-});
-
-/** Fetch session with all matched/unmatched rows (paginate if API caps page size). */
-export const fetchFullStockVerificationSession = async (clientCode, scanBatchId, headers = {}) => {
-  const request = (overrides) =>
-    axios
-      .post(STOCK_VERIFICATION_SESSION_URL, buildSessionRequestPayload(clientCode, scanBatchId, overrides), {
-        headers: { 'Content-Type': 'application/json', ...headers },
-      })
-      .then((res) => normalizeSessionDetails(res.data));
-
-  let session = await request({ pageNumber: 1, pageSize: 50000, returnAllData: true });
-  let matchedList = [...(session.MatchedList || [])];
-  let unmatchedList = [...(session.UnmatchedList || [])];
-
-  const expectedMatchQty = Number(pickField(session.Totals, ['TotalMatchQty', 'MatchedQty', 'matchedQty'], 0)) || 0;
-  const expectedUnmatchQty =
-    Number(pickField(session.Totals, ['TotalUnmatchQty', 'UnmatchQty', 'unmatchQty'], 0)) || 0;
-
-  let page = 2;
-  const maxPages = 50;
-  while (
-    page <= maxPages &&
-    ((expectedMatchQty > 0 && sumSessionListQty(matchedList) < expectedMatchQty) ||
-      (expectedUnmatchQty > 0 && sumSessionListQty(unmatchedList) < expectedUnmatchQty))
-  ) {
-    const next = await request({ pageNumber: page, pageSize: 5000, returnAllData: true });
-    const nextMatched = next.MatchedList || [];
-    const nextUnmatched = next.UnmatchedList || [];
-    if (!nextMatched.length && !nextUnmatched.length) break;
-    const prevMatchedQty = sumSessionListQty(matchedList);
-    const prevUnmatchedQty = sumSessionListQty(unmatchedList);
-    matchedList = mergeSessionItems(matchedList, nextMatched);
-    unmatchedList = mergeSessionItems(unmatchedList, nextUnmatched);
-    if (
-      sumSessionListQty(matchedList) === prevMatchedQty &&
-      sumSessionListQty(unmatchedList) === prevUnmatchedQty
-    ) {
-      break;
+  scanBatchId,
+  { pageNumber = 1, pageSize = SESSION_DETAIL_PAGE_SIZE, headers = {} } = {}
+) => {
+  const { data } = await axios.post(
+    STOCK_VERIFICATION_SESSION_URL,
+    buildStockVerificationSessionPayload({ clientCode, scanBatchId, pageNumber, pageSize }),
+    {
+      headers: { 'Content-Type': 'application/json', ...headers },
+      timeout: 90000,
     }
-    if (nextMatched.length < 5000 && nextUnmatched.length < 5000) break;
+  );
+  const session = normalizeSessionDetails(data);
+  return {
+    ...session,
+    Paging: parseStockVerificationPaging(data),
+  };
+};
+
+/**
+ * Walk PageNumber until Paging.HasNextPage is false. Use for export only — UI should load one page.
+ */
+export const fetchStockVerificationSessionPages = async (clientCode, scanBatchId, headers = {}) => {
+  let page = 1;
+  let session = null;
+  let matchedList = [];
+  let unmatchedList = [];
+  while (page <= 100) {
+    const next = await fetchStockVerificationSessionPage(clientCode, scanBatchId, {
+      pageNumber: page,
+      pageSize: SESSION_DETAIL_PAGE_SIZE,
+      headers,
+    });
+    if (!session) session = next;
+    matchedList = mergeSessionItems(matchedList, next.MatchedList || []);
+    unmatchedList = mergeSessionItems(unmatchedList, next.UnmatchedList || []);
+    if (!next.Paging?.hasNextPage) break;
     page += 1;
   }
-
-  return reconcileSessionDetails(session, matchedList, unmatchedList);
+  return {
+    ...session,
+    MatchedList: matchedList,
+    UnmatchedList: unmatchedList,
+  };
 };
+
+/** Open-session helper used by the details page — first page only. */
+export const fetchFullStockVerificationSession = async (clientCode, scanBatchId, headers = {}) =>
+  fetchStockVerificationSessionPage(clientCode, scanBatchId, {
+    pageNumber: 1,
+    pageSize: SESSION_DETAIL_PAGE_SIZE,
+    headers,
+  });
 
 /** Align summary totals with loaded lists (qty + weight). Prefer list sums when data is loaded. */
 export const reconcileSessionDetails = (session, matchedList, unmatchedList) => {
