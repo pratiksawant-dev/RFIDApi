@@ -130,6 +130,17 @@ export const PLAYGROUND_DELETE_STOCK_VERIFICATION_BY_DATE_BODY = {
   Date: '2026-09-03',
 };
 
+/**
+ * Stock Taking Matched List page → POST …/api/ProductMaster/GetStockTakingMatchedList (RRGold)
+ * BranchAddress can be branch id, branch name, or full address (same as the page dropdown).
+ * StockTakingDate is YYYY-MM-DD.
+ */
+export const PLAYGROUND_GET_STOCK_TAKING_MATCHED_LIST_BODY = {
+  ClientCode: 'LS000123',
+  BranchAddress: '1007',
+  StockTakingDate: '2026-09-16',
+};
+
 /** Create Masters → POST …/api/ClientOnboarding/DeleteBranch
  *  RRGold → POST …/api/ClientOnboarding/DeleteBranchMaster
  *  Same body: { ClientCode, Id }

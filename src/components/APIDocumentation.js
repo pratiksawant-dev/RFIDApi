@@ -525,6 +525,49 @@ const APIDocumentation = () => {
       }
     },
     {
+      id: 'get-stock-taking-matched-list',
+      name: 'Get Stock Taking Matched List',
+      endpoint: 'GetStockTakingMatchedList',
+      method: 'POST',
+      baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
+      description: 'Get unique matched RFID tags for one client, branch, and stock-taking date. Same payload as the Stock Taking Matched List page. BranchAddress accepts branch id, name, or address. StockTakingDate is YYYY-MM-DD.',
+      sampleBody: {
+        ClientCode: 'LS000123',
+        BranchAddress: '1007',
+        StockTakingDate: '2026-09-16'
+      },
+      responseFormat: {
+        Message: 'Matched stock taking list loaded successfully.',
+        BranchName: 'Main Showroom',
+        BranchAddress: '1007',
+        TotalSessionsFound: 2,
+        TotalMatchedRecordsScanned: 48,
+        TotalUniqueMatchedTags: 42,
+        Totals: {
+          TotalQty: 42,
+          TotalGrossWeight: 185.25,
+          TotalNetWeight: 172.1
+        },
+        MatchedList: [
+          {
+            ItemCode: 'ITEM001',
+            RFIDCode: 'E280116060000204006625B6',
+            CategoryName: 'Gold',
+            ProductName: 'Ring',
+            DesignName: 'Plain',
+            PurityName: '22CT',
+            GrossWeight: 4.25,
+            NetWeight: 4.1,
+            Quantity: 1,
+            CounterName: 'Gold Counter',
+            BranchName: 'Main Showroom',
+            BranchAddress: '1007',
+            Status: 'Match'
+          }
+        ]
+      }
+    },
+    {
       id: 'tag-usage',
       name: 'Get Used/Unused RFID Tags',
       endpoint: 'GetAllUsedAndUnusedTag',
