@@ -12,4 +12,5 @@ export { default as RFIDLabel } from './RFIDLabel';
 export { default as AddStock } from './AddStock';
 export { default as OrderList } from './OrderList';
 export { default as SampleIn } from './SampleIn';
-export { default as StockTakingMatchedList } from './StockTakingMatchedList';
+export { default as StockTakingMatchedList } from './StockTakingMatchedList';
+export { default as StockTakingUnmatchedList } from './StockTakingUnmatchedList';

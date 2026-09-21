@@ -20,6 +20,7 @@ import {
   FaSortDown,
   FaChevronLeft,
   FaChevronRight,
+  FaTimesCircle,
   FaTimes
 } from 'react-icons/fa';
 import PageHeader from '../common/PageHeader';
@@ -47,7 +48,7 @@ const makeApiPost = async (path, body, config = {}) => {
   try {
     return await apiClient.post(primaryUrl, body, config);
   } catch (err) {
-    if (err.response?.status === 404 || !err.response) {
+    if (err.response?.status === 404 || err.response?.status === 405 || !err.response) {
       const localUrl = `https://localhost:7095${path.startsWith('/') ? path : `/${path}`}`;
       return await apiClient.post(localUrl, body, config);
     }
@@ -60,7 +61,7 @@ const makeApiGet = async (path, config = {}) => {
   try {
     return await apiClient.get(primaryUrl, config);
   } catch (err) {
-    if (err.response?.status === 404 || !err.response) {
+    if (err.response?.status === 404 || err.response?.status === 405 || !err.response) {
       const localUrl = `https://localhost:7095${path.startsWith('/') ? path : `/${path}`}`;
       return await apiClient.get(localUrl, config);
     }
@@ -68,8 +69,94 @@ const makeApiGet = async (path, config = {}) => {
   }
 };
 
-const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) => {
+const LIST_VARIANTS = {
+  matched: {
+    title: 'Stock Taking Matched List',
+    subtitle: 'View all matched RFID inventory records for selected branch & date',
+    tabLabel: 'Matched List',
+    loadLabel: 'Load Matched List',
+    loadingTitle: 'Loading Matched Records...',
+    loadingSub: 'Fetching verified matched stock list...',
+    emptyTitle: 'No Matched Records Found',
+    kpiUnique: 'Unique Matched Tags',
+    statusDefault: 'Match',
+    excelSheet: 'Matched List',
+    excelPrefix: 'StockTaking_MatchedList',
+    listKeys: ['MatchedList', 'matchedList'],
+    scannedKeys: ['TotalMatchedRecordsScanned', 'totalMatchedRecordsScanned'],
+    uniqueKeys: ['TotalUniqueMatchedTags', 'totalUniqueMatchedTags'],
+    postPaths: [
+      '/api/ProductMaster/GetStockTakingMatchedList',
+      '/api/ProductScan/GetStockTakingMatchedList',
+    ],
+    word: 'matched',
+    accent: '#0f766e',
+    accentBg: '#f0fdfa',
+  },
+  unmatched: {
+    title: 'Stock Taking Unmatched List',
+    subtitle: 'View unique unmatched RFID tags for selected branch & date',
+    tabLabel: 'Unmatched List',
+    loadLabel: 'Load Unmatched List',
+    loadingTitle: 'Loading Unmatched Records...',
+    loadingSub: 'Fetching unmatched stock taking tags...',
+    emptyTitle: 'No Unmatched Records Found',
+    kpiUnique: 'Unique Unmatched Tags',
+    statusDefault: 'UnMatch',
+    excelSheet: 'Unmatched List',
+    excelPrefix: 'StockTaking_UnmatchedList',
+    listKeys: ['UnmatchedList', 'unmatchedList'],
+    scannedKeys: ['TotalUnmatchedRecordsScanned', 'totalUnmatchedRecordsScanned'],
+    uniqueKeys: ['TotalUniqueUnmatchedTags', 'totalUniqueUnmatchedTags'],
+    postPaths: [
+      '/api/ProductMaster/GetStockTakingUnmatchedList',
+      '/api/ProductScan/GetStockTakingUnmatchedList',
+    ],
+    word: 'unmatched',
+    accent: '#c2410c',
+    accentBg: '#fff7ed',
+  },
+};
+
+const pickFirst = (obj, keys, fallback) => {
+  for (const key of keys) {
+    if (obj?.[key] != null && obj[key] !== '') return obj[key];
+  }
+  return fallback;
+};
+
+const fetchStockTakingListResponse = async (paths, payload, headers) => {
+  let lastErr = null;
+  for (const path of paths) {
+    try {
+      return await makeApiPost(path, payload, { headers, timeout: 90000 });
+    } catch (err) {
+      lastErr = err;
+      const status = err.response?.status;
+      if (status && status !== 404 && status !== 405) throw err;
+    }
+  }
+  const qs = new URLSearchParams({
+    clientCode: payload.ClientCode,
+    branchAddress: payload.BranchAddress,
+    stockTakingDate: payload.StockTakingDate,
+  }).toString();
+  for (const path of paths) {
+    try {
+      return await makeApiGet(`${path}?${qs}`, { headers, timeout: 90000 });
+    } catch (err) {
+      lastErr = err;
+      const status = err.response?.status;
+      if (status && status !== 404 && status !== 405) throw err;
+    }
+  }
+  throw lastErr || new Error('Stock taking list request failed.');
+};
+
+const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', variant = 'matched' }) => {
   const navigate = useNavigate();
+  const cfg = LIST_VARIANTS[variant] || LIST_VARIANTS.matched;
+  const isUnmatched = variant === 'unmatched';
 
   // Authentication & Client Code
   const [clientCode, setClientCode] = useState(initialClientCode);
@@ -255,15 +342,13 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
   // Dynamic banner message that always shows BOTH Branch Name and Branch Address
   const bannerMessage = useMemo(() => {
     if (!apiResponseMeta) return '';
-    const count = apiResponseMeta.totalUniqueMatchedTags ?? matchedList.length;
+    const count = apiResponseMeta.totalUniqueTags ?? matchedList.length;
     if (count > 0) {
-      return `Found ${count} unique matched RFID tags for branch '${branchFormattedDisplay}' on ${stockTakingDate}.`;
-    } else {
-      return `No matched items found for branch '${branchFormattedDisplay}' on ${stockTakingDate}.`;
+      return `Found ${count} unique ${cfg.word} RFID tags for branch '${branchFormattedDisplay}' on ${stockTakingDate}.`;
     }
-  }, [apiResponseMeta, branchFormattedDisplay, stockTakingDate, matchedList.length]);
+    return `No ${cfg.word} items found for branch '${branchFormattedDisplay}' on ${stockTakingDate}.`;
+  }, [apiResponseMeta, branchFormattedDisplay, stockTakingDate, matchedList.length, cfg.word]);
 
-  // API Call to fetch Matched List
   const fetchMatchedList = useCallback(async () => {
     if (!clientCode) {
       toast.warn('Client code not found. Please log in.');
@@ -294,30 +379,10 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
     };
 
     try {
-      let response;
-
-      // 1. Try primary endpoint: /api/ProductMaster/GetStockTakingMatchedList
-      try {
-        response = await makeApiPost('/api/ProductMaster/GetStockTakingMatchedList', payload, {
-          headers,
-          timeout: 90000,
-        });
-      } catch (err1) {
-        // 2. Try secondary endpoint: /api/ProductScan/GetStockTakingMatchedList
-        if (err1.response?.status === 404) {
-          response = await makeApiPost('/api/ProductScan/GetStockTakingMatchedList', payload, {
-            headers,
-            timeout: 90000,
-          });
-        } else {
-          throw err1;
-        }
-      }
-
+      const response = await fetchStockTakingListResponse(cfg.postPaths, payload, headers);
       const resData = response.data || {};
-      
-      // Extract matchedList (ignoring applicableSessions completely per user requirement)
-      const list = resData.MatchedList || resData.matchedList || [];
+      const rawList = pickFirst(resData, cfg.listKeys, []);
+      const list = Array.isArray(rawList) ? rawList : [];
       const totals = resData.Totals || resData.totals || {};
 
       setMatchedList(list);
@@ -326,19 +391,19 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
         branchName: resData.BranchName || resData.branchName || '',
         branchAddress: resData.BranchAddress || resData.branchAddress || effectiveBranchAddress,
         totalSessionsFound: resData.TotalSessionsFound ?? resData.totalSessionsFound ?? 0,
-        totalMatchedRecordsScanned: resData.TotalMatchedRecordsScanned ?? resData.totalMatchedRecordsScanned ?? list.length,
-        totalUniqueMatchedTags: resData.TotalUniqueMatchedTags ?? resData.totalUniqueMatchedTags ?? list.length,
+        totalRecordsScanned: pickFirst(resData, cfg.scannedKeys, list.length),
+        totalUniqueTags: pickFirst(resData, cfg.uniqueKeys, list.length),
         totals: {
-          totalQty: totals.TotalQty ?? totals.totalQty ?? list.length,
-          totalGrossWeight: totals.TotalGrossWeight ?? totals.totalGrossWeight ?? list.reduce((acc, item) => acc + (Number(item.GrossWeight ?? item.grossWeight ?? 0) || 0), 0),
-          totalNetWeight: totals.TotalNetWeight ?? totals.totalNetWeight ?? list.reduce((acc, item) => acc + (Number(item.NetWeight ?? item.netWeight ?? 0) || 0), 0),
+          totalQty: totals.TotalQty ?? totals.totalQty ?? resData.TotalQty ?? resData.totalQty ?? list.length,
+          totalGrossWeight: totals.TotalGrossWeight ?? totals.totalGrossWeight ?? resData.TotalGrossWeight ?? list.reduce((acc, item) => acc + (Number(item.GrossWeight ?? item.grossWeight ?? 0) || 0), 0),
+          totalNetWeight: totals.TotalNetWeight ?? totals.totalNetWeight ?? resData.TotalNetWeight ?? list.reduce((acc, item) => acc + (Number(item.NetWeight ?? item.netWeight ?? 0) || 0), 0),
         },
       });
 
       setCurrentPage(1);
     } catch (err) {
-      console.error('Error fetching stock taking matched list', err);
-      const errMsg = err.response?.data?.Message || err.response?.data?.message || err.message || 'Failed to load stock taking matched list';
+      console.error(`Error fetching stock taking ${cfg.word} list`, err);
+      const errMsg = err.response?.data?.Message || err.response?.data?.message || err.message || `Failed to load stock taking ${cfg.word} list`;
       setError(errMsg);
       setMatchedList([]);
       setApiResponseMeta(null);
@@ -346,7 +411,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
     } finally {
       setLoading(false);
     }
-  }, [clientCode, effectiveBranchAddress, stockTakingDate, token]);
+  }, [clientCode, effectiveBranchAddress, stockTakingDate, token, cfg]);
 
   // Auto-fetch data when effectiveBranchAddress and stockTakingDate are valid
   useEffect(() => {
@@ -380,6 +445,8 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
         const purity = String(item.PurityName ?? item.purityName ?? '').toLowerCase();
         const counter = String(item.CounterName ?? item.counterName ?? '').toLowerCase();
         const branch = String(item.BranchName ?? item.branchName ?? item.BranchAddress ?? item.branchAddress ?? '').toLowerCase();
+        const huid = String(item.HUID ?? item.huid ?? item.HUIDCode ?? item.huidCode ?? '').toLowerCase();
+        const sku = String(item.SKU ?? item.sku ?? item.Sku ?? '').toLowerCase();
 
         return (
           itemCode.includes(q) ||
@@ -389,7 +456,9 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
           design.includes(q) ||
           purity.includes(q) ||
           counter.includes(q) ||
-          branch.includes(q)
+          branch.includes(q) ||
+          huid.includes(q) ||
+          sku.includes(q)
         );
       });
     }
@@ -397,8 +466,9 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
     if (sortConfig.key) {
       result.sort((a, b) => {
         const pascalKey = sortConfig.key.charAt(0).toUpperCase() + sortConfig.key.slice(1);
-        let valA = a[sortConfig.key] ?? a[pascalKey] ?? '';
-        let valB = b[sortConfig.key] ?? b[pascalKey] ?? '';
+        const upperKey = sortConfig.key.toUpperCase();
+        let valA = a[sortConfig.key] ?? a[pascalKey] ?? a[upperKey] ?? a[`${upperKey}Code`] ?? '';
+        let valB = b[sortConfig.key] ?? b[pascalKey] ?? b[upperKey] ?? b[`${upperKey}Code`] ?? '';
 
         if (typeof valA === 'number' && typeof valB === 'number') {
           return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
@@ -429,7 +499,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
         qty: apiResponseMeta.totals.totalQty ?? filteredAndSortedList.length,
         grossWt: Number(apiResponseMeta.totals.totalGrossWeight || 0).toFixed(2),
         netWt: Number(apiResponseMeta.totals.totalNetWeight || 0).toFixed(2),
-        uniqueTags: apiResponseMeta.totalUniqueMatchedTags ?? filteredAndSortedList.length,
+        uniqueTags: apiResponseMeta.totalUniqueTags ?? filteredAndSortedList.length,
       };
     }
     const qty = filteredAndSortedList.reduce((sum, item) => sum + (Number(item.Quantity ?? item.quantity ?? 1) || 1), 0);
@@ -446,7 +516,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
   // Export to Excel
   const handleExportExcel = () => {
     if (filteredAndSortedList.length === 0) {
-      toast.warn('No matched records available to export.');
+      toast.warn(`No ${cfg.word} records available to export.`);
       return;
     }
 
@@ -454,6 +524,8 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
       'Sr. No': index + 1,
       'Item Code': item.ItemCode ?? item.itemCode ?? '',
       'RFID Tag / Code': item.RFIDTag ?? item.RFIDCode ?? item.rfidTag ?? item.rfidCode ?? '',
+      'SKU': item.SKU ?? item.sku ?? item.Sku ?? '',
+      'HUID': item.HUID ?? item.huid ?? item.HUIDCode ?? item.huidCode ?? '',
       'Category': item.CategoryName ?? item.categoryName ?? '',
       'Product Name': item.ProductName ?? item.productName ?? '',
       'Design': item.DesignName ?? item.designName ?? '',
@@ -464,29 +536,29 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
       'Branch Name': item.BranchName ?? item.branchName ?? activeBranchName ?? '',
       'Branch Address': item.BranchAddress ?? item.branchAddress ?? activeBranchAddress ?? '',
       'Quantity': item.Quantity ?? item.quantity ?? 1,
-      'Status': item.Status ?? item.status ?? 'Match',
+      'Status': item.Status ?? item.status ?? cfg.statusDefault,
       'Scan Date': item.ScanDate ?? item.scanDate ?? '',
       'Scan Time': item.ScanTime ?? item.scanTime ?? '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Matched List');
+    XLSX.utils.book_append_sheet(workbook, worksheet, cfg.excelSheet);
 
-    const fileName = `StockTaking_MatchedList_${effectiveBranchAddress || 'Branch'}_${stockTakingDate || 'Date'}.xlsx`;
+    const fileName = `${cfg.excelPrefix}_${effectiveBranchAddress || 'Branch'}_${stockTakingDate || 'Date'}.xlsx`;
     XLSX.writeFile(workbook, fileName);
     toast.success('Exported to Excel successfully!');
   };
 
   return (
-    <div className={`stock-taking-matched-list-root ${embedded ? 'is-embedded' : 'is-standalone'}`}>
+    <div className={`stock-taking-matched-list-root ${embedded ? 'is-embedded' : 'is-standalone'}${isUnmatched ? ' is-unmatched' : ''}`}>
       {/* Top Header if Standalone */}
       {!embedded && (
         <div className="sv-top">
           <div className="sv-top-inner">
             <PageHeader
-              title="Stock Taking Matched List"
-              subtitle="View all matched RFID inventory records for selected branch & date"
+              title={cfg.title}
+              subtitle={cfg.subtitle}
               barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
               actions={
                 <div className="sv-header-actions">
@@ -502,9 +574,18 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                     <button
                       type="button"
                       role="tab"
-                      className="sv-tab is-active"
+                      className={`sv-tab${!isUnmatched ? ' is-active' : ''}`}
+                      onClick={() => isUnmatched && navigate('/stock-taking-matched-list')}
                     >
                       <FaCheckCircle /> Matched List
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      className={`sv-tab${isUnmatched ? ' is-active' : ''}`}
+                      onClick={() => !isUnmatched && navigate('/stock-taking-unmatched-list')}
+                    >
+                      <FaTimesCircle /> Unmatched List
                     </button>
                   </div>
                   <button
@@ -617,14 +698,14 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                 disabled={loading}
               >
                 {loading ? <FaSpinner className="fa-spin" /> : <FaRedo />}
-                <span>{loading ? 'Loading...' : 'Load Matched List'}</span>
+                <span>{loading ? 'Loading...' : cfg.loadLabel}</span>
               </button>
               <button
                 type="button"
                 className="btn-excel"
                 onClick={handleExportExcel}
                 disabled={loading || filteredAndSortedList.length === 0}
-                title="Export matched list to Excel"
+                title={`Export ${cfg.word} list to Excel`}
               >
                 <FaFileExcel />
                 <span>Export Excel</span>
@@ -636,7 +717,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
           {apiResponseMeta && (
             <div className="response-info-banner">
               <div className="response-info-text">
-                <FaCheckCircle className="text-teal" />
+                <FaCheckCircle className={isUnmatched ? 'text-orange' : 'text-teal'} />
                 <span>{bannerMessage}</span>
               </div>
             </div>
@@ -646,12 +727,12 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
         {/* KPI Summary Cards */}
         <div className="kpi-grid">
           <div className="kpi-card">
-            <div className="kpi-icon-wrap" style={{ background: '#f0fdfa', color: '#0f766e' }}>
+            <div className="kpi-icon-wrap" style={{ background: cfg.accentBg, color: cfg.accent }}>
               <FaTags />
             </div>
             <div className="kpi-content">
-              <div className="kpi-label">Unique Matched Tags</div>
-              <div className="kpi-val" style={{ color: '#0f766e' }}>{displayTotals.uniqueTags}</div>
+              <div className="kpi-label">{cfg.kpiUnique}</div>
+              <div className="kpi-val" style={{ color: cfg.accent }}>{displayTotals.uniqueTags}</div>
             </div>
           </div>
           <div className="kpi-card">
@@ -691,7 +772,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
               <FaSearch className="table-search-icon" />
               <input
                 type="text"
-                placeholder="Search Item Code, RFID Code, Category, Product, Counter, Branch..."
+                placeholder="Search Item Code, RFID, SKU, HUID, Category, Product, Counter, Branch..."
                 value={tableSearchQuery}
                 onChange={(e) => {
                   setTableSearchQuery(e.target.value);
@@ -739,9 +820,9 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
             {loading ? (
               <div className="state-empty-box">
                 <FaSpinner className="fa-spin state-empty-icon text-teal" />
-                <div className="state-empty-title">Loading Matched Records...</div>
+                <div className="state-empty-title">{cfg.loadingTitle}</div>
                 <div className="state-empty-sub">
-                  Fetching verified matched stock list...
+                  {cfg.loadingSub}
                 </div>
               </div>
             ) : error ? (
@@ -761,10 +842,10 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
             ) : filteredAndSortedList.length === 0 ? (
               <div className="state-empty-box">
                 <FaTags className="state-empty-icon" style={{ color: '#cbd5e1' }} />
-                <div className="state-empty-title">No Matched Records Found</div>
+                <div className="state-empty-title">{cfg.emptyTitle}</div>
                 <div className="state-empty-sub">
                   {matchedList.length === 0
-                    ? `No matched items found for branch '${branchFormattedDisplay}' on ${stockTakingDate}. Try changing the date or branch.`
+                    ? `No ${cfg.word} items found for branch '${branchFormattedDisplay}' on ${stockTakingDate}. Try changing the date or branch.`
                     : 'No records matched your search query.'}
                 </div>
               </div>
@@ -787,6 +868,26 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                       <div className="th-content">
                         <span>Item Code</span>
                         {sortConfig.key === 'itemCode' ? (
+                          sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
+                        ) : (
+                          <FaSort className="th-sort-muted" />
+                        )}
+                      </div>
+                    </th>
+                    <th onClick={() => handleSort('sku')} className="sortable-th">
+                      <div className="th-content">
+                        <span>SKU</span>
+                        {sortConfig.key === 'sku' ? (
+                          sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
+                        ) : (
+                          <FaSort className="th-sort-muted" />
+                        )}
+                      </div>
+                    </th>
+                    <th onClick={() => handleSort('huid')} className="sortable-th">
+                      <div className="th-content">
+                        <span>HUID</span>
+                        {sortConfig.key === 'huid' ? (
                           sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
                         ) : (
                           <FaSort className="th-sort-muted" />
@@ -873,6 +974,16 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                         )}
                       </div>
                     </th>
+                    <th onClick={() => handleSort('status')} className="sortable-th">
+                      <div className="th-content">
+                        <span>Status</span>
+                        {sortConfig.key === 'status' ? (
+                          sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
+                        ) : (
+                          <FaSort className="th-sort-muted" />
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -880,6 +991,8 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                     const rowIdx = (currentPage - 1) * pageSize + idx + 1;
                     const rfidVal = item.RFIDTag ?? item.RFIDCode ?? item.rfidTag ?? item.rfidCode ?? '-';
                     const itemCodeVal = item.ItemCode ?? item.itemCode ?? '-';
+                    const skuVal = item.SKU ?? item.sku ?? item.Sku ?? '-';
+                    const huidVal = item.HUID ?? item.huid ?? item.HUIDCode ?? item.huidCode ?? '-';
                     const categoryVal = item.CategoryName ?? item.categoryName ?? '-';
                     const productVal = item.ProductName ?? item.productName ?? '-';
                     const designVal = item.DesignName ?? item.designName ?? '-';
@@ -889,6 +1002,8 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                     const counterVal = item.CounterName ?? item.counterName ?? item.CounterNumber ?? item.counterNumber ?? '-';
                     const branchNameVal = item.BranchName ?? item.branchName ?? activeBranchName ?? '-';
                     const branchAddressVal = item.BranchAddress ?? item.branchAddress ?? activeBranchAddress ?? '';
+                    const statusVal = item.Status ?? item.status ?? cfg.statusDefault;
+                    const statusIsUnmatch = String(statusVal).toLowerCase().includes('unmatch');
 
                     return (
                       <tr key={rfidVal !== '-' ? rfidVal : itemCodeVal !== '-' ? itemCodeVal : idx}>
@@ -902,6 +1017,12 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                         </td>
                         <td>
                           <span className="item-code-text">{itemCodeVal}</span>
+                        </td>
+                        <td>
+                          <span className="text-secondary">{skuVal}</span>
+                        </td>
+                        <td>
+                          <span className="text-secondary">{huidVal}</span>
                         </td>
                         <td>
                           <span className="category-pill">{categoryVal}</span>
@@ -936,6 +1057,11 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
                               <span className="branch-address-sub">{branchAddressVal}</span>
                             )}
                           </div>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${statusIsUnmatch ? 'is-unmatch' : 'is-match'}`}>
+                            {statusVal}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -1016,6 +1142,63 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
         .stock-taking-matched-list-root.is-embedded {
           padding: 0;
         }
+        .stock-taking-matched-list-root.is-standalone .sv-top {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+          margin-bottom: 12px;
+        }
+        .stock-taking-matched-list-root.is-standalone .sv-top-inner {
+          padding: 12px 14px 10px;
+        }
+        .stock-taking-matched-list-root.is-standalone .sv-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .stock-taking-matched-list-root.is-standalone .sv-tabs {
+          display: inline-flex;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          overflow: hidden;
+          background: #fff;
+        }
+        .stock-taking-matched-list-root.is-standalone .sv-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          height: 28px;
+          padding: 0 11px;
+          border: none;
+          border-right: 1px solid #e2e8f0;
+          background: #fff;
+          color: #334155;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .stock-taking-matched-list-root.is-standalone .sv-tab:last-child { border-right: none; }
+        .stock-taking-matched-list-root.is-standalone .sv-tab.is-active { background: #f0fdfa; color: #0f766e; }
+        .stock-taking-matched-list-root.is-standalone.is-unmatched .sv-tab.is-active { background: #fff7ed; color: #c2410c; }
+        .stock-taking-matched-list-root.is-standalone .sv-chip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          height: 28px;
+          padding: 0 11px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          background: #fff;
+          color: #334155;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .stock-taking-matched-list-root.is-standalone .sv-chip--accent { border-color: #99f6e4; color: #0f766e; }
         .matched-list-container {
           display: flex;
           flex-direction: column;
@@ -1280,6 +1463,10 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
           border-color: #0f766e;
           box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
         }
+        .stock-taking-matched-list-root.is-unmatched .table-search-box input:focus {
+          border-color: #c2410c;
+          box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.12);
+        }
         .table-search-clear {
           position: absolute;
           right: 8px;
@@ -1452,6 +1639,24 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
           text-overflow: ellipsis;
           max-width: 180px;
         }
+        .status-pill {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.2px;
+          white-space: nowrap;
+        }
+        .status-pill.is-match {
+          background: #f0fdfa;
+          color: #0f766e;
+        }
+        .status-pill.is-unmatch {
+          background: #fff7ed;
+          color: #c2410c;
+        }
         .state-empty-box {
           padding: 40px 20px;
           text-align: center;
@@ -1476,7 +1681,34 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '' }) =>
           max-width: 460px;
         }
         .text-teal { color: #0f766e; }
+        .text-orange { color: #c2410c; }
         .text-red { color: #dc2626; }
+        .stock-taking-matched-list-root.is-unmatched .filter-icon {
+          color: #c2410c;
+        }
+        .stock-taking-matched-list-root.is-unmatched .filter-select:focus,
+        .stock-taking-matched-list-root.is-unmatched .filter-input:focus {
+          border-color: #c2410c;
+          box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.12);
+        }
+        .stock-taking-matched-list-root.is-unmatched .btn-primary {
+          background: #c2410c;
+          box-shadow: 0 1px 2px rgba(194, 65, 12, 0.2);
+        }
+        .stock-taking-matched-list-root.is-unmatched .btn-primary:hover:not(:disabled) {
+          background: #9a3412;
+          box-shadow: 0 2px 4px rgba(194, 65, 12, 0.3);
+        }
+        .stock-taking-matched-list-root.is-unmatched .response-info-banner {
+          background: #fff7ed;
+          border-color: #ffedd5;
+        }
+        .stock-taking-matched-list-root.is-unmatched .response-info-text {
+          color: #c2410c;
+        }
+        .stock-taking-matched-list-root.is-unmatched .table-search-box:focus-within {
+          border-color: #c2410c;
+        }
         .table-pagination {
           padding: 10px 16px;
           display: flex;

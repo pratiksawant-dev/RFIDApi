@@ -41,7 +41,8 @@ export const remapApiUrl = (rawUrl) => {
   // Stock taking APIs must strictly stay on their target host
   if (
     parsed.pathname.includes('GetBranchAddresses') ||
-    parsed.pathname.includes('GetStockTakingMatchedList')
+    parsed.pathname.includes('GetStockTakingMatchedList') ||
+    parsed.pathname.includes('GetStockTakingUnmatchedList')
   ) {
     return rawUrl;
   }

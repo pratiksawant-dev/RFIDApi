@@ -6,4 +6,5 @@ export { default as StockVerification } from './StockVerification';
 export { default as StockTransfer } from './StockTransfer';
 export { default as InvoiceStock } from './InvoiceStock';
 export { default as OrderList } from './OrderList';
-export { default as StockTakingMatchedList } from './StockTakingMatchedList';
+export { default as StockTakingMatchedList } from './StockTakingMatchedList';
+export { default as StockTakingUnmatchedList } from './StockTakingUnmatchedList';

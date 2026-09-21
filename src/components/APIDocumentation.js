@@ -577,6 +577,51 @@ const APIDocumentation = () => {
       }
     },
     {
+      id: 'get-stock-taking-unmatched-list',
+      name: 'Get Stock Taking Unmatched List',
+      endpoint: 'GetStockTakingUnmatchedList',
+      method: 'POST',
+      baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
+      description: 'Get unique unmatched RFID tags (status UnMatch, latest scan only) for one client, branch, and stock-taking date. POST body: ClientCode, BranchAddress, StockTakingDate. GET also works: ?clientCode=&branchAddress=&stockTakingDate=. Same shape as matched list, with UnmatchedList. ProductScan fallback exists.',
+      sampleBody: {
+        ClientCode: 'LS000123',
+        BranchAddress: '1007',
+        StockTakingDate: '2026-09-16'
+      },
+      responseFormat: {
+        Message: 'Unmatched stock taking list loaded successfully.',
+        BranchName: 'Main Showroom',
+        BranchAddress: '1007',
+        TotalSessionsFound: 2,
+        TotalUnmatchedRecordsScanned: 12,
+        TotalUniqueUnmatchedTags: 10,
+        Totals: {
+          TotalQty: 10,
+          TotalGrossWeight: 42.5,
+          TotalNetWeight: 38.2
+        },
+        UnmatchedList: [
+          {
+            ItemCode: 'ITEM009',
+            RFIDCode: 'E280116060000204006625C8',
+            SKU: 'SKU-009',
+            HUID: 'HUID123',
+            CategoryName: 'Gold',
+            ProductName: 'Chain',
+            DesignName: 'Rope',
+            PurityName: '22CT',
+            GrossWeight: 8.5,
+            NetWeight: 8.1,
+            Quantity: 1,
+            CounterName: 'Gold Counter',
+            BranchName: 'Main Showroom',
+            BranchAddress: '1007',
+            Status: 'UnMatch'
+          }
+        ]
+      }
+    },
+    {
       id: 'tag-usage',
       name: 'Get Used/Unused RFID Tags',
       endpoint: 'GetAllUsedAndUnusedTag',

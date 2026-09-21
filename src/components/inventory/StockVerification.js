@@ -137,15 +137,18 @@ const StockVerification = () => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
     if (tabParam === 'matchedList' || tabParam === 'matched') return 'matchedList';
+    if (tabParam === 'unmatchedList' || tabParam === 'unmatched') return 'unmatchedList';
     if (tabParam === 'combineReport' || tabParam === 'consolidation') return 'combineReport';
     return 'batches';
-  }); // 'batches' | 'combineReport' | 'matchedList'
+  }); // 'batches' | 'combineReport' | 'matchedList' | 'unmatchedList'
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     if (tabParam === 'matchedList' || tabParam === 'matched') {
       setActiveTab('matchedList');
+    } else if (tabParam === 'unmatchedList' || tabParam === 'unmatched') {
+      setActiveTab('unmatchedList');
     } else if (tabParam === 'combineReport' || tabParam === 'consolidation') {
       setActiveTab('combineReport');
     } else if (tabParam === 'batches') {
@@ -1625,7 +1628,7 @@ const StockVerification = () => {
         <div className="sv-top-inner">
           <PageHeader
             title="Stock Verification"
-            subtitle={`${activeTab === 'batches' ? `${totalRecords.toLocaleString()} batch rows` : activeTab === 'matchedList' ? 'Stock taking matched list' : 'Consolidated tree report'}${appliedFilterCount ? ` · ${appliedFilterCount} filter${appliedFilterCount === 1 ? '' : 's'}` : ''}`}
+            subtitle={`${activeTab === 'batches' ? `${totalRecords.toLocaleString()} batch rows` : activeTab === 'matchedList' ? 'Stock taking matched list' : activeTab === 'unmatchedList' ? 'Stock taking unmatched list' : 'Consolidated tree report'}${appliedFilterCount ? ` · ${appliedFilterCount} filter${appliedFilterCount === 1 ? '' : 's'}` : ''}`}
             barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
             actions={(
               <div className="sv-header-actions">
@@ -1656,6 +1659,15 @@ const StockVerification = () => {
                     onClick={() => setActiveTab('matchedList')}
                   >
                     <FaCheckCircle /> Matched List
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'unmatchedList'}
+                    className={`sv-tab${activeTab === 'unmatchedList' ? ' is-active is-unmatched' : ''}`}
+                    onClick={() => setActiveTab('unmatchedList')}
+                  >
+                    <FaTimesCircle /> Unmatched List
                   </button>
                 </div>
                 <button
@@ -3076,6 +3088,12 @@ const StockVerification = () => {
         </div>
       )}
 
+      {activeTab === 'unmatchedList' && (
+        <div style={{ animation: 'fadeIn 0.25s ease-in-out' }}>
+          <StockTakingMatchedList embedded={true} initialClientCode={clientCode} variant="unmatched" />
+        </div>
+      )}
+
       <style>{`
         .stock-verification-page { box-sizing: border-box; }
         .stock-verification-page * { box-sizing: border-box; }
@@ -3122,6 +3140,7 @@ const StockVerification = () => {
         }
         .sv-tab:last-child { border-right: none; }
         .sv-tab.is-active { background: #f0fdfa; color: #0f766e; }
+        .sv-tab.is-active.is-unmatched { background: #fff7ed; color: #c2410c; }
         .sv-chip {
           display: inline-flex;
           align-items: center;

@@ -154,6 +154,17 @@ export const PLAYGROUND_GET_STOCK_TAKING_MATCHED_LIST_BODY = {
   StockTakingDate: '2026-09-16',
 };
 
+/**
+ * Stock Taking Unmatched List page → POST …/api/ProductMaster/GetStockTakingUnmatchedList (RRGold)
+ * GET also works: ?clientCode=&branchAddress=&stockTakingDate=
+ * Same payload as matched list. Returns unique UnMatch RFID tags (latest scan only).
+ */
+export const PLAYGROUND_GET_STOCK_TAKING_UNMATCHED_LIST_BODY = {
+  ClientCode: 'LS000123',
+  BranchAddress: '1007',
+  StockTakingDate: '2026-09-16',
+};
+
 /** Create Masters → POST …/api/ClientOnboarding/DeleteBranch
  *  RRGold → POST …/api/ClientOnboarding/DeleteBranchMaster
  *  Same body: { ClientCode, Id }
