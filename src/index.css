@@ -1808,7 +1808,8 @@ h1.app-page-title {
   padding: 16px 20px;
   min-height: 100vh;
   background: #fff;
-  width: 100%;
+  width: calc(100% - var(--ssb-w));
+  max-width: calc(100% - var(--ssb-w));
   box-sizing: border-box;
 }
 .ssb-main.has-topbar {
@@ -1838,6 +1839,8 @@ h1.app-page-title {
   }
   .ssb-main {
     margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
     padding: 12px;
   }
   .ssb-item {

@@ -1663,7 +1663,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
   };
 
   return (
-    <div style={{ 
+    <div className="quotation-page" style={{ 
       padding: isSmallScreen ? '12px' : '20px', 
       fontFamily: 'Inter, system-ui, sans-serif', 
       background: '#ffffff', 
@@ -1698,7 +1698,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         }
       `}</style>
       {/* Top Header - Compact */}
-      <div style={{
+      <div className="quotation-header" style={{
         background: 'linear-gradient(120deg, #ecfeff 0%, #f0f9ff 48%, #f8fafc 100%)',
         borderRadius: '10px',
         padding: isSmallScreen ? '9px 12px' : '11px 16px',
@@ -1706,11 +1706,6 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
         border: '1px solid #e2e8f0',
         borderLeft: '4px solid #14b8a6',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '10px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h2 style={{ 
@@ -1779,11 +1774,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
              border: '1px solid #e2e8f0',
              borderTop: '3px solid #22c55e'
            }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: isSmallScreen ? '1fr' : 'repeat(5, 1fr)', 
-              gap: '12px' 
-            }}>
+            <div className="quotation-customer-grid">
               {/* Customer Name */}
               <div>
                 <label style={{ 
@@ -2073,14 +2064,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
              border: '1px solid #e2e8f0',
              borderTop: '3px solid #0284c7'
            }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '12px',
-              flexWrap: 'wrap',
-              gap: '8px'
-            }}>
+            <div className="quotation-item-head">
               <h3 style={{ 
                 margin: 0, 
                 fontSize: '14px', 
@@ -2135,15 +2119,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
             </div>
 
             {/* Search Box for Item Code - Reduced Width */}
-            <div style={{
-              marginBottom: '12px',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: '8px',
-              flexWrap: 'wrap'
-            }}>
+            <div className="quotation-item-tools">
               {/* Tray Scanning Icon Button */}
               <button
                 onClick={() => (trayEnabled ? setShowRfidTrayModal(true) : navigate('/quotation-rfid-tray'))}
@@ -2195,12 +2171,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
               >
                 Clear Scanned
               </button>
-              <div style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                width: isSmallScreen ? '100%' : '360px'
-              }}>
+              <div className="quotation-item-search">
                 <FaSearch style={{
                   position: 'absolute',
                   left: '10px',
@@ -2273,11 +2244,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
               
               {/* Search Results Dropdown - Only Item Code */}
               {showSearchResults && searchResults.length > 0 && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  width: isSmallScreen ? '100%' : '360px',
+                <div className="quotation-search-results" style={{
                   background: '#ffffff',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
@@ -2320,16 +2287,8 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
             </div>
 
             {/* Items Table */}
-            <div style={{ 
-              overflowX: 'auto',
-              overflowY: 'auto',
+            <div className="quotation-table-wrap" style={{ 
               maxHeight: isSmallScreen ? '400px' : '600px',
-              WebkitOverflowScrolling: 'touch',
-              borderRadius: '12px',
-              border: '1px solid #d4d4d8',
-              position: 'relative',
-              background: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
             }}>
               {itemViewMode === 'grid' ? (
                 <div style={{ padding: 10, background: '#fafafa', minHeight: 220 }}>
@@ -2338,13 +2297,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
                       No items added yet. Search by Item Code to add items.
                     </div>
                   ) : (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: isSmallScreen ? 'repeat(1, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))',
-                        gap: 10,
-                      }}
-                    >
+                    <div className="quotation-item-grid">
                       {paginatedQuotationItems.map((item, index) => {
                         const lookupKeys = getQuotationImageLookupKeys(item);
                         const itemCodeKey = String(lookupKeys[0] || '').trim().toUpperCase();
@@ -2398,13 +2351,11 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
                   )}
                 </div>
               ) : (
-              <table className="quotation-main-table" style={{ 
+              <table className={`quotation-main-table${quotationItems.length === 0 ? ' is-empty' : ''}`} style={{ 
                 width: '100%', 
                 borderCollapse: 'separate',
                 borderSpacing: 0,
                 fontSize: isSmallScreen ? '10px' : '11px',
-                minWidth: isSmallScreen ? '1500px' : '1700px',
-                tableLayout: 'fixed',
                 color: '#334155'
               }}>
                 <thead>
@@ -2616,23 +2567,14 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
               </table>
               )}
             </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 6px 2px',
-                flexWrap: 'wrap',
-                gap: 8,
-              }}
-            >
+            <div className="quotation-pager">
               <div style={{ fontSize: 11, color: '#525252', fontWeight: 600 }}>
                 {quotationItems.length} record{quotationItems.length === 1 ? '' : 's'} · {itemTablePageSize}/page
                 {quotationItems.length > 0
                   ? ` · ${((itemTablePage - 1) * itemTablePageSize) + 1}-${Math.min(itemTablePage * itemTablePageSize, quotationItems.length)} shown`
                   : ''}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="quotation-pager-nav">
                 <select
                   value={itemTablePageSize}
                   onChange={(e) => {
@@ -2795,11 +2737,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
             </div>
 
             {/* Product Form - All fields displayed, only Rate/Gm and Making editable */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '16px'
-            }}>
+            <div className="quotation-edit-grid">
               {/* Read-only fields */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
@@ -3161,14 +3099,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
             </div>
 
             {/* Modal Actions */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              marginTop: '24px',
-              paddingTop: '20px',
-              borderTop: '2px solid #e5e7eb'
-            }}>
+            <div className="quotation-modal-actions">
               <button
                 type="button"
                 onClick={closeEditModal}
@@ -3224,13 +3155,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
       )}
 
       {/* Action Buttons */}
-      <div style={{
-        display: 'flex',
-        gap: '10px',
-        justifyContent: 'flex-end',
-        flexWrap: 'wrap',
-        marginTop: '16px'
-      }}>
+      <div className="quotation-actions">
         <button
           type="button"
           onClick={handleSubmit}
@@ -3353,6 +3278,164 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        .quotation-page {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .quotation-page *,
+        .quotation-page *::before,
+        .quotation-page *::after { box-sizing: border-box; }
+        .quotation-header,
+        .quotation-item-head,
+        .quotation-item-tools,
+        .quotation-pager,
+        .quotation-actions,
+        .quotation-modal-actions {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          min-width: 0;
+          max-width: 100%;
+        }
+        .quotation-header,
+        .quotation-item-head,
+        .quotation-pager {
+          justify-content: space-between;
+        }
+        .quotation-item-head { margin-bottom: 12px; }
+        .quotation-item-tools {
+          position: relative;
+          justify-content: flex-end;
+          margin-bottom: 12px;
+        }
+        .quotation-item-search {
+          position: relative;
+          display: flex;
+          align-items: center;
+          flex: 1 1 220px;
+          width: min(360px, 100%);
+          max-width: 100%;
+          min-width: 0;
+        }
+        .quotation-search-results {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          width: min(360px, 100%);
+          z-index: 1000;
+          max-height: 250px;
+          overflow-y: auto;
+          margin-top: 4px;
+        }
+        .quotation-customer-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 12px;
+          min-width: 0;
+        }
+        .quotation-customer-grid > div,
+        .quotation-customer-grid input,
+        .quotation-customer-grid select { min-width: 0; max-width: 100%; }
+        .quotation-item-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .quotation-table-wrap {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+          border-radius: 12px;
+          border: 1px solid #d4d4d8;
+          position: relative;
+          background: #ffffff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .quotation-main-table {
+          width: 100%;
+          min-width: 1480px;
+          table-layout: auto;
+        }
+        .quotation-main-table.is-empty { min-width: 0; }
+        .quotation-main-table th:last-child,
+        .quotation-main-table td:last-child {
+          position: sticky;
+          right: 0;
+          z-index: 2;
+        }
+        .quotation-pager { padding: 10px 6px 2px; }
+        .quotation-pager-nav {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 6px;
+          min-width: 0;
+        }
+        .quotation-actions,
+        .quotation-modal-actions {
+          justify-content: flex-end;
+        }
+        .quotation-actions { margin-top: 16px; }
+        .quotation-actions button,
+        .quotation-item-tools > button,
+        .quotation-pager-nav button {
+          min-height: 32px;
+        }
+        .quotation-edit-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .quotation-modal-actions {
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 2px solid #e5e7eb;
+          gap: 12px;
+        }
+        @media (max-width: 1280px) {
+          .quotation-customer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .quotation-item-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+          .quotation-edit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 980px) {
+          .quotation-customer-grid,
+          .quotation-item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .quotation-edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .quotation-item-tools { justify-content: stretch; }
+          .quotation-item-search { flex: 1 1 100%; width: 100%; }
+          .quotation-search-results { left: 0; right: 0; width: 100%; }
+        }
+        @media (max-width: 640px) {
+          .quotation-header { align-items: stretch; }
+          .quotation-header > div { width: 100%; }
+          .quotation-customer-grid,
+          .quotation-item-grid,
+          .quotation-edit-grid { grid-template-columns: minmax(0, 1fr); }
+          .quotation-item-tools > button,
+          .quotation-actions button,
+          .quotation-modal-actions button,
+          .quotation-pager-nav button {
+            flex: 1 1 auto;
+            justify-content: center;
+            min-height: 40px;
+          }
+          .quotation-actions,
+          .quotation-modal-actions,
+          .quotation-pager,
+          .quotation-pager-nav {
+            width: 100%;
+            align-items: stretch;
+          }
+          .quotation-actions button,
+          .quotation-modal-actions button { width: 100%; }
+          .quotation-pager-nav { justify-content: space-between; }
+          .quotation-pager-nav select { height: 40px; }
         }
       `}</style>
     </div>

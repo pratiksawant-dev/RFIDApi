@@ -6452,6 +6452,23 @@ const LabelStockList = () => {
             transition: width 220ms ease;
           }
 
+          .table-scroll-container,
+          .grid-scroll-container {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+          }
+
+          @media (max-width: 1100px) {
+            .lsl-search-row { flex: 1 1 100%; }
+            .label-toolbar-actions {
+              width: 100%;
+              margin-left: 0;
+            }
+            .lsl-chip-group { flex: 1 1 auto; }
+            .lsl-chip-group .lsl-chip { flex: 1 1 auto; justify-content: center; }
+          }
+
           @media (max-width: 1024px) {
             .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
           }
@@ -6459,15 +6476,24 @@ const LabelStockList = () => {
           @media (max-width: 768px) {
             .lsl-top { position: relative; margin-bottom: 8px; }
             .lsl-top-inner { padding: 10px; }
-            .lsl-search-wrap input { height: 32px !important; }
+            .lsl-search-wrap input,
+            .lsl-chip,
+            .lsl-chip-group .lsl-chip { height: 36px !important; }
             .label-toolbar-actions {
               width: 100%;
               margin-left: 0;
               flex-wrap: wrap;
               overflow: visible;
+              gap: 6px;
             }
-            .label-toolbar-actions button {
-              flex-shrink: 0;
+            .label-toolbar-actions > .lsl-chip,
+            .label-toolbar-actions > .lsl-more {
+              flex: 1 1 calc(50% - 6px);
+            }
+            .label-toolbar-actions > .lsl-more > .lsl-chip,
+            .label-toolbar-actions > .lsl-chip {
+              width: 100%;
+              justify-content: center;
             }
             .filter-inline-section > div {
               flex-direction: column !important;
@@ -6482,8 +6508,10 @@ const LabelStockList = () => {
             .grid-scroll-container {
               width: 100% !important;
               max-width: 100% !important;
+              min-width: 0 !important;
             }
             .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+            .lsl-icon-btn { width: 36px; height: 36px; }
           }
 
           @media (max-width: 640px) {
@@ -6491,7 +6519,8 @@ const LabelStockList = () => {
             .lsl-icon-btn { width: 36px; height: 36px; }
             .lsl-more-menu {
               right: 0;
-              width: min(280px, calc(100vw - 20px));
+              left: auto;
+              width: min(280px, calc(100vw - 24px));
             }
             .lsl-pagination {
               flex-direction: column;
@@ -6508,10 +6537,16 @@ const LabelStockList = () => {
               height: 40px;
               min-width: 0;
             }
-            .label-toolbar-actions button {
-              min-width: 36px;
-              padding: 0 9px !important;
+            .label-toolbar-actions {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
             }
+            .lsl-chip-group {
+              grid-column: 1 / -1;
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            .lsl-chip-group .lsl-chip { border-right: 1px solid #e2e8f0; }
             .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
             .product-card__action span { display: none; }
           }

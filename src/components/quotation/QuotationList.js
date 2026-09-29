@@ -715,13 +715,7 @@ const QuotationList = () => {
                 {searchQuery.trim() ? 'No quotations found matching your search.' : 'No quotations found'}
               </div>
             ) : (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: isSmallScreen ? 'repeat(1, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
-                  gap: 10,
-                }}
-              >
+              <div className="quotation-list-cards">
                 {currentQuotations.map((quotation, index) => {
                   const rowIndex = startIndex + index + 1;
                   return (
@@ -787,13 +781,11 @@ const QuotationList = () => {
           </div>
         ) : (
         <div style={{ overflowX: 'auto', overflowY: 'visible', width: '100%', maxWidth: '100%', background: '#fafafa' }}>
-          <table className="quotation-list-table" style={{
+          <table className={`quotation-list-table${currentQuotations.length === 0 ? ' is-empty' : ''}`} style={{
             width: '100%',
-            minWidth: '1200px',
             borderCollapse: 'separate',
             borderSpacing: 0,
             fontSize: isSmallScreen ? 10 : 11,
-            tableLayout: 'fixed'
           }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
               <tr>
@@ -1230,6 +1222,36 @@ const QuotationList = () => {
       )}
 
       <style>{`
+        .quotation-list-page {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .quotation-list-cards {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .quotation-list-table {
+          min-width: 980px;
+        }
+        .quotation-list-table.is-empty { min-width: 0; }
+        .quotation-list-table th:last-child,
+        .quotation-list-table td:last-child {
+          position: sticky;
+          right: 0;
+          background: #fff;
+        }
+        @media (max-width: 1200px) {
+          .quotation-list-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+          .quotation-list-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+          .quotation-list-cards { grid-template-columns: minmax(0, 1fr); }
+        }
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }

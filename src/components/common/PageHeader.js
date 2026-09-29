@@ -41,7 +41,7 @@ const PageHeader = ({
         </div>
       </div>
       {actions != null ? (
-        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
+        <div className="app-page-header-actions">
           {actions}
         </div>
       ) : null}

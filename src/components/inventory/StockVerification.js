@@ -1267,7 +1267,7 @@ const StockVerification = () => {
             <div style={{ fontSize: 11, color: '#525252', marginBottom: 8, fontWeight: 600 }}>
               {filteredItems.length.toLocaleString()} of {(items.length || 0).toLocaleString()} item(s)
             </div>
-            <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid #d4d4d8', borderRadius: 10 }}>
+            <div className="sv-table-scroll" style={{ background: '#fff', border: '1px solid #d4d4d8', borderRadius: 10 }}>
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: isSmallScreen ? 10 : 11, minWidth: 720 }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr style={{ background: SV.headerBg, boxShadow: '0 1px 0 #e4e4e7' }}>
@@ -1410,11 +1410,13 @@ const StockVerification = () => {
           className="consolidation-tree-wrap"
           style={{
             overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
             background: '#ffffff',
             borderRadius: 12,
             border: '1px solid #d4d4d8',
             boxShadow: 'none',
-            overflow: 'hidden'
+            width: '100%',
+            maxWidth: '100%',
           }}
         >
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 640, fontSize: isSmallScreen ? 10 : 11 }}>
@@ -1622,6 +1624,9 @@ const StockVerification = () => {
         fontSize: 11,
         minHeight: '100%',
         background: '#f8fafc',
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
       }}
     >
       <div className="sv-top">
@@ -1966,15 +1971,14 @@ const StockVerification = () => {
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
-        <div style={{ overflowX: 'auto', width: '100%', background: SV.tableBg }}>
+        <div className="sv-table-scroll">
           <table
-            className="app-data-table"
+            className={`app-data-table sv-data-table${currentSessions.length === 0 ? ' is-empty' : ''}`}
             style={{
               width: '100%',
               borderCollapse: 'separate',
               borderSpacing: 0,
-              minWidth: 1240,
-              tableLayout: 'fixed',
+              tableLayout: 'auto',
             }}
           >
             <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
@@ -3095,7 +3099,7 @@ const StockVerification = () => {
       )}
 
       <style>{`
-        .stock-verification-page { box-sizing: border-box; }
+        .stock-verification-page { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
         .stock-verification-page * { box-sizing: border-box; }
         .sv-top {
           background: #fff;
@@ -3119,10 +3123,12 @@ const StockVerification = () => {
         }
         .sv-tabs {
           display: inline-flex;
+          flex-wrap: wrap;
           border: 1px solid #e2e8f0;
           border-radius: 6px;
           overflow: hidden;
           background: #fff;
+          max-width: 100%;
         }
         .sv-tab {
           display: inline-flex;
@@ -3343,13 +3349,38 @@ const StockVerification = () => {
           cursor: pointer;
         }
         .sv-icon-close:hover { background: #f8fafc; }
+        .sv-table-scroll {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          background: #fafafa;
+        }
+        .sv-data-table { width: 100%; min-width: 980px; }
+        .sv-data-table.is-empty { min-width: 0; }
+        .sv-data-table th:last-child,
+        .sv-data-table td:last-child {
+          position: sticky;
+          right: 0;
+        }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @media (max-width: 1100px) {
+          .sv-header-actions { width: 100%; justify-content: flex-start; }
+          .sv-tabs { width: 100%; }
+          .sv-tab { flex: 1 1 auto; justify-content: center; }
+        }
         @media (max-width: 768px) {
           .sv-top { position: relative; margin-bottom: 8px; }
           .sv-top-inner { padding: 10px; }
           .sv-header-actions, .sv-toolbar-actions, .sv-search-wrap { width: 100%; }
           .sv-toolbar-actions { margin-left: 0; }
+          .sv-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+          .sv-tab { height: 36px; justify-content: center; }
+          .sv-chip { height: 36px; }
+          .sv-toolbar-actions .sv-chip { flex: 1 1 calc(50% - 8px); }
+          .sv-search-wrap input { height: 36px; }
         }
         @media (max-width: 640px) {
           .sv-pagination {
@@ -3367,6 +3398,9 @@ const StockVerification = () => {
             height: 40px;
             min-width: 0;
           }
+          .sv-tabs { grid-template-columns: 1fr; }
+          .sv-toolbar-actions .sv-chip { flex: 1 1 100%; }
+          .sv-header-actions > .sv-chip { width: 100%; }
         }
       `}</style>
     </div>
