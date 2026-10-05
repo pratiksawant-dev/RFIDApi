@@ -117,5 +117,24 @@ describe('LS000533 PRN generation', () => {
     expect(prn).toContain('16;H;*1800*');
     expect(prn).toContain('*003138303337*');
     expect(prn).toContain('18037 | TNL4P2.25FD');
+    expect(prn).toContain('14KT | W | W');
+  });
+
+  it('appends product name and description at the end of the QR', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: '13016',
+        RFIDCode: '13016',
+        GrossWt: '3.790',
+        HallmarkAmount: 'ZER-5044',
+        DesignName: 'RING',
+        ProductName: 'GOLD RING',
+        Description: '7.25in 155pc',
+        Purity: '14KT',
+      },
+      'LS000533'
+    );
+
+    expect(prn).toContain('14KT | GOLD RING | 7.25in 155pc');
   });
 });

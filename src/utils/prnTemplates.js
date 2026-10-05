@@ -616,6 +616,10 @@ const resolveLS000533ProductCode = (item) =>
     ''
   ).trim();
 
+/** Product name printed on LS000533 and appended to the QR */
+const resolveLS000533ProductName = (item) =>
+  String(item.ProductName || item.productName || item.CategoryName || '').trim();
+
 const resolveLS000533DesignCode = (item) =>
   String(item.DesignName || item.Design || item.design || item.design_name || '').trim();
 
@@ -679,7 +683,7 @@ const resolveLS000533HallmarkAmountQr = (item) => {
   return raw;
 };
 
-/** QR payload for LS000533 stone label (matches client sequence) */
+/** QR payload for LS000533 stone label (matches client sequence, plus product name and description) */
 const formatLS000533StoneQrPayload = (item) => {
   return [
     String(item.RFIDCode || item.ItemCode || '').trim(),
@@ -690,6 +694,8 @@ const formatLS000533StoneQrPayload = (item) => {
     resolveLS000533DiamondWeightQr(item),
     formatWeight3(item.GrossWt ?? item.GrossWeight ?? item.grosswt ?? item.TWt),
     resolveLS000533Purity(item).toUpperCase(),
+    resolveLS000533ProductName(item),
+    resolveLS000533Description(item),
   ]
     .map((part) => String(part ?? '').trim())
     .join(' | ');
@@ -741,9 +747,7 @@ const generateLS000533Prn = (item) => {
   const purity = prnQuote(resolveLS000533Purity(item));
   const description = prnQuote(resolveLS000533Description(item));
   const designLabel = prnQuote(resolveLS000533DesignLabel(item));
-  const productName = prnQuote(
-    String(item.ProductName || item.productName || item.CategoryName || '').trim()
-  );
+  const productName = prnQuote(resolveLS000533ProductName(item));
   // Full HallmarkAmount text (keep units like PT) — shown to the right of design
   const hallmarkDisplay = prnQuote(resolveLS000533HallmarkAmount(item));
   const qrPayload = prnQuote(formatLS000533QrPayload(item));
