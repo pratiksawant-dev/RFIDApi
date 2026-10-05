@@ -674,6 +674,8 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
       DesignId: item?.DesignId || item?.DesignID || item?.design_id || item?.DesignNo || item?.DesignCode,
       DesignName: item?.DesignName || item?.Design || item?.design_id,
       Design: item?.Design || item?.DesignName || item?.design_id,
+      ProductName: item?.ProductName || item?.product_id || item?.Product || item?.productName,
+      product_id: item?.product_id || item?.ProductName || item?.Product,
     });
 
   useEffect(() => {

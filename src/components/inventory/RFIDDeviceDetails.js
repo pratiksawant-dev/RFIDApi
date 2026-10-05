@@ -1241,6 +1241,8 @@ const RFIDDeviceDetails = () => {
                   DesignId: item?.DesignId || item?.design_id || item?.DesignNo || item?.DesignCode,
                   DesignName: item?.DesignName || item?.Design,
                   Design: item?.Design || item?.DesignName,
+                  ProductName: item?.ProductName || item?.Product || item?.productName || item?.product_id,
+                  product_id: item?.product_id || item?.ProductName || item?.Product,
                 });
                 const apiImg = String(
                   item?.ImageUrl || item?.imageurl || item?.ImagePath || item?.PhotoUrl || item?.ProductImage || ''

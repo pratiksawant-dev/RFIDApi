@@ -822,6 +822,9 @@ const StockTracking = () => {
                 RFIDCode: rfidCode === '—' ? '' : rfidCode,
                 DesignId: designCode === '—' ? '' : designCode,
                 DesignName: designCode,
+                ProductName:
+                  field(item, 'ProductName', 'Product', 'productName', 'product_id', 'product') || '',
+                product_id: field(item, 'product_id', 'ProductName', 'Product') || '',
               });
 
               return (

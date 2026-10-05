@@ -774,6 +774,57 @@ const StockVerification = () => {
     return pages;
   };
 
+  const svPick = (item, keys, fallback = '') => {
+    if (!item) return fallback;
+    for (const key of keys) {
+      const value = item[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+    }
+    return fallback;
+  };
+
+  const SV_ITEM_HEADERS = [
+    'Item Code',
+    'RFID Code',
+    'Category',
+    'Product',
+    'Design Name',
+    'Purity',
+    'Gross Wt',
+    'Net Wt',
+    'Stone Wt',
+    'Pieces',
+    'Hallmark Amount',
+  ];
+
+  const SV_ITEM_COL_WIDTHS = [
+    { width: 16 },
+    { width: 20 },
+    { width: 18 },
+    { width: 22 },
+    { width: 20 },
+    { width: 12 },
+    { width: 14 },
+    { width: 14 },
+    { width: 12 },
+    { width: 10 },
+    { width: 16 },
+  ];
+
+  const svItemDetailCells = (item, extras = {}) => [
+    svPick(item, ['ItemCode', 'itemCode'], ''),
+    svPick(item, ['RFIDCode', 'rfidCode', 'RFIDTag', 'rfidTag'], ''),
+    svPick(item, ['CategoryName', 'categoryName', 'Category'], extras.category || ''),
+    svPick(item, ['ProductName', 'productName', 'Product'], extras.product || ''),
+    svPick(item, ['DesignName', 'designName', 'Design', 'design_id'], extras.design || ''),
+    svPick(item, ['PurityName', 'purityName', 'Purity'], extras.purity || ''),
+    Number(svPick(item, ['GrossWeight', 'GrossWt', 'grossWeight', 'grosswt'], extras.gross ?? 0) || 0).toFixed(3),
+    Number(svPick(item, ['NetWeight', 'NetWt', 'netWeight', 'netwt'], extras.net ?? 0) || 0).toFixed(3),
+    Number(svPick(item, ['StoneWeight', 'StoneWt', 'stoneWeight', 'stonewt'], 0) || 0).toFixed(3),
+    svPick(item, ['Quantity', 'quantity', 'Pieces', 'pieces', 'Qty', 'qty'], extras.pieces ?? ''),
+    svPick(item, ['HallmarkAmount', 'hallmarkAmount', 'HallmarkAmt', 'HallMarkAmount', 'hallmark'], ''),
+  ];
+
   // Export session details to Excel
   const exportSessionDetails = () => {
     if (!sessionDetails) {
@@ -823,150 +874,57 @@ const StockVerification = () => {
 
       // Matched Items Sheet
       if (sessionDetails.MatchedList && sessionDetails.MatchedList.length > 0) {
-        const matchedHeaders = [
-          'Item Code',
-          'Product Name',
-          'Category',
-          'RFIDCode',
-          'Gross Weight (g)',
-          'Pieces',
-          'Net Weight (g)',
-          'Status'
-        ];
+        const matchedHeaders = [...SV_ITEM_HEADERS, 'Status'];
 
         const matchedData = sessionDetails.MatchedList.map(item => [
-          item.ItemCode || 'N/A',
-          item.ProductName || 'N/A',
-          item.CategoryName || 'N/A',
-          item.RFIDCode || 'RFID Tag not Attached',
-          item.GrossWeight || 0,
-          item.Quantity || 0,
-          item.NetWeight || 0,
+          ...svItemDetailCells(item),
           'MATCHED'
         ]);
 
         const matchedWS = XLSX.utils.aoa_to_sheet([matchedHeaders, ...matchedData]);
         
-        // Set column widths for matched items
-        matchedWS['!cols'] = [
-          { width: 15 },
-          { width: 25 },
-          { width: 15 },
-          { width: 20 },
-          { width: 15 },
-          { width: 10 },
-          { width: 15 },
-          { width: 12 }
-        ];
+        matchedWS['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 12 }];
 
         XLSX.utils.book_append_sheet(wb, matchedWS, 'Matched Items');
       }
 
       // Unmatched Items Sheet
       if (sessionDetails.UnmatchedList && sessionDetails.UnmatchedList.length > 0) {
-        const unmatchedHeaders = [
-          'Item Code',
-          'Product Name',
-          'Category',
-          'RFIDCode',
-          'Gross Weight (g)',
-          'Pieces',
-          'Net Weight (g)',
-          'Status'
-        ];
+        const unmatchedHeaders = [...SV_ITEM_HEADERS, 'Status'];
 
         const unmatchedData = sessionDetails.UnmatchedList.map(item => [
-          item.ItemCode || 'N/A',
-          item.ProductName || 'N/A',
-          item.CategoryName || 'N/A',
-          item.RFIDCode || 'RFID Tag not Attached',
-          item.GrossWeight || 0,
-          item.Quantity || 0,
-          item.NetWeight || 0,
+          ...svItemDetailCells(item),
           'UNMATCHED'
         ]);
 
         const unmatchedWS = XLSX.utils.aoa_to_sheet([unmatchedHeaders, ...unmatchedData]);
         
-        // Set column widths for unmatched items
-        unmatchedWS['!cols'] = [
-          { width: 15 },
-          { width: 25 },
-          { width: 15 },
-          { width: 20 },
-          { width: 15 },
-          { width: 10 },
-          { width: 15 },
-          { width: 12 }
-        ];
+        unmatchedWS['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 12 }];
 
         XLSX.utils.book_append_sheet(wb, unmatchedWS, 'Unmatched Items');
       }
 
       // Combined Items Sheet (All Items)
-      const allItemsHeaders = [
-        'Item Code',
-        'Product Name',
-        'Category',
-        'RFIDCode',
-        'Gross Weight (g)',
-        'Pieces',
-        'Net Weight (g)',
-        'Status',
-        'Match Type'
-      ];
+      const allItemsHeaders = [...SV_ITEM_HEADERS, 'Status', 'Match Type'];
 
       const allItemsData = [];
       
-      // Add matched items
       if (sessionDetails.MatchedList && sessionDetails.MatchedList.length > 0) {
         sessionDetails.MatchedList.forEach(item => {
-          allItemsData.push([
-            item.ItemCode || 'N/A',
-            item.ProductName || 'N/A',
-            item.CategoryName || 'N/A',
-            item.RFIDCode || 'RFID Tag not Attached',
-            item.GrossWeight || 0,
-            item.Quantity || 0,
-            item.NetWeight || 0,
-            'MATCHED',
-            'Matched'
-          ]);
+          allItemsData.push([...svItemDetailCells(item), 'MATCHED', 'Matched']);
         });
       }
 
-      // Add unmatched items
       if (sessionDetails.UnmatchedList && sessionDetails.UnmatchedList.length > 0) {
         sessionDetails.UnmatchedList.forEach(item => {
-          allItemsData.push([
-            item.ItemCode || 'N/A',
-            item.ProductName || 'N/A',
-            item.CategoryName || 'N/A',
-            item.RFIDCode || 'RFID Tag not Attached',
-            item.GrossWeight || 0,
-            item.Quantity || 0,
-            item.NetWeight || 0,
-            'UNMATCHED',
-            'Unmatched'
-          ]);
+          allItemsData.push([...svItemDetailCells(item), 'UNMATCHED', 'Unmatched']);
         });
       }
 
       if (allItemsData.length > 0) {
         const allItemsWS = XLSX.utils.aoa_to_sheet([allItemsHeaders, ...allItemsData]);
         
-        // Set column widths for all items
-        allItemsWS['!cols'] = [
-          { width: 15 },
-          { width: 25 },
-          { width: 15 },
-          { width: 20 },
-          { width: 15 },
-          { width: 10 },
-          { width: 15 },
-          { width: 12 },
-          { width: 12 }
-        ];
+        allItemsWS['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 12 }, { width: 12 }];
 
         XLSX.utils.book_append_sheet(wb, allItemsWS, 'All Items');
       }
@@ -1071,16 +1029,10 @@ const StockVerification = () => {
       // Detailed Report Sheet - Category -> Product -> Design -> Item level rows
       const headers = [
         'Branch',
-        'Category',
-        'Product',
-        'Design',
-        'Item Code',
-        'RFID Code',
+        ...SV_ITEM_HEADERS,
         'Status',
-        'Gross Weight',
-        'Net Weight',
         'Matched Qty',
-        'Unmatch Qty'
+        'Unmatch Qty',
       ];
 
       const data = [];
@@ -1089,17 +1041,19 @@ const StockVerification = () => {
           (category.Products || []).forEach(product => {
             (product.Designs || []).forEach(design => {
               const items = design.Items || [];
+              const parentExtras = {
+                category: category.CategoryName || '',
+                product: product.ProductName || '',
+                design: design.DesignName || '',
+                purity: design.PurityName || product.PurityName || '',
+                gross: design.GrossWeight ?? 0,
+                net: design.NetWeight ?? 0,
+              };
               if (items.length === 0) {
                 data.push([
                   branch.BranchName || '',
-                  category.CategoryName || '',
-                  product.ProductName || '',
-                  design.DesignName || '',
+                  ...svItemDetailCells(design, parentExtras),
                   '',
-                  '',
-                  '',
-                  Number(design.GrossWeight ?? 0).toFixed(3),
-                  Number(design.NetWeight ?? 0).toFixed(3),
                   design.MatchedQty ?? 0,
                   design.UnmatchQty ?? 0
                 ]);
@@ -1109,14 +1063,8 @@ const StockVerification = () => {
                 const normalizedStatus = String(item.Status || '').toLowerCase();
                 data.push([
                   branch.BranchName || '',
-                  category.CategoryName || '',
-                  product.ProductName || '',
-                  design.DesignName || '',
-                  item.ItemCode || '',
-                  item.RFIDCode || '',
+                  ...svItemDetailCells(item, parentExtras),
                   item.Status || '',
-                  Number(item.GrossWeight ?? item.GrossWt ?? 0).toFixed(3),
-                  Number(item.NetWeight ?? item.NetWt ?? 0).toFixed(3),
                   normalizedStatus === 'matched' ? 1 : 0,
                   normalizedStatus === 'unmatched' ? 1 : 0
                 ]);
@@ -1129,15 +1077,10 @@ const StockVerification = () => {
       const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
       ws['!cols'] = [
         { width: 22 },
-        { width: 20 },
-        { width: 25 },
-        { width: 22 },
-        { width: 16 },
-        { width: 16 },
-        { width: 14 },
+        ...SV_ITEM_COL_WIDTHS,
         { width: 14 },
         { width: 12 },
-        { width: 12 }
+        { width: 12 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, 'Detailed Report');
@@ -1197,23 +1140,14 @@ const StockVerification = () => {
 
     const exportModalItems = () => {
       try {
-        const headers = ['Item Code', 'RFID Code', 'Category', 'Product', 'Design', 'Status', 'Gross Weight', 'Net Weight'];
+        const headers = [...SV_ITEM_HEADERS, 'Status'];
         const rows = filteredItems.map((item) => ([
-          item?.ItemCode ?? '',
-          item?.RFIDCode ?? '',
-          item?.CategoryName ?? '',
-          item?.ProductName ?? '',
-          item?.DesignName ?? '',
+          ...svItemDetailCells(item),
           item?.Status ?? '',
-          Number(item?.GrossWeight ?? item?.GrossWt ?? 0).toFixed(3),
-          Number(item?.NetWeight ?? item?.NetWt ?? 0).toFixed(3)
         ]));
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-        ws['!cols'] = [
-          { width: 18 }, { width: 18 }, { width: 22 }, { width: 22 },
-          { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 }
-        ];
+        ws['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 14 }];
         XLSX.utils.book_append_sheet(wb, ws, 'Items');
         const cleanTitle = (title || 'Items').replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
         const dateTag = new Date().toISOString().slice(0, 10);

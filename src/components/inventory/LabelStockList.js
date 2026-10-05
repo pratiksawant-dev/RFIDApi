@@ -5056,6 +5056,8 @@ const LabelStockList = () => {
                   DesignId: item?.DesignId || item?.DesignID || item?.design_id || item?.DesignNo || item?.DesignCode,
                   DesignName: item?.DesignName || item?.Design || item?.designName || item?.design,
                   Design: item?.Design || item?.DesignName || item?.designName || item?.design,
+                  ProductName: item?.ProductName || item?.Product || item?.productName || item?.product_id,
+                  product_id: item?.product_id || item?.ProductName || item?.Product,
                 });
                 const displayItemCode =
                   String(item?.ItemCode || item?.Itemcode || item?.itemcode || '').trim() ||

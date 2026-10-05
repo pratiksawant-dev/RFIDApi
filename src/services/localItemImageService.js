@@ -101,13 +101,14 @@ export const normalizeBaseName = (value) => String(value || '').trim().toLowerCa
 export const ITEM_IMAGE_LOOKUP_MODES = {
   ITEM_CODE: 'item_code',
   DESIGN_ID: 'design_id',
+  PRODUCT_NAME: 'product_name',
 };
 
 const normalizeLookupMode = (mode) => {
   const raw = String(mode || '').trim().toLowerCase();
-  return raw === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID
-    ? ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID
-    : ITEM_IMAGE_LOOKUP_MODES.ITEM_CODE;
+  if (raw === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID) return ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID;
+  if (raw === ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME) return ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME;
+  return ITEM_IMAGE_LOOKUP_MODES.ITEM_CODE;
 };
 
 export const getItemImageLookupMode = () => {
@@ -174,17 +175,27 @@ export const getItemImageLookupKeys = (item) => {
           item.Design,
           item.design,
         ]
-      : [
-          item.ItemCode,
-          item.Itemcode,
-          item.itemcode,
-          item.RFIDCode,
-          item.RfidCode,
-          item.rfidCode,
-          item.Barcode,
-          item.BarcodeValue,
-          item.HUIDCode,
-        ];
+      : mode === ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME
+        ? [
+            item.ProductName,
+            item.productName,
+            item.Product,
+            item.product,
+            item.product_id,
+            item.ProductId,
+            item.productId,
+          ]
+        : [
+            item.ItemCode,
+            item.Itemcode,
+            item.itemcode,
+            item.RFIDCode,
+            item.RfidCode,
+            item.rfidCode,
+            item.Barcode,
+            item.BarcodeValue,
+            item.HUIDCode,
+          ];
   const seen = new Set();
   const keys = [];
   candidates.forEach((value) => {

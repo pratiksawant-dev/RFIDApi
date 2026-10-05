@@ -303,6 +303,8 @@ const SampleOut = () => {
       design_id: row?.design_id,
       DesignName: row?.design_id || row?.DesignName || row?.Design,
       Design: row?.DesignName || row?.Design,
+      ProductName: row?.ProductName || row?.product_id || row?.Product,
+      product_id: row?.product_id || row?.ProductName || row?.Product,
     });
 
   // Fetch user info on mount

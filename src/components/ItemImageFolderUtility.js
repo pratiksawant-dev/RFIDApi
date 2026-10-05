@@ -21,6 +21,12 @@ import {
   warmupLocalItemImageIndex,
 } from '../services/localItemImageService';
 
+const lookupModePhrase = (mode) => {
+  if (mode === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID) return 'design id';
+  if (mode === ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME) return 'product name';
+  return 'item code';
+};
+
 const ItemImageFolderUtility = () => {
   const navigate = useNavigate();
   const [supported, setSupported] = useState(false);
@@ -155,12 +161,12 @@ const ItemImageFolderUtility = () => {
       const url = await readLocalItemImageDataUrl(code) || (await resolveLocalItemImageBlobUrl(code));
       if (!url) {
         setStatus(
-          `No image for "${code}". Use ${code}.jpg in folder (${lookupMode === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID ? 'design id mode' : 'item code mode'}). On OneDrive: right-click file → "Always keep on this device".`
+          `No image for "${code}". Use ${code}.jpg in folder (${lookupModePhrase(lookupMode)} mode). On OneDrive: right-click file → "Always keep on this device".`
         );
         return;
       }
       setPreviewUrl(url);
-      setStatus(`Image matched for ${lookupMode === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID ? 'design id' : 'item code'} "${code}".`);
+      setStatus(`Image matched for ${lookupModePhrase(lookupMode)} "${code}".`);
     } catch (err) {
       setStatus(
         err?.message ||
@@ -176,11 +182,13 @@ const ItemImageFolderUtility = () => {
     setLookupMode(nextMode);
     await setItemImageLookupMode(nextMode);
     invalidateLocalItemImageUrlCache();
-    setStatus(
+    const savedLabel =
       nextMode === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID
-        ? 'Image mapping mode saved: Design ID (e.g. AD0314.jpg).'
-        : 'Image mapping mode saved: Item Code (e.g. GPD5.jpg).'
-    );
+        ? 'Design ID (e.g. AD0314.jpg)'
+        : nextMode === ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME
+          ? 'Product Name (e.g. Ring.jpg)'
+          : 'Item Code (e.g. GPD5.jpg)';
+    setStatus(`Image mapping mode saved: ${savedLabel}.`);
   };
 
   return (
@@ -198,7 +206,7 @@ const ItemImageFolderUtility = () => {
           <div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Item Image Folder Utility</h2>
             <p style={{ margin: '8px 0 0', fontSize: 13, color: '#475569', maxWidth: 720, lineHeight: 1.5 }}>
-              Link a folder where each image file name equals the selected key (item code or design id).
+              Link a folder where each image file name equals the selected key (item code, design id, or product name).
               First scan indexes once; new files added later are mapped automatically (desktop EXE).
             </p>
           </div>
@@ -252,6 +260,7 @@ const ItemImageFolderUtility = () => {
             >
               <option value={ITEM_IMAGE_LOOKUP_MODES.ITEM_CODE}>Item Code</option>
               <option value={ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID}>Design ID</option>
+              <option value={ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME}>Product Name</option>
             </select>
           </div>
           <Stat
@@ -275,7 +284,9 @@ const ItemImageFolderUtility = () => {
             placeholder={
               lookupMode === ITEM_IMAGE_LOOKUP_MODES.DESIGN_ID
                 ? 'Design id (e.g. AD0314)'
-                : 'Item code (e.g. GPD5)'
+                : lookupMode === ITEM_IMAGE_LOOKUP_MODES.PRODUCT_NAME
+                  ? 'Product name (e.g. Ring)'
+                  : 'Item code (e.g. GPD5)'
             }
             style={inputStyle}
           />
