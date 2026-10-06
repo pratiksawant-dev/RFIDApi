@@ -672,7 +672,7 @@ const formatLS000533C128CPayload = (item) => {
   return formatLS000533C128BPayload(itemCode);
 };
 
-/** Hallmark amount for LS000533 QR text */
+/** Hallmark amount printed on the LS000533 stone label */
 const resolveLS000533HallmarkAmountQr = (item) => {
   const raw = resolveLS000533HallmarkAmount(item);
   if (!raw) return '0';
@@ -683,22 +683,108 @@ const resolveLS000533HallmarkAmountQr = (item) => {
   return raw;
 };
 
-/** QR payload for LS000533 stone label (matches client sequence, plus product name and description) */
+const ls000533Pick = (item, keys) => {
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return value;
+    }
+  }
+  return '';
+};
+
+/** Skip master ids (107, 216) when the stock row also has the display name. */
+const ls000533PickLabel = (item, keys) => {
+  let idFallback = '';
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    if (/^-?\d+$/.test(String(value).trim())) {
+      if (!idFallback) idFallback = value;
+      continue;
+    }
+    return value;
+  }
+  return idFallback;
+};
+
+/** QR values have no spaces. Fields are joined as value|value. */
+const ls000533QrText = (value) => String(value ?? '').replace(/\s+/g, '');
+
+/** Append pt / pc / ct. Keeps an existing suffix and does not add a space. */
+const ls000533QrWithUnit = (value, unit) => {
+  const text = ls000533QrText(value);
+  if (!text) return '';
+  if (text.toLowerCase().endsWith(unit)) return text;
+  const numeric = text.replace(/,/g, '');
+  if (/^-?\d+(\.\d+)?$/.test(numeric)) {
+    const n = parseFloat(numeric);
+    const shown = Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+    return `${shown}${unit}`;
+  }
+  return `${text}${unit}`;
+};
+
+/**
+ * LS000533 QR matches the client sheet order:
+ * Bar Code | D. code | Item | Color | Pt | Pcs | Dia wt | Size | Nt Wt
+ * Template keys: product_id, Itemcode, product_code, design_id,
+ * HallmarkAmount+pt, MRP+pc, diamondweight+ct, description, netwt
+ */
 const formatLS000533StoneQrPayload = (item) => {
-  return [
-    String(item.RFIDCode || item.ItemCode || '').trim(),
-    resolveLS000533HallmarkAmountQr(item),
-    resolveLS000533DesignCode(item),
-    resolveLS000533ProductCode(item),
-    resolveLS000533StoneWeightQr(item),
-    resolveLS000533DiamondWeightQr(item),
-    formatWeight3(item.GrossWt ?? item.GrossWeight ?? item.grosswt ?? item.TWt),
-    resolveLS000533Purity(item).toUpperCase(),
-    resolveLS000533ProductName(item),
-    resolveLS000533Description(item),
-  ]
-    .map((part) => String(part ?? '').trim())
-    .join(' | ');
+  const barCode = ls000533QrText(
+    ls000533PickLabel(item, [
+      'ProductName',
+      'productName',
+      'Product',
+      'BarCode',
+      'Barcode',
+      'product_id',
+      'ProductId',
+      'ProductID',
+    ])
+  );
+  const itemCode = ls000533QrText(
+    ls000533Pick(item, ['Itemcode', 'ItemCode', 'itemCode', 'itemcode'])
+  );
+  const productCode = ls000533QrText(
+    ls000533PickLabel(item, ['product_code', 'ProductCode', 'productCode'])
+  );
+  const color = ls000533QrText(
+    ls000533PickLabel(item, [
+      'DesignName',
+      'designName',
+      'Design',
+      'design',
+      'Color',
+      'design_id',
+      'DesignId',
+      'designId',
+    ])
+  );
+  const pt = ls000533QrWithUnit(
+    ls000533Pick(item, ['HallmarkAmount', 'hallmarkAmount', 'HallmarkAmt', 'hallmarkAmt']),
+    'pt'
+  );
+  const pcs = ls000533QrWithUnit(ls000533Pick(item, ['MRP', 'Mrp', 'mrp']), 'pc');
+  const diaWt = ls000533QrWithUnit(
+    ls000533Pick(item, [
+      'diamondweight',
+      'DiamondWeight',
+      'DiamondWt',
+      'diamondWt',
+      'TotalDiamondWeight',
+    ]),
+    'ct'
+  );
+  const size = ls000533QrText(
+    ls000533Pick(item, ['description', 'Description', 'Size', 'size'])
+  );
+  const netWt = ls000533QrText(
+    ls000533Pick(item, ['netwt', 'NetWt', 'NetWeight', 'netWeight'])
+  );
+
+  return [barCode, itemCode, productCode, color, pt, pcs, diaWt, size, netWt].join('|');
 };
 
 const resolveLS000533PrnVariant = (item) => {

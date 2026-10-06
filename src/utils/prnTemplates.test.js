@@ -116,25 +116,48 @@ describe('LS000533 PRN generation', () => {
     expect(prn).toContain('RFWTAG;48;EPC');
     expect(prn).toContain('16;H;*1800*');
     expect(prn).toContain('*003138303337*');
-    expect(prn).toContain('18037 | TNL4P2.25FD');
-    expect(prn).toContain('14KT | W | W');
+    expect(prn).toContain('W|18037||TENNISNECKLACE|TNL4P2.25FDpt||||');
   });
 
-  it('appends product name and description at the end of the QR', () => {
+  it('uses stock-list names instead of product and design ids', () => {
     const prn = generateClientPrn(
       {
-        ItemCode: '13016',
-        RFIDCode: '13016',
-        GrossWt: '3.790',
-        HallmarkAmount: 'ZER-5044',
-        DesignName: 'RING',
-        ProductName: 'GOLD RING',
-        Description: '7.25in 155pc',
-        Purity: '14KT',
+        ProductId: 107,
+        ProductName: 'TNLCR1.5HD',
+        ItemCode: '18001',
+        ProductCode: 'TENNIS NECKLACE',
+        DesignId: 216,
+        DesignName: 'Y',
+        HallmarkAmount: '1.5pt',
+        MRP: '1',
+        DiamondWt: '1.680',
+        Description: '18in 107pc',
+        NetWt: '10.710',
       },
       'LS000533'
     );
 
-    expect(prn).toContain('14KT | GOLD RING | 7.25in 155pc');
+    expect(prn).toContain('TNLCR1.5HD|18001|TENNISNECKLACE|Y|1.5pt|1pc|1.68ct|18in107pc|10.710');
+    expect(prn).not.toContain('|107|');
+    expect(prn).not.toContain('|216|');
+  });
+
+  it('builds the client sheet QR with pt, pc, and ct and no spaces', () => {
+    const prn = generateClientPrn(
+      {
+        product_id: 'TNLCR1.5',
+        Itemcode: '18001',
+        product_code: 'TENNIS N',
+        design_id: 'Y',
+        HallmarkAmount: '1.5',
+        MRP: '1',
+        diamondweight: '1.68',
+        description: '18in 107pc',
+        netwt: '10.710',
+      },
+      'LS000533'
+    );
+
+    expect(prn).toContain('TNLCR1.5|18001|TENNISN|Y|1.5pt|1pc|1.68ct|18in107pc|10.710');
   });
 });
