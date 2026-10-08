@@ -4,6 +4,46 @@ import { toRrgoldApiUrl } from './apiBaseConfig';
 
 const TEMPLATE_ID_KEY = 'excelExportTemplateId';
 
+/** *_id column keys export display names; UI shows the mapped hint (not the raw id). */
+export const EXCEL_EXPORT_ID_TO_NAME_HINT = {
+  branch_id: 'branch_name',
+  counter_id: 'counter_name',
+  category_id: 'category_name',
+  product_id: 'product_name',
+  design_id: 'design_name',
+  purity_id: 'purity_name',
+  vendor_id: 'vendor_name',
+};
+
+const EXCEL_EXPORT_NAME_TO_ID_KEY = Object.fromEntries(
+  Object.entries(EXCEL_EXPORT_ID_TO_NAME_HINT).map(([idKey, nameHint]) => [nameHint, idKey])
+);
+
+/** Template / Excel header key — always the original id key when mapped. */
+export const storageExcelExportFieldKey = (key) =>
+  EXCEL_EXPORT_NAME_TO_ID_KEY[key] || key;
+
+/** Resolve values for export (name fields on stock row, not numeric ids). */
+export const excelExportValueLookupKey = (key) =>
+  EXCEL_EXPORT_ID_TO_NAME_HINT[storageExcelExportFieldKey(key)] || key;
+
+/** Subtitle in Export fields modal: show name hint instead of *_id. */
+export const excelExportFieldDisplayHint = (key) => {
+  const storageKey = storageExcelExportFieldKey(key);
+  return EXCEL_EXPORT_ID_TO_NAME_HINT[storageKey] || key;
+};
+
+const normalizeExportFieldRow = (field) => {
+  const key = storageExcelExportFieldKey(field.key);
+  if (key === field.key) return field;
+  const catalog = EXCEL_EXPORT_FIELD_CATALOG.find((row) => row.key === key);
+  return {
+    ...field,
+    key,
+    label: field.label || catalog?.label || field.key,
+  };
+};
+
 export const EXCEL_EXPORT_FIELD_CATALOG = [
   { key: 'client_code', label: 'Client Code' },
   { key: 'branch_id', label: 'Branch' },
@@ -75,7 +115,7 @@ const collapseDuplicateFields = (fields) => {
   const kept = [];
   const indexByKey = new Map();
   fields.forEach((field) => {
-    const key = HIDDEN_DUPLICATE_KEYS[field.key] || field.key;
+    const key = storageExcelExportFieldKey(HIDDEN_DUPLICATE_KEYS[field.key] || field.key);
     const existingIndex = indexByKey.get(key);
     if (existingIndex === undefined) {
       indexByKey.set(key, kept.length);
@@ -98,6 +138,7 @@ const asFieldList = (raw) => {
       order: Number(field?.order ?? field?.Order ?? index + 1) || index + 1,
     }))
     .filter((field) => field.key)
+    .map(normalizeExportFieldRow)
     .sort((a, b) => a.order - b.order);
   return collapseDuplicateFields(fields);
 };
@@ -105,7 +146,7 @@ const asFieldList = (raw) => {
 const asTemplate = (raw) => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const id = Number(raw.id ?? raw.Id ?? 0) || 0;
-  const fields = asFieldList(raw.fields ?? raw.Fields);
+  const fields = mergeExcelExportFieldsWithCatalog(asFieldList(raw.fields ?? raw.Fields));
   if (!id && !fields.length && !raw.templateName && !raw.TemplateName) return null;
   return {
     id,
@@ -131,10 +172,60 @@ export const defaultCatalogFields = () =>
     order: index + 1,
   }));
 
+/** Always show full catalog in the editor; apply saved/API selection and order where present. */
+export const mergeExcelExportFieldsWithCatalog = (templateFields = []) => {
+  if (!Array.isArray(templateFields) || !templateFields.length) {
+    return defaultCatalogFields();
+  }
+  const normalized = collapseDuplicateFields(
+    (Array.isArray(templateFields) ? templateFields : [])
+      .map((field, index) => ({
+        key: storageExcelExportFieldKey(String(field?.key ?? field?.Key ?? '').trim()),
+        label: String(field?.label ?? field?.Label ?? '').trim(),
+        selected: field?.selected !== false && field?.Selected !== false,
+        order: Number(field?.order ?? field?.Order ?? index + 1) || index + 1,
+      }))
+      .filter((field) => field.key)
+      .map(normalizeExportFieldRow)
+  );
+
+  const byKey = new Map(normalized.map((field) => [field.key, field]));
+
+  const merged = EXCEL_EXPORT_FIELD_CATALOG.map((cat, catalogIndex) => {
+    const saved = byKey.get(cat.key);
+    if (saved) byKey.delete(cat.key);
+    return {
+      key: cat.key,
+      label: saved?.label || cat.label,
+      selected: saved ? saved.selected : false,
+      order: saved?.order ?? catalogIndex + 1,
+    };
+  });
+
+  byKey.forEach((field) => {
+    merged.push({
+      key: field.key,
+      label: field.label || field.key,
+      selected: field.selected,
+      order: field.order || merged.length + 1,
+    });
+  });
+
+  merged.sort((a, b) => {
+    const orderDiff = (Number(a.order) || 0) - (Number(b.order) || 0);
+    if (orderDiff !== 0) return orderDiff;
+    const ai = EXCEL_EXPORT_FIELD_CATALOG.findIndex((row) => row.key === a.key);
+    const bi = EXCEL_EXPORT_FIELD_CATALOG.findIndex((row) => row.key === b.key);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
+  return merged.map((field, index) => ({ ...field, order: index + 1 }));
+};
+
 export const getExcelExportFields = async (clientCode) => {
   const { data } = await postJson('/api/ProductMaster/GetExcelExportFields', { clientCode });
   const fields = asFieldList(data);
-  return fields.length ? fields : defaultCatalogFields();
+  return fields.length ? mergeExcelExportFieldsWithCatalog(fields) : defaultCatalogFields();
 };
 
 export const getExcelExportTemplates = async (clientCode, userId) => {
@@ -236,12 +327,12 @@ const firstText = (item, keys) => {
 
 export const valueForExcelExportKey = (item, key, clientCode = '') => {
   const row = item || {};
-  switch (key) {
+  switch (excelExportValueLookupKey(key)) {
     case 'client_code':
       return textValue(firstText(row, ['client_code', 'ClientCode']) || clientCode);
-    case 'branch_id':
+    case 'branch_name':
       return textValue(firstText(row, ['BranchName', 'Branch', 'branchName', 'branch_name']));
-    case 'counter_id':
+    case 'counter_name':
       return textValue(firstText(row, ['CounterName', 'Counter', 'counterName', 'counter_name']));
     case 'RFIDNumber':
       return textValue(firstText(row, ['RFIDNumber', 'RFIDCode', 'RFID', 'rfidCode', 'RFIDTag', 'rfidTag']));
@@ -260,16 +351,16 @@ export const valueForExcelExportKey = (item, key, clientCode = '') => {
       if (huid) parts.push(`HUIDCode:${huid}`);
       return parts.join(', ');
     }
-    case 'category_id':
-      return textValue(firstText(row, ['CategoryName', 'Category', 'categoryName']));
-    case 'product_id':
-      return textValue(firstText(row, ['ProductName', 'Product', 'productName', 'product_id']));
-    case 'design_id':
-      return textValue(firstText(row, ['DesignName', 'Design', 'designName']));
-    case 'purity_id':
-      return textValue(firstText(row, ['PurityName', 'Purity', 'purityName']));
-    case 'vendor_id':
-      return textValue(firstText(row, ['VendorName', 'Vendor', 'vendorName']));
+    case 'category_name':
+      return textValue(firstText(row, ['CategoryName', 'Category', 'categoryName', 'category_name']));
+    case 'product_name':
+      return textValue(firstText(row, ['ProductName', 'Product', 'productName', 'product_name']));
+    case 'design_name':
+      return textValue(firstText(row, ['DesignName', 'Design', 'designName', 'design_name']));
+    case 'purity_name':
+      return textValue(firstText(row, ['PurityName', 'Purity', 'purityName', 'purity_name']));
+    case 'vendor_name':
+      return textValue(firstText(row, ['VendorName', 'Vendor', 'vendorName', 'vendor_name']));
     case 'box':
     case 'box_details':
       return textValue(firstText(row, ['BoxName', 'box_details', 'Box', 'box']));

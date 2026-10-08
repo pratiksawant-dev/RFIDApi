@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FaStar, FaTimes } from 'react-icons/fa';
 import { useNotifications } from '../../context/NotificationContext';
 import {
+  excelExportFieldDisplayHint,
+  mergeExcelExportFieldsWithCatalog,
+  storageExcelExportFieldKey,
   defaultCatalogFields,
   deleteExcelExportTemplate,
   excelExportApiError,
@@ -18,7 +21,7 @@ import '../../styles/ExcelExportTemplate.css';
 
 const cloneFields = (fields) => {
   const rows = (Array.isArray(fields) ? fields : []).map((field, index) => ({
-    key: field.key,
+    key: storageExcelExportFieldKey(field.key),
     label: field.label || field.key,
     selected: field.selected !== false,
     order: index + 1,
@@ -123,7 +126,9 @@ const ExcelExportTemplateBar = ({ onTemplateChange }) => {
     setSaving(true);
     try {
       const current = templates.find((item) => Number(item.id) === Number(activeId));
-      let fields = current?.fields || [];
+      let fields = current?.fields?.length
+        ? mergeExcelExportFieldsWithCatalog(current.fields)
+        : [];
       if (!fields.length && clientCode) {
         fields = await getExcelExportFields(clientCode);
       }
@@ -384,7 +389,7 @@ const ExcelExportTemplateBar = ({ onTemplateChange }) => {
                   />
                   <div className="eet-field-copy">
                     <strong>{field.label}</strong>
-                    <small>{field.key}</small>
+                    <small>{excelExportFieldDisplayHint(field.key)}</small>
                   </div>
                   <span className="eet-order">{index + 1}</span>
                 </div>
