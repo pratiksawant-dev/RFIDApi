@@ -34,6 +34,8 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useLoading } from '../../App';
 import PageHeader from '../common/PageHeader';
+import ExcelExportTemplateBar from './ExcelExportTemplateBar';
+import { rowsForActiveExportTemplate, worksheetFromTemplateRows } from '../../services/excelExportTemplateApi';
 import {
   STOCK_VERIFICATION_SESSION_URL,
   SESSION_LIST_PAGE_SIZE,
@@ -774,69 +776,16 @@ const StockVerification = () => {
     return pages;
   };
 
-  const svPick = (item, keys, fallback = '') => {
-    if (!item) return fallback;
-    for (const key of keys) {
-      const value = item[key];
-      if (value !== undefined && value !== null && String(value).trim() !== '') return value;
-    }
-    return fallback;
-  };
-
-  const SV_ITEM_HEADERS = [
-    'Item Code',
-    'RFID Code',
-    'Category',
-    'Product',
-    'Design Name',
-    'Purity',
-    'Gross Wt',
-    'Net Wt',
-    'Stone Wt',
-    'Pieces',
-    'Hallmark Amount',
-  ];
-
-  const SV_ITEM_COL_WIDTHS = [
-    { width: 16 },
-    { width: 20 },
-    { width: 18 },
-    { width: 22 },
-    { width: 20 },
-    { width: 12 },
-    { width: 14 },
-    { width: 14 },
-    { width: 12 },
-    { width: 10 },
-    { width: 16 },
-  ];
-
-  const svItemDetailCells = (item, extras = {}) => [
-    svPick(item, ['ItemCode', 'itemCode'], ''),
-    svPick(item, ['RFIDCode', 'rfidCode', 'RFIDTag', 'rfidTag'], ''),
-    svPick(item, ['CategoryName', 'categoryName', 'Category'], extras.category || ''),
-    svPick(item, ['ProductName', 'productName', 'Product'], extras.product || ''),
-    svPick(item, ['DesignName', 'designName', 'Design', 'design_id'], extras.design || ''),
-    svPick(item, ['PurityName', 'purityName', 'Purity'], extras.purity || ''),
-    Number(svPick(item, ['GrossWeight', 'GrossWt', 'grossWeight', 'grosswt'], extras.gross ?? 0) || 0).toFixed(3),
-    Number(svPick(item, ['NetWeight', 'NetWt', 'netWeight', 'netwt'], extras.net ?? 0) || 0).toFixed(3),
-    Number(svPick(item, ['StoneWeight', 'StoneWt', 'stoneWeight', 'stonewt'], 0) || 0).toFixed(3),
-    svPick(item, ['Quantity', 'quantity', 'Pieces', 'pieces', 'Qty', 'qty'], extras.pieces ?? ''),
-    svPick(item, ['HallmarkAmount', 'hallmarkAmount', 'HallmarkAmt', 'HallMarkAmount', 'hallmark'], ''),
-  ];
-
   // Export session details to Excel
-  const exportSessionDetails = () => {
+  const exportSessionDetails = async () => {
     if (!sessionDetails) {
       toast.error('No session data available for export');
       return;
     }
 
     try {
-      // Create a new workbook
       const wb = XLSX.utils.book_new();
 
-      // Session Summary Sheet
       const summaryData = [
         ['Session Details Export'],
         ['Generated on:', new Date().toLocaleString('en-IN')],
@@ -863,82 +812,46 @@ const StockVerification = () => {
       ];
 
       const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
-      
-      // Set column widths for summary sheet
-      summaryWS['!cols'] = [
-        { width: 25 },
-        { width: 30 }
-      ];
-
+      summaryWS['!cols'] = [{ width: 25 }, { width: 30 }];
       XLSX.utils.book_append_sheet(wb, summaryWS, 'Session Summary');
 
-      // Matched Items Sheet
-      if (sessionDetails.MatchedList && sessionDetails.MatchedList.length > 0) {
-        const matchedHeaders = [...SV_ITEM_HEADERS, 'Status'];
+      const withNames = (item, status) => ({
+        ...item,
+        BranchName: item.BranchName || sessionDetails.BranchName || '',
+        CounterName: item.CounterName || sessionDetails.CounterName || '',
+        Status: item.Status || status,
+      });
 
-        const matchedData = sessionDetails.MatchedList.map(item => [
-          ...svItemDetailCells(item),
-          'MATCHED'
-        ]);
-
-        const matchedWS = XLSX.utils.aoa_to_sheet([matchedHeaders, ...matchedData]);
-        
-        matchedWS['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 12 }];
-
-        XLSX.utils.book_append_sheet(wb, matchedWS, 'Matched Items');
+      if (sessionDetails.MatchedList?.length) {
+        const rows = await rowsForActiveExportTemplate(
+          sessionDetails.MatchedList.map((item) => withNames(item, 'MATCHED'))
+        );
+        XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(rows), 'Matched Items');
       }
 
-      // Unmatched Items Sheet
-      if (sessionDetails.UnmatchedList && sessionDetails.UnmatchedList.length > 0) {
-        const unmatchedHeaders = [...SV_ITEM_HEADERS, 'Status'];
-
-        const unmatchedData = sessionDetails.UnmatchedList.map(item => [
-          ...svItemDetailCells(item),
-          'UNMATCHED'
-        ]);
-
-        const unmatchedWS = XLSX.utils.aoa_to_sheet([unmatchedHeaders, ...unmatchedData]);
-        
-        unmatchedWS['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 12 }];
-
-        XLSX.utils.book_append_sheet(wb, unmatchedWS, 'Unmatched Items');
+      if (sessionDetails.UnmatchedList?.length) {
+        const rows = await rowsForActiveExportTemplate(
+          sessionDetails.UnmatchedList.map((item) => withNames(item, 'UNMATCHED'))
+        );
+        XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(rows), 'Unmatched Items');
       }
 
-      // Combined Items Sheet (All Items)
-      const allItemsHeaders = [...SV_ITEM_HEADERS, 'Status', 'Match Type'];
-
-      const allItemsData = [];
-      
-      if (sessionDetails.MatchedList && sessionDetails.MatchedList.length > 0) {
-        sessionDetails.MatchedList.forEach(item => {
-          allItemsData.push([...svItemDetailCells(item), 'MATCHED', 'Matched']);
-        });
+      const allItems = [
+        ...(sessionDetails.MatchedList || []).map((item) => withNames(item, 'MATCHED')),
+        ...(sessionDetails.UnmatchedList || []).map((item) => withNames(item, 'UNMATCHED')),
+      ];
+      if (allItems.length) {
+        const rows = await rowsForActiveExportTemplate(allItems);
+        XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(rows), 'All Items');
       }
 
-      if (sessionDetails.UnmatchedList && sessionDetails.UnmatchedList.length > 0) {
-        sessionDetails.UnmatchedList.forEach(item => {
-          allItemsData.push([...svItemDetailCells(item), 'UNMATCHED', 'Unmatched']);
-        });
-      }
-
-      if (allItemsData.length > 0) {
-        const allItemsWS = XLSX.utils.aoa_to_sheet([allItemsHeaders, ...allItemsData]);
-        
-        allItemsWS['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 12 }, { width: 12 }];
-
-        XLSX.utils.book_append_sheet(wb, allItemsWS, 'All Items');
-      }
-
-      // Generate filename with timestamp and session info
       const timestamp = new Date().toISOString().split('T')[0];
       const sessionNum = sessionDetails.SessionNumber || 'Unknown';
       const clientCode = sessionDetails.ClientCode || 'Unknown';
       const filename = `StockVerification_Session_${sessionNum}_${clientCode}_${timestamp}.xlsx`;
 
-      // Save the file
       XLSX.writeFile(wb, filename);
 
-      // Show success notification
       toast.success(`Session details exported successfully as ${filename}`);
       addNotification({
         title: 'Export Successful',
@@ -948,10 +861,10 @@ const StockVerification = () => {
 
     } catch (error) {
       console.error('Error exporting session details:', error);
-      toast.error('Failed to export session details. Please try again.');
+      toast.error(error?.message || 'Failed to export session details. Please try again.');
       addNotification({
         title: 'Export Failed',
-        description: 'Failed to export session details. Please try again.',
+        description: error?.message || 'Failed to export session details. Please try again.',
         type: 'error'
       });
     }
@@ -959,7 +872,7 @@ const StockVerification = () => {
 
 
   // Export Consolidation Report
-  const exportConsolidationReport = (selectedBranchId = '') => {
+  const exportConsolidationReport = async (selectedBranchId = '') => {
     if (!consolidationData || !consolidationData.Branches || consolidationData.Branches.length === 0) {
       toast.error('No data available for export');
       return;
@@ -1025,65 +938,43 @@ const StockVerification = () => {
       summaryWS['!cols'] = [{ width: 25 }, { width: 30 }];
       XLSX.utils.book_append_sheet(wb, summaryWS, 'Summary');
 
-
-      // Detailed Report Sheet - Category -> Product -> Design -> Item level rows
-      const headers = [
-        'Branch',
-        ...SV_ITEM_HEADERS,
-        'Status',
-        'Matched Qty',
-        'Unmatch Qty',
-      ];
-
-      const data = [];
-      branchesToExport.forEach(branch => {
-        (branch.Categories || []).forEach(category => {
-          (category.Products || []).forEach(product => {
-            (product.Designs || []).forEach(design => {
-              const items = design.Items || [];
-              const parentExtras = {
-                category: category.CategoryName || '',
-                product: product.ProductName || '',
-                design: design.DesignName || '',
-                purity: design.PurityName || product.PurityName || '',
-                gross: design.GrossWeight ?? 0,
-                net: design.NetWeight ?? 0,
+      const flatItems = [];
+      branchesToExport.forEach((branch) => {
+        (branch.Categories || []).forEach((category) => {
+          (category.Products || []).forEach((product) => {
+            (product.Designs || []).forEach((design) => {
+              const parent = {
+                BranchName: branch.BranchName || '',
+                CategoryName: category.CategoryName || '',
+                ProductName: product.ProductName || '',
+                DesignName: design.DesignName || '',
+                PurityName: design.PurityName || product.PurityName || '',
+                GrossWt: design.GrossWeight ?? '',
+                NetWt: design.NetWeight ?? '',
               };
-              if (items.length === 0) {
-                data.push([
-                  branch.BranchName || '',
-                  ...svItemDetailCells(design, parentExtras),
-                  '',
-                  design.MatchedQty ?? 0,
-                  design.UnmatchQty ?? 0
-                ]);
+              const items = design.Items || [];
+              if (!items.length) {
+                flatItems.push(parent);
                 return;
               }
               items.forEach((item) => {
-                const normalizedStatus = String(item.Status || '').toLowerCase();
-                data.push([
-                  branch.BranchName || '',
-                  ...svItemDetailCells(item, parentExtras),
-                  item.Status || '',
-                  normalizedStatus === 'matched' ? 1 : 0,
-                  normalizedStatus === 'unmatched' ? 1 : 0
-                ]);
+                flatItems.push({
+                  ...parent,
+                  ...item,
+                  BranchName: item.BranchName || parent.BranchName,
+                  CategoryName: item.CategoryName || parent.CategoryName,
+                  ProductName: item.ProductName || parent.ProductName,
+                  DesignName: item.DesignName || parent.DesignName,
+                  PurityName: item.PurityName || parent.PurityName,
+                });
               });
             });
           });
         });
       });
 
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-      ws['!cols'] = [
-        { width: 22 },
-        ...SV_ITEM_COL_WIDTHS,
-        { width: 14 },
-        { width: 12 },
-        { width: 12 },
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Detailed Report');
+      const detailRows = await rowsForActiveExportTemplate(flatItems);
+      XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(detailRows), 'Detailed Report');
 
       const timestamp = new Date().toISOString().split('T')[0];
       const fileSuffix = selectedBranch ? `_${(selectedBranch.BranchName || 'Branch').replace(/\s+/g, '_')}` : '';
@@ -1092,7 +983,7 @@ const StockVerification = () => {
       toast.success('Report exported successfully');
     } catch (error) {
       console.error('Error exporting report:', error);
-      toast.error('Failed to export report');
+      toast.error(error?.message || 'Failed to export report');
     }
   };
 
@@ -1138,24 +1029,18 @@ const StockVerification = () => {
     const start = (page - 1) * ITEMS_PAGE_SIZE;
     const pageItems = filteredItems.slice(start, start + ITEMS_PAGE_SIZE);
 
-    const exportModalItems = () => {
+    const exportModalItems = async () => {
       try {
-        const headers = [...SV_ITEM_HEADERS, 'Status'];
-        const rows = filteredItems.map((item) => ([
-          ...svItemDetailCells(item),
-          item?.Status ?? '',
-        ]));
+        const rows = await rowsForActiveExportTemplate(filteredItems);
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-        ws['!cols'] = [...SV_ITEM_COL_WIDTHS, { width: 14 }];
-        XLSX.utils.book_append_sheet(wb, ws, 'Items');
+        XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(rows), 'Items');
         const cleanTitle = (title || 'Items').replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
         const dateTag = new Date().toISOString().slice(0, 10);
         XLSX.writeFile(wb, `${cleanTitle}_${type}_${dateTag}.xlsx`);
         toast.success('Items exported successfully');
       } catch (error) {
         console.error('Error exporting items modal data:', error);
-        toast.error('Failed to export items');
+        toast.error(error?.message || 'Failed to export items');
       }
     };
 
@@ -1178,7 +1063,8 @@ const StockVerification = () => {
             <button type="button" className="sv-icon-close" onClick={onClose} aria-label="Close"><FaTimes size={14} /></button>
           </div>
           <div style={{ padding: '12px 14px', overflow: 'auto', flex: 1, minHeight: 0, background: SV.tableBg }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap' }}>
+              <ExcelExportTemplateBar />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #e5e5e5', borderRadius: 8, padding: '6px 10px', minWidth: 260, flex: '1 1 220px', background: '#fff' }}>
                 <FaSearch style={{ color: '#94a3b8', fontSize: 11 }} />
                 <input
@@ -2716,6 +2602,8 @@ const StockVerification = () => {
                 Close
                     </button>
                   {sessionDetails && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <ExcelExportTemplateBar />
                     <button 
                       type="button"
                       className="sv-chip sv-chip--accent"
@@ -2723,6 +2611,7 @@ const StockVerification = () => {
                 >
                   <FaFileExcel /> Export
                     </button>
+                    </div>
                   )}
                 </div>
             </div>
@@ -2751,7 +2640,7 @@ const StockVerification = () => {
               <div
                 style={{
                   width: '100%',
-                  maxWidth: 460,
+                  maxWidth: 560,
                   background: '#fff',
                   borderRadius: 12,
                   border: '1px solid #e2e8f0',
@@ -2764,8 +2653,11 @@ const StockVerification = () => {
                 <div style={{ padding: 20 }}>
                 <h3 style={{ margin: '0 0 8px 0', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Export branch report</h3>
                 <p style={{ margin: '0 0 14px 0', color: '#64748b', fontSize: 11 }}>
-                  Select a branch to export only that branch details in Excel.
+                  Select a branch. Excel columns follow the saved export template.
                 </p>
+                <div style={{ marginBottom: 12 }}>
+                  <ExcelExportTemplateBar />
+                </div>
                 <select
                   value={selectedExportBranchId}
                   onChange={(e) => setSelectedExportBranchId(e.target.value)}

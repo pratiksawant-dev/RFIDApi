@@ -43,6 +43,7 @@ import { useNotifications } from '../context/NotificationContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './common/PageHeader';
+import DussehraOfferPopup from './common/DussehraGreeting';
 import UiButton from './common/UiButton';
 
 // Register Chart.js components
@@ -2441,6 +2442,8 @@ const DashboardAnalytics = () => {
           )}
         />
       </header>
+
+      <DussehraOfferPopup />
 
       <section className="erp-kpis">
         {kpiCards.map((card) => (

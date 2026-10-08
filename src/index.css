@@ -2294,6 +2294,10 @@ h1.app-page-title {
   object-position: 48% 62%;
 }
 
+.login-hero-img--showroom {
+  object-position: 42% 48%;
+}
+
 .login-hero-img--robot {
   object-position: 42% 38%;
 }
@@ -2307,6 +2311,9 @@ h1.app-page-title {
   }
   .login-hero-img--pos {
     object-position: 50% 58%;
+  }
+  .login-hero-img--showroom {
+    object-position: 40% 46%;
   }
   .login-hero-img--robot {
     object-position: 40% 32%;

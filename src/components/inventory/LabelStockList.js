@@ -42,6 +42,8 @@ import PageHeader from '../common/PageHeader';
 import GridItemImage from '../common/GridItemImage';
 import TrayScanModal from '../common/TrayScanModal';
 import ProductQrModal from './ProductQrModal';
+import ExcelExportTemplateBar from './ExcelExportTemplateBar';
+import { labelledStockExportFileName, exportItemsWithSavedTemplate, rememberedExcelExportTemplateId, rowsForActiveExportTemplate } from '../../services/excelExportTemplateApi';
 import { buildTrayStockLookupPayload } from '../../utils/epcLookup';
 import { saveBlobWithPreferredFolder } from '../../services/exportDownloadHelper';
 import { toRrgoldApiUrl } from '../../services/apiBaseConfig';
@@ -277,6 +279,7 @@ const LabelStockList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [activeExportTemplate, setActiveExportTemplate] = useState(null);
   const [emailAddress, setEmailAddress] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportErrors, setExportErrors] = useState({
@@ -1723,6 +1726,102 @@ const LabelStockList = () => {
     }
   };
 
+  const masterLabel = (item, keys) => {
+    if (item == null) return '';
+    if (typeof item !== 'object') return String(item).trim();
+    for (const key of keys) {
+      const value = item[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();
+    }
+    return '';
+  };
+
+  const uniqueByLabel = (items, keys) => {
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const label = masterLabel(item, keys);
+      if (!label) return;
+      const key = label.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(item);
+    });
+    return out.sort((a, b) => masterLabel(a, keys).localeCompare(masterLabel(b, keys)));
+  };
+
+  const masterHasLink = (items, keys) => (items || []).some((item) => keys.some((key) => {
+    const value = item?.[key];
+    return value !== undefined && value !== null && String(value).trim() !== '' && String(value) !== '0';
+  }));
+
+  const findNamedId = (items, value, nameKeys) => {
+    if (!value || value === 'All') return 0;
+    const wanted = String(value).trim().toLowerCase();
+    const match = (items || []).find((item) => nameKeys.some((key) => String(item?.[key] || '').trim().toLowerCase() === wanted));
+    return Number(match?.Id ?? match?.id ?? 0) || 0;
+  };
+
+  const categoryNameKeys = ['CategoryName', 'Name', 'categoryName'];
+  const productNameKeys = ['ProductName', 'Name', 'productName'];
+  const designNameKeys = ['DesignName', 'Name', 'designName'];
+
+  const productsForFilters = () => {
+    const source = apiFilterData.products || [];
+    let list = source;
+    const category = filterValues.categoryId;
+    const linkKeys = ['CategoryId', 'categoryId', 'CategoryID', 'CategoryName', 'categoryName'];
+    if (category && category !== 'All' && masterHasLink(source, linkKeys)) {
+      const categoryId = findNamedId(apiFilterData.categories, category, categoryNameKeys);
+      const wanted = String(category).trim().toLowerCase();
+      list = source.filter((item) => {
+        const cid = Number(item.CategoryId ?? item.categoryId ?? item.CategoryID ?? 0) || 0;
+        const cname = masterLabel(item, ['CategoryName', 'categoryName']).toLowerCase();
+        if (categoryId && cid) return cid === categoryId;
+        if (cname) return cname === wanted;
+        return false;
+      });
+    }
+    return uniqueByLabel(list, productNameKeys);
+  };
+
+  const designsForFilters = () => {
+    const source = apiFilterData.designs || [];
+    let list = source;
+    const product = filterValues.productId;
+    const category = filterValues.categoryId;
+    const productLink = ['ProductId', 'productId', 'ProductID', 'ProductName', 'productName'];
+    if (product && product !== 'All' && masterHasLink(source, productLink)) {
+      const productId = findNamedId(productsForFilters(), product, productNameKeys);
+      const wanted = String(product).trim().toLowerCase();
+      list = source.filter((item) => {
+        const pid = Number(item.ProductId ?? item.productId ?? item.ProductID ?? 0) || 0;
+        const pname = masterLabel(item, ['ProductName', 'productName']).toLowerCase();
+        if (productId && pid) return pid === productId;
+        if (pname) return pname === wanted;
+        return false;
+      });
+    } else if (category && category !== 'All') {
+      const categoryId = findNamedId(apiFilterData.categories, category, categoryNameKeys);
+      const productIds = new Set(
+        productsForFilters().map((item) => Number(item.Id ?? item.id ?? 0)).filter(Boolean)
+      );
+      const linkKeys = ['ProductId', 'productId', 'CategoryId', 'categoryId', 'CategoryName', 'categoryName'];
+      if (masterHasLink(source, linkKeys)) {
+        const wanted = String(category).trim().toLowerCase();
+        list = source.filter((item) => {
+          const pid = Number(item.ProductId ?? item.productId ?? item.ProductID ?? 0) || 0;
+          if (pid && productIds.size) return productIds.has(pid);
+          const cid = Number(item.CategoryId ?? item.categoryId ?? 0) || 0;
+          if (categoryId && cid) return cid === categoryId;
+          const cname = masterLabel(item, ['CategoryName', 'categoryName']).toLowerCase();
+          return Boolean(cname) && cname === wanted;
+        });
+      }
+    }
+    return uniqueByLabel(list, designNameKeys);
+  };
+
   // Helper function to handle dropdown search and filtering
   const handleDropdownSearch = (field, searchTerm) => {
     setDropdownStates(prev => {
@@ -1730,44 +1829,29 @@ const LabelStockList = () => {
       let filteredOptions = [];
 
       if (field === 'branch') {
-        const options = apiFilterData.branches || [];
-        filteredOptions = options.filter(item => {
-          const name = (item.BranchName || item.Name || item.branchName || item.name || '').toLowerCase();
-          return name.includes(searchTerm.toLowerCase());
-        });
+        const keys = ['BranchName', 'Name', 'branchName', 'name'];
+        filteredOptions = uniqueByLabel(apiFilterData.branches || [], keys)
+          .filter((item) => masterLabel(item, keys).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'counterName') {
-        const options = apiFilterData.counters || [];
-        filteredOptions = options.filter(item => {
-          const name = (item.CounterName || item.Name || item.counterName || '').toLowerCase();
-          return name.includes(searchTerm.toLowerCase());
-        });
+        const keys = ['CounterName', 'Name', 'counterName'];
+        filteredOptions = uniqueByLabel(apiFilterData.counters || [], keys)
+          .filter((item) => masterLabel(item, keys).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'boxName') {
-        const options = filterOptions.boxNames || [];
-        filteredOptions = options.filter(opt => opt !== 'All' && opt.toLowerCase().includes(searchTerm.toLowerCase()));
+        filteredOptions = uniqueByLabel(filterOptions.boxNames || [], [])
+          .filter((opt) => opt !== 'All' && String(opt).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'categoryId') {
-        const options = apiFilterData.categories || [];
-        filteredOptions = options.filter(item => {
-          const name = (item.CategoryName || item.Name || item.categoryName || '').toLowerCase();
-          return name.includes(searchTerm.toLowerCase());
-        });
+        const options = uniqueByLabel(apiFilterData.categories || [], categoryNameKeys);
+        filteredOptions = options.filter(item => masterLabel(item, categoryNameKeys).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'productId') {
-        const options = apiFilterData.products || [];
-        filteredOptions = options.filter(item => {
-          const name = (item.ProductName || item.Name || item.productName || '').toLowerCase();
-          return name.includes(searchTerm.toLowerCase());
-        });
+        const options = productsForFilters();
+        filteredOptions = options.filter(item => masterLabel(item, productNameKeys).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'designId') {
-        const options = apiFilterData.designs || [];
-        filteredOptions = options.filter(item => {
-          const name = (item.DesignName || item.Name || item.designName || '').toLowerCase();
-          return name.includes(searchTerm.toLowerCase());
-        });
+        const options = designsForFilters();
+        filteredOptions = options.filter(item => masterLabel(item, designNameKeys).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'purityId') {
-        const options = apiFilterData.purities || [];
-        filteredOptions = options.filter(item => {
-          const name = (item.PurityName || item.Name || item.Purity || item.purityName || '').toLowerCase();
-          return name.includes(searchTerm.toLowerCase());
-        });
+        const keys = ['PurityName', 'Name', 'Purity', 'purityName'];
+        filteredOptions = uniqueByLabel(apiFilterData.purities || [], keys)
+          .filter((item) => masterLabel(item, keys).toLowerCase().includes(searchTerm.toLowerCase()));
       } else if (field === 'status') {
         const options = filterOptions.statuses || [];
         filteredOptions = options.filter(opt => opt !== 'All' && opt.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -1904,13 +1988,13 @@ const LabelStockList = () => {
                   position: 'absolute',
                   top: '100%',
                   left: 0,
-                  right: 0,
                   marginTop: '4px',
                   background: '#ffffff',
                   border: '1px solid #e5e5e5',
                   borderRadius: '8px',
-                  boxShadow: '0 6px 20px rgba(15, 23, 42, 0.08)',
-                  zIndex: 10000,
+                  boxShadow: '0 10px 28px rgba(15, 23, 42, 0.16)',
+                  zIndex: 20000,
+                  width: 'max(100%, 220px)',
                   maxHeight: '300px',
                   overflow: 'hidden',
                   display: 'flex',
@@ -2099,6 +2183,8 @@ const LabelStockList = () => {
         ListType: sortConfig && (sortConfig.direction === 'desc' || sortConfig.direction === 'descending') ? "descending" : "ascending",
         SortColumn: sortConfig && sortConfig.key ? sortConfig.key : null
       };
+      const templateId = Number(activeExportTemplate?.id) || rememberedExcelExportTemplateId();
+      if (templateId > 0) payload.templateId = templateId;
 
       if (safeFilters.counterName !== 'All' && safeFilters.counterName) {
         const selectedCounter = apiFilterData.counters?.find(counter =>
@@ -2135,6 +2221,18 @@ const LabelStockList = () => {
         }
       );
 
+      const contentType = String(response.headers['content-type'] || '');
+      if (contentType.includes('application/json') || contentType.includes('text/')) {
+        const text = await response.data.text();
+        let message = text;
+        try {
+          message = JSON.parse(text).message || text;
+        } catch {
+          message = text;
+        }
+        throw new Error(message || 'Export failed.');
+      }
+
       // Create a blob from the response
       const blob = new Blob([response.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -2142,16 +2240,12 @@ const LabelStockList = () => {
 
       // Get filename from response headers or use default
       const contentDisposition = response.headers['content-disposition'];
-      let filename = 'LabelledStock_Export.xlsx';
+      let filename = labelledStockExportFileName();
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (filenameMatch && filenameMatch[1]) {
           filename = filenameMatch[1].replace(/['"]/g, '');
         }
-      } else {
-        // Generate filename with timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        filename = `LabelledStock_Export_${timestamp}.xlsx`;
       }
 
       await saveBlobWithPreferredFolder(blob, filename, 'export');
@@ -2171,10 +2265,19 @@ const LabelStockList = () => {
 
     } catch (error) {
       console.error('Export All Report error:', error);
-      const errorMessage = error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        'Failed to export labeled stock. Please try again.';
+      let errorMessage = error.message || 'Failed to export labeled stock. Please try again.';
+      const data = error.response?.data;
+      if (data && typeof data.text === 'function') {
+        try {
+          const text = await data.text();
+          const parsed = JSON.parse(text);
+          errorMessage = parsed.message || parsed.Message || text || errorMessage;
+        } catch {
+          errorMessage = error.message || errorMessage;
+        }
+      } else if (data?.message || data?.error) {
+        errorMessage = data.message || data.error;
+      }
 
       addNotification({
         title: 'Export Failed',
@@ -2193,63 +2296,11 @@ const LabelStockList = () => {
       setExportLoading(true);
       setExportErrors({ ...exportErrors, excel: '' });
 
-      const wb = XLSX.utils.book_new();
-
-      // Use all filtered data if available, otherwise use current page data
       const dataToExport = showAllData && allFilteredData.length > 0 ? allFilteredData : filteredStock;
-
-      const exportData = dataToExport.map((item, index) => ({
-        'Sr No': index + 1,
-        'Counter Name': item.CounterName || '',
-        'Item Code': item.ItemCode || '',
-        'RFID Code': item.RFIDCode || '',
-        'Product Name': item.ProductName || '',
-        'Category': item.CategoryName || item.Category || '',
-        'Design': item.DesignName || item.Design || '',
-        'Purity': item.PurityName || item.Purity || '',
-        'Gross Wt': item.GrossWt ? Number(item.GrossWt).toFixed(3) : '',
-        'Stone Wt': item.StoneWt ? Number(item.StoneWt).toFixed(3) : '',
-        'Diamond Wt': item.DiamondWt ? Number(item.DiamondWt).toFixed(3) : '',
-        'Net Wt': item.NetWt ? Number(item.NetWt).toFixed(3) : '',
-        'Stone Amt': item.StoneAmt ? Number(item.StoneAmt).toFixed(2) : '',
-        'Fixed Amt': item.FixedAmt ? Number(item.FixedAmt).toFixed(2) : '',
-        'Hallmark Amt': formatHallmarkAmountDisplay(item.HallmarkAmount),
-        'Branch': item.Branch || '',
-        'Created Date': item.CreatedDate ? new Date(item.CreatedDate).toLocaleDateString('en-GB') : '',
-        'Packing Weight': item.PackingWeight ? Number(item.PackingWeight).toFixed(3) : '',
-        'Total Weight': item.TotalWeight ? Number(item.TotalWeight).toFixed(3) : '',
-        'Status': item.Status || ''
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(exportData);
-
-      ws['!cols'] = [
-        { wch: 8 },  // Sr No
-        { wch: 15 }, // Counter Name
-        { wch: 12 }, // Item Code
-        { wch: 15 }, // RFID Code
-        { wch: 25 }, // Product Name
-        { wch: 15 }, // Category
-        { wch: 15 }, // Design
-        { wch: 12 }, // Purity
-        { wch: 12 }, // Gross Wt
-        { wch: 12 }, // Stone Wt
-        { wch: 12 }, // Diamond Wt
-        { wch: 12 }, // Net Wt
-        { wch: 12 }, // Stone Amt
-        { wch: 12 }, // Fixed Amt
-        { wch: 15 }, // Hallmark Amt
-        { wch: 15 }, // Branch
-        { wch: 15 }, // Created Date
-        { wch: 15 }, // Packing Weight
-        { wch: 15 }, // Total Weight
-        { wch: 12 }  // Status
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Label Stock");
-
-      const date = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `label_stock_${date}.xlsx`);
+      await exportItemsWithSavedTemplate(dataToExport, {
+        sheetName: 'Label Stock',
+        filePrefix: 'LabelledStock_Export',
+      });
 
       // Show success notification before closing modal
       showSuccessNotification(
@@ -2271,7 +2322,7 @@ const LabelStockList = () => {
       });
     } catch (error) {
       console.error('Excel export error:', error);
-      setExportErrors({ ...exportErrors, excel: 'Failed to export Excel. Please try again.' });
+      setExportErrors({ ...exportErrors, excel: error?.message || 'Failed to export Excel. Please try again.' });
       setExportLoading(false);
     }
   };
@@ -2504,54 +2555,12 @@ const LabelStockList = () => {
 
       // Use all filtered data if available, otherwise use current page data
       const dataToExport = showAllData && allFilteredData.length > 0 ? allFilteredData : filteredStock;
-
-      const exportData = dataToExport.map((item, index) => ({
-        'Sr No': index + 1,
-        'Counter Name': item.CounterName || '',
-        'Item Code': item.ItemCode || '',
-        'RFID Code': item.RFIDCode || '',
-        'Product Name': item.ProductName || '',
-        'Category': item.CategoryName || item.Category || '',
-        'Design': item.DesignName || item.Design || '',
-        'Purity': item.PurityName || item.Purity || '',
-        'Gross Wt': item.GrossWt ? Number(item.GrossWt).toFixed(3) : '',
-        'Stone Wt': item.StoneWt ? Number(item.StoneWt).toFixed(3) : '',
-        'Diamond Wt': item.DiamondWt ? Number(item.DiamondWt).toFixed(3) : '',
-        'Net Wt': item.NetWt ? Number(item.NetWt).toFixed(3) : '',
-        'Stone Amt': item.StoneAmt ? Number(item.StoneAmt).toFixed(2) : '',
-        'Fixed Amt': item.FixedAmt ? Number(item.FixedAmt).toFixed(2) : '',
-        'Hallmark Amt': formatHallmarkAmountDisplay(item.HallmarkAmount),
-        'Branch': item.Branch || '',
-        'Created Date': item.CreatedDate ? new Date(item.CreatedDate).toLocaleDateString('en-GB') : '',
-        'Packing Weight': item.PackingWeight ? Number(item.PackingWeight).toFixed(3) : '',
-        'Total Weight': item.TotalWeight ? Number(item.TotalWeight).toFixed(3) : '',
-        'Status': item.Status || ''
-      }));
+      const exportData = await rowsForActiveExportTemplate(dataToExport);
 
       const ws = XLSX.utils.json_to_sheet(exportData);
-
-      ws['!cols'] = [
-        { wch: 8 },  // Sr No
-        { wch: 15 }, // Counter Name
-        { wch: 12 }, // Item Code
-        { wch: 15 }, // RFID Code
-        { wch: 25 }, // Product Name
-        { wch: 15 }, // Category
-        { wch: 15 }, // Design
-        { wch: 12 }, // Purity
-        { wch: 12 }, // Gross Wt
-        { wch: 12 }, // Stone Wt
-        { wch: 12 }, // Diamond Wt
-        { wch: 12 }, // Net Wt
-        { wch: 12 }, // Stone Amt
-        { wch: 12 }, // Fixed Amt
-        { wch: 15 }, // Hallmark Amt
-        { wch: 15 }, // Branch
-        { wch: 15 }, // Created Date
-        { wch: 15 }, // Packing Weight
-        { wch: 15 }, // Total Weight
-        { wch: 12 }  // Status
-      ];
+      ws['!cols'] = Object.keys(exportData[0]).map((key) => ({
+        wch: Math.min(36, Math.max(12, String(key).length + 2)),
+      }));
 
       XLSX.utils.book_append_sheet(wb, ws, "Label Stock");
 
@@ -2562,8 +2571,7 @@ const LabelStockList = () => {
       formData.append('clientCode', userInfo.ClientCode);
       formData.append('subject', 'RFID Label Stock Report');
 
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `label_stock_${date}.xlsx`;
+      const filename = labelledStockExportFileName();
       const excelBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       formData.append('file', excelBlob, filename);
 
@@ -2598,7 +2606,7 @@ const LabelStockList = () => {
       console.error('Email export error:', error);
       setExportErrors({
         ...exportErrors,
-        email: error.response?.data?.message || 'Failed to send email. Please try again.'
+        email: error.response?.data?.message || error.message || 'Failed to send email. Please try again.'
       });
       setExportLoading(false);
     }
@@ -2637,15 +2645,17 @@ const LabelStockList = () => {
   };
 
   const handleFilterChange = (field, value) => {
-    console.log(`Filter changed - ${field}:`, value);
-    if (field === 'counterName') {
-      console.log('Counter name selected:', value);
-      console.log('Available counters:', apiFilterData.counters);
-    }
-    setFilterValues(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFilterValues(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'categoryId') {
+        next.productId = 'All';
+        next.designId = 'All';
+      }
+      if (field === 'productId') {
+        next.designId = 'All';
+      }
+      return next;
+    });
   };
 
   // Helper function to get the actual ID value for API payload
@@ -2667,29 +2677,15 @@ const LabelStockList = () => {
         }
         return categoryId;
       case 'productId':
-        const product = apiFilterData.products?.find(prod =>
-          prod.ProductName === value ||
-          prod.Name === value ||
-          prod.productName === value ||
-          (prod.ProductName && prod.ProductName.toLowerCase() === value.toLowerCase()) ||
-          (prod.Name && prod.Name.toLowerCase() === value.toLowerCase())
-        );
-        const productId = product ? (product.Id || product.id || 0) : 0;
-        if (!product && value !== 'All') {
-          console.warn('Product not found in API data:', value, 'Available products:', apiFilterData.products);
+        const productId = findNamedId(productsForFilters(), value, productNameKeys);
+        if (!productId && value !== 'All') {
+          console.warn('Product not found in API data:', value);
         }
         return productId;
       case 'designId':
-        const design = apiFilterData.designs?.find(des =>
-          des.DesignName === value ||
-          des.Name === value ||
-          des.designName === value ||
-          (des.DesignName && des.DesignName.toLowerCase() === value.toLowerCase()) ||
-          (des.Name && des.Name.toLowerCase() === value.toLowerCase())
-        );
-        const designId = design ? (design.Id || design.id || 0) : 0;
-        if (!design && value !== 'All') {
-          console.warn('Design not found in API data:', value, 'Available designs:', apiFilterData.designs);
+        const designId = findNamedId(designsForFilters(), value, designNameKeys);
+        if (!designId && value !== 'All') {
+          console.warn('Design not found in API data:', value);
         }
         return designId;
       case 'purityId':
@@ -3938,7 +3934,10 @@ const LabelStockList = () => {
             <span>&times;</span>
           </button>
         </div>
-        <p className="modal-subtitle">Choose a format. Full report and email are also here.</p>
+        <p className="modal-subtitle">Choose the Excel columns, then pick how to download.</p>
+        <div className="export-template-slot">
+          <ExcelExportTemplateBar onTemplateChange={setActiveExportTemplate} />
+        </div>
 
         <div className="export-options">
           <button
@@ -4066,17 +4065,24 @@ const LabelStockList = () => {
           }
 
           .modal-content {
-            background: white;
-            border-radius: 16px;
-            padding: 22px;
-            width: 480px;
+            background: #fff;
+            border-radius: 18px;
+            padding: 0;
+            width: 520px;
             max-width: 95vw;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+            box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
             position: relative;
             animation: modalSlideIn 0.2s ease-out;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #efe8dc;
+          }
+
+          .modal-content::before {
+            content: '';
+            display: block;
+            height: 3px;
+            background: linear-gradient(90deg, #c59d5f, #e8d5b0);
           }
 
           @keyframes modalSlideIn {
@@ -4094,57 +4100,67 @@ const LabelStockList = () => {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            padding: 16px 18px 0;
+            margin-bottom: 4px;
           }
 
           .modal-title {
             font-size: 18px;
             font-weight: 800;
-            color: #0f172a;
+            color: #1f2937;
             margin: 0;
             line-height: 1.2;
             letter-spacing: -0.02em;
           }
 
           .close-button {
-            background: none;
-            border: none;
-            color: #7F8B9A;
+            width: 32px;
+            height: 32px;
+            background: #faf8f4;
+            border: 1px solid #ece7de;
+            color: #57534e;
             cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
+            padding: 0;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            font-size: 18px;
           }
 
           .close-button:hover {
-            background: #F5F7FA;
-            color: #2D3E50;
+            background: #f3eee6;
+            color: #1f2937;
           }
 
           .modal-subtitle {
-            color: #7F8B9A;
+            color: #78716c;
             font-size: 13px;
-            margin: 0 0 16px 0;
+            line-height: 1.45;
+            margin: 0;
+            padding: 0 18px 12px;
+          }
+
+          .export-template-slot {
+            padding: 0 18px 12px;
           }
 
           .export-options {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            padding: 0 18px 18px;
           }
 
           .export-option {
             display: flex;
             align-items: center;
             padding: 12px 14px;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            background: white;
+            border: 1px solid #efe8dc;
+            border-radius: 14px;
+            background: #fff;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
             width: 100%;
             text-align: left;
             opacity: ${exportLoading ? '0.7' : '1'};
@@ -4152,10 +4168,9 @@ const LabelStockList = () => {
           }
 
           .export-option:hover {
-            border-color: #0d9488;
-            background: #f0fdfa;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.12);
+            border-color: #c59d5f;
+            background: #fbf7f0;
+            box-shadow: 0 6px 16px rgba(197, 157, 95, 0.12);
           }
 
           .export-option:disabled {
@@ -4173,11 +4188,11 @@ const LabelStockList = () => {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 6px;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
             margin-right: 12px;
-            transition: all 0.2s;
+            flex-shrink: 0;
           }
 
           .option-icon.excel {
@@ -4206,9 +4221,9 @@ const LabelStockList = () => {
 
           .option-title {
             display: block;
-            font-weight: 500;
+            font-weight: 750;
             font-size: 14px;
-            color: #2D3E50;
+            color: #1f2937;
             margin-bottom: 2px;
           }
 
@@ -4220,6 +4235,9 @@ const LabelStockList = () => {
 
           .email-section {
             cursor: default;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
           }
 
           .email-section:hover {
@@ -4229,32 +4247,37 @@ const LabelStockList = () => {
           .option-header {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
           }
 
           .email-form {
-            margin-left: 48px;
+            margin-left: 52px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
           }
 
           .input-wrapper {
             position: relative;
-            margin-bottom: 12px;
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 0;
           }
 
           .email-input {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #E5E9F2;
-            border-radius: 4px;
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid #e7e1d6;
+            border-radius: 10px;
             font-size: 13px;
-            transition: all 0.2s;
-            color: #2D3E50;
+            color: #1f2937;
+            box-sizing: border-box;
           }
 
           .email-input:focus {
             outline: none;
-            border-color: #2D9CDB;
-            box-shadow: 0 0 0 2px rgba(45, 156, 219, 0.1);
+            border-color: #c59d5f;
+            box-shadow: 0 0 0 3px rgba(197, 157, 95, 0.18);
           }
 
           .email-input::placeholder {
@@ -4281,16 +4304,16 @@ const LabelStockList = () => {
           }
 
           .send-button {
-            background: #2D9CDB;
+            background: #0f4c81;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            height: 38px;
+            padding: 0 14px;
+            border-radius: 10px;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 750;
             cursor: pointer;
-            transition: all 0.2s;
-            width: 100%;
+            white-space: nowrap;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -4298,8 +4321,7 @@ const LabelStockList = () => {
           }
 
           .send-button:not(:disabled):hover {
-            background: #2589BD;
-            transform: translateY(-1px);
+            background: #0c3d68;
           }
 
           .send-button:disabled {
@@ -4825,7 +4847,10 @@ const LabelStockList = () => {
             background: '#ffffff',
             border: '1px solid #e2e8f0',
             borderRadius: '10px',
-            boxShadow: '0 1px 2px rgba(15,23,42,0.04)'
+            boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+            position: 'relative',
+            zIndex: 20,
+            overflow: 'visible'
           }}>
             <div style={{
               display: 'flex',
@@ -4842,7 +4867,7 @@ const LabelStockList = () => {
                 'branch',
                 'Branch',
                 'Search branch...',
-                apiFilterData.branches || [],
+                uniqueByLabel(apiFilterData.branches || [], ['BranchName', 'Name', 'branchName', 'name']),
                 (item) => item.BranchName || item.Name || item.branchName || item.name,
                 (item) => item.BranchName || item.Name || item.branchName || item.name,
                 'All'
@@ -4851,7 +4876,7 @@ const LabelStockList = () => {
                 'counterName',
                 'Counter Name',
                 'Search counter...',
-                apiFilterData.counters || [],
+                uniqueByLabel(apiFilterData.counters || [], ['CounterName', 'Name', 'counterName']),
                 (item) => item.CounterName || item.Name || item.counterName,
                 (item) => item.CounterName || item.Name || item.counterName,
                 'All Counters'
@@ -4860,7 +4885,7 @@ const LabelStockList = () => {
                 'boxName',
                 'Box Name',
                 'Search box...',
-                filterOptions.boxNames.filter(opt => opt !== 'All') || [],
+                uniqueByLabel((filterOptions.boxNames || []).filter(opt => opt !== 'All'), []),
                 (item) => item,
                 (item) => item,
                 'All'
@@ -4869,7 +4894,7 @@ const LabelStockList = () => {
                 'categoryId',
                 'Category',
                 'Search category...',
-                apiFilterData.categories || [],
+                uniqueByLabel(apiFilterData.categories || [], categoryNameKeys),
                 (item) => item.CategoryName || item.Name || item.categoryName,
                 (item) => item.CategoryName || item.Name || item.categoryName,
                 'All Categories'
@@ -4878,7 +4903,7 @@ const LabelStockList = () => {
                 'productId',
                 'Product',
                 'Search product...',
-                apiFilterData.products || [],
+                productsForFilters(),
                 (item) => item.ProductName || item.Name || item.productName,
                 (item) => item.ProductName || item.Name || item.productName,
                 'All Products'
@@ -4887,7 +4912,7 @@ const LabelStockList = () => {
                 'designId',
                 'Design',
                 'Search design...',
-                apiFilterData.designs || [],
+                designsForFilters(),
                 (item) => item.DesignName || item.Name || item.designName,
                 (item) => item.DesignName || item.Name || item.designName,
                 'All Designs'
@@ -4896,7 +4921,7 @@ const LabelStockList = () => {
                 'purityId',
                 'Purity',
                 'Search purity...',
-                apiFilterData.purities || [],
+                uniqueByLabel(apiFilterData.purities || [], ['PurityName', 'Name', 'Purity', 'purityName']),
                 (item) => item.PurityName || item.Name || item.Purity || item.purityName,
                 (item) => item.PurityName || item.Name || item.Purity || item.purityName,
                 'All Purities'

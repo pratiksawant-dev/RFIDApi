@@ -19,6 +19,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
+import ExcelExportTemplateBar from '../inventory/ExcelExportTemplateBar';
+import { rowsForActiveExportTemplate, worksheetFromTemplateRows, labelledStockExportFileName } from '../../services/excelExportTemplateApi';
 
 const EXPORT_EMAIL_URL =
   process.env.REACT_APP_EXPORT_EMAIL_URL ||
@@ -234,47 +236,30 @@ const QuotationList = () => {
     setShowExportModal(true);
   };
 
-  const buildExportRows = () =>
-    filteredQuotations.map((q, i) => ({
-      'S No': i + 1,
-      'Quotation No': q.QuotationNo ?? '',
-      'Customer Name': getCustomerName(q),
-      'Gross Wt': formatNumber(q.GrossWt),
-      'Net Wt': formatNumber(q.NetWt),
-      'F+W Wt': calculateFWWeight(q),
-      'Taxable Amount': formatNumber(q.TotalNetAmount ?? q.TotalAmount),
-      'GST Amount': formatNumber(q.TotalGSTAmount ?? q.GST),
-      'Quotation Amount': formatNumber(q.TotalPurchaseAmount ?? q.TotalAmount),
-      Date: formatDate(q.QuotationDate || q.CreatedDate || q.Date),
-    }));
-
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!filteredQuotations.length) {
       addNotification({ type: 'warning', title: 'Export', message: 'No rows to export.' });
       setExportErrors((e) => ({ ...e, excel: 'No rows match the current search.' }));
       return;
     }
     setExportErrors({ excel: '', pdf: '', email: '' });
-    const rows = buildExportRows();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [
-      { wch: 6 },
-      { wch: 14 },
-      { wch: 22 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 14 },
-      { wch: 12 },
-      { wch: 16 },
-      { wch: 12 },
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Quotations');
-    const stamp = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `QuotationList_${stamp}.xlsx`);
-    addNotification({ type: 'success', title: 'Export', message: 'Excel file downloaded.' });
-    setShowExportModal(false);
+    try {
+      const rows = await rowsForActiveExportTemplate(filteredQuotations.map((q) => ({
+        ...q,
+        ClientCode: q.ClientCode || userInfo?.ClientCode || '',
+        GrossWt: q.GrossWt,
+        NetWt: q.NetWt,
+        Description: q.Description || q.QuotationNo || '',
+        Status: q.Status || '',
+      })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(rows), 'Quotations');
+      XLSX.writeFile(wb, labelledStockExportFileName().replace('LabelledStock_Export', 'QuotationList'));
+      addNotification({ type: 'success', title: 'Export', message: 'Excel file downloaded.' });
+      setShowExportModal(false);
+    } catch (error) {
+      setExportErrors((e) => ({ ...e, excel: error?.message || 'Failed to export Excel.' }));
+    }
   };
 
   const exportPdf = () => {
@@ -344,25 +329,18 @@ const QuotationList = () => {
     setExportErrors((e) => ({ ...e, email: '' }));
 
     try {
-      const rows = buildExportRows();
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws['!cols'] = [
-        { wch: 6 },
-        { wch: 14 },
-        { wch: 22 },
-        { wch: 10 },
-        { wch: 10 },
-        { wch: 10 },
-        { wch: 14 },
-        { wch: 12 },
-        { wch: 16 },
-        { wch: 12 },
-      ];
+      const rows = await rowsForActiveExportTemplate(filteredQuotations.map((q) => ({
+        ...q,
+        ClientCode: q.ClientCode || userInfo?.ClientCode || '',
+        GrossWt: q.GrossWt,
+        NetWt: q.NetWt,
+        Description: q.Description || q.QuotationNo || '',
+        Status: q.Status || '',
+      })));
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Quotations');
+      XLSX.utils.book_append_sheet(wb, worksheetFromTemplateRows(rows), 'Quotations');
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `quotation_list_${date}.xlsx`;
+      const filename = labelledStockExportFileName().replace('LabelledStock_Export', 'QuotationList');
       const excelBlob = new Blob([excelBuffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
@@ -1011,7 +989,7 @@ const QuotationList = () => {
               background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
               borderRadius: 16,
               padding: '22px 22px 20px',
-              width: 440,
+              width: 'min(720px, 100%)',
               maxWidth: '100%',
               boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
               border: '1px solid #e2e8f0',
@@ -1062,6 +1040,10 @@ const QuotationList = () => {
               >
                 &times;
               </button>
+            </div>
+
+            <div style={{ margin: '12px 0 4px' }}>
+              <ExcelExportTemplateBar />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>

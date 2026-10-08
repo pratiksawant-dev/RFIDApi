@@ -83,7 +83,6 @@ import AppLogoLoader from './components/common/Loader';
 import { bindGlobalLoader } from './services/globalLoader';
 import { NotificationProvider } from './context/NotificationContext';
 import { TranslationProvider } from './context/TranslationContext';
-import WelcomeModal from './components/common/WelcomeModal';
 import './i18n';
 
 const Router = HashRouter;
@@ -1250,22 +1249,12 @@ const RoutesWrapper = () => {
 };
 
 function App() {
-  const [showWelcome, setShowWelcome] = useState(false);
-
-  useEffect(() => {
-    // Listen for custom event from Login.js
-    const handler = () => setShowWelcome(true);
-    window.addEventListener('rfid-welcome', handler);
-    return () => window.removeEventListener('rfid-welcome', handler);
-  }, []);
-
   return (
     <TranslationProvider>
       <NotificationProvider>
         <LoadingProvider>
           <Router>
             <RouteLoadingSync />
-            {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
             <div style={{
               minHeight: '100vh',
               display: 'flex',

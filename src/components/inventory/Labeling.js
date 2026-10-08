@@ -36,6 +36,8 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import IconButton from '@mui/material/IconButton';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
+import ExcelExportTemplateBar from './ExcelExportTemplateBar';
+import { exportItemsWithSavedTemplate, labelledStockExportFileName, rowsForActiveExportTemplate } from '../../services/excelExportTemplateApi';
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
@@ -1185,41 +1187,11 @@ const Labeling = () => {
       setExportLoading(true);
       setExportErrors({ ...exportErrors, excel: '' });
 
-      const wb = XLSX.utils.book_new();
-      
-      // Use all filtered data if available, otherwise use current page data
       const dataToExport = showAllData && allFilteredData.length > 0 ? allFilteredData : filteredStock;
-      
-      const exportData = dataToExport.map((item, index) => ({
-        'Sr No': index + 1,
-        'Counter Name': item.CounterName || '',
-        'Item Code': item.ItemCode || '',
-        'RFID Code': item.RFIDCode || '',
-        'Product Name': item.ProductName || '',
-        'Category': item.Category || '',
-        'Gross Wt': item.GrossWt ? Number(item.GrossWt).toFixed(3) : '',
-        'Net Wt': item.NetWt ? Number(item.NetWt).toFixed(3) : '',
-        'Status': item.Status || ''
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      
-      ws['!cols'] = [
-        { wch: 8 },  // Sr No
-        { wch: 15 }, // Counter Name
-        { wch: 12 }, // Item Code
-        { wch: 15 }, // RFID Code
-        { wch: 25 }, // Product Name
-        { wch: 15 }, // Category
-        { wch: 12 }, // Gross Wt
-        { wch: 12 }, // Net Wt
-        { wch: 12 }  // Status
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Label Stock");
-
-      const date = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `label_stock_${date}.xlsx`);
+      await exportItemsWithSavedTemplate(dataToExport, {
+        sheetName: 'Label Stock',
+        filePrefix: 'LabelledStock_Export',
+      });
 
       // Show success notification before closing modal
       showSuccessNotification(
@@ -1241,7 +1213,7 @@ const Labeling = () => {
       });
     } catch (error) {
       console.error('Excel export error:', error);
-      setExportErrors({ ...exportErrors, excel: 'Failed to export Excel. Please try again.' });
+      setExportErrors({ ...exportErrors, excel: error?.message || 'Failed to export Excel. Please try again.' });
       setExportLoading(false);
     }
   };
@@ -1316,38 +1288,16 @@ const Labeling = () => {
     setExportErrors({ ...exportErrors, email: '' });
 
     try {
-      const wb = XLSX.utils.book_new();
-      
-      // Use all filtered data if available, otherwise use current page data
       const dataToExport = showAllData && allFilteredData.length > 0 ? allFilteredData : filteredStock;
-      
-      const exportData = dataToExport.map((item, index) => ({
-        'Sr No': index + 1,
-        'Counter Name': item.CounterName || '',
-        'Item Code': item.ItemCode || '',
-        'RFID Code': item.RFIDCode || '',
-        'Product Name': item.ProductName || '',
-        'Category': item.Category || '',
-        'Gross Wt': item.GrossWt ? Number(item.GrossWt).toFixed(3) : '',
-        'Net Wt': item.NetWt ? Number(item.NetWt).toFixed(3) : '',
-        'Status': item.Status || ''
+      const exportData = await rowsForActiveExportTemplate(dataToExport);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      ws['!cols'] = Object.keys(exportData[0]).map((key) => ({
+        wch: Math.min(36, Math.max(12, String(key).length + 2)),
       }));
 
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      
-      ws['!cols'] = [
-        { wch: 8 },  // Sr No
-        { wch: 15 }, // Counter Name
-        { wch: 12 }, // Item Code
-        { wch: 15 }, // RFID Code
-        { wch: 25 }, // Product Name
-        { wch: 15 }, // Category
-        { wch: 12 }, // Gross Wt
-        { wch: 12 }, // Net Wt
-        { wch: 12 }  // Status
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Label Stock");
+      XLSX.utils.book_append_sheet(wb, ws, 'Label Stock');
 
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       
@@ -1356,8 +1306,7 @@ const Labeling = () => {
       formData.append('clientCode', userInfo.ClientCode);
       formData.append('subject', 'RFID Label Stock Report');
       
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `label_stock_${date}.xlsx`;
+      const filename = labelledStockExportFileName();
       const excelBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       formData.append('file', excelBlob, filename);
 
@@ -1392,7 +1341,7 @@ const Labeling = () => {
       console.error('Email export error:', error);
       setExportErrors({
         ...exportErrors,
-        email: error.response?.data?.message || 'Failed to send email. Please try again.'
+        email: error.response?.data?.message || error.message || 'Failed to send email. Please try again.'
       });
       setExportLoading(false);
     }
@@ -2804,6 +2753,9 @@ const Labeling = () => {
           </button>
         </div>
         <p className="modal-subtitle">Choose your preferred export format</p>
+        <div style={{ margin: '0 0 12px' }}>
+          <ExcelExportTemplateBar />
+        </div>
 
         <div className="export-options">
           <button 

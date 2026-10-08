@@ -10,6 +10,7 @@ import { getApiMode } from '../services/apiBaseConfig';
 import OfflineApiBaseSettingsForm from './OfflineApiBaseSettingsForm';
 import { useAuthSplitSwap } from '../hooks/useAuthSplitSwap';
 import { AUTH_HERO_SLIDES } from '../data/authHeroSlides';
+import { markDussehraOffer } from './common/DussehraGreeting';
 import {
   createFingerprintChallenge,
   verifyLogin,
@@ -502,7 +503,7 @@ const Login = () => {
       localStorage.setItem('userInfo', JSON.stringify(userInfo));
       localStorage.setItem('lastLoginTime', new Date().toLocaleString());
       localStorage.setItem('showWelcomeToast', 'true');
-      window.dispatchEvent(new Event('rfid-welcome'));
+      markDussehraOffer();
 
       toast.success(`Welcome ${userInfo.Username}!`, {
         position: 'top-right',

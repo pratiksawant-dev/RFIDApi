@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FaSearch, 
+import {
+  FaSearch,
   FaSpinner, 
   FaExclamationTriangle, 
   FaFileExcel, 
@@ -42,6 +42,8 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import IconButton from '@mui/material/IconButton';
 import TrayScanModal from '../common/TrayScanModal';
+import ExcelExportTemplateBar from './ExcelExportTemplateBar';
+import { exportItemsWithSavedTemplate, labelledStockExportFileName, rowsForActiveExportTemplate } from '../../services/excelExportTemplateApi';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
 import { isInventoryTrayEnabled } from '../../services/trayModeService';
@@ -1501,54 +1503,6 @@ const CreateInvoice = () => {
     setShowSuccess(true);
   };
 
-  const formatExcelWeight = (value) => (
-    value !== undefined && value !== null && value !== '' && !Number.isNaN(Number(value))
-      ? Number(value).toFixed(3)
-      : ''
-  );
-
-  const mapLabeledStockForExcel = (items) => (
-    (Array.isArray(items) ? items : []).map((item, index) => ({
-      'Sr No': index + 1,
-      'Counter Name': item.CounterName || '',
-      'Item Code': item.ItemCode || '',
-      'RFID Code': item.RFIDCode || '',
-      'Product Name': item.ProductName || '',
-      'Category': item.CategoryName || item.Category || '',
-      'Design': item.DesignName || item.Design || '',
-      'Purity': item.PurityName || item.Purity || '',
-      'Gross Wt': formatExcelWeight(item.GrossWt),
-      'Stone Wt': formatExcelWeight(item.StoneWt),
-      'Diamond Wt': formatExcelWeight(item.DiamondWt),
-      'Net Wt': formatExcelWeight(item.NetWt),
-      'Description': item.Description || '',
-      'Stone Amt': item.StoneAmt || '',
-      'Fixed Amt': item.FixedAmt || '',
-      'Vendor': item.Vendor || item.VendorName || '',
-      'Branch': item.Branch || item.BranchName || '',
-      'Box Name': item.BoxName || '',
-      'Created Date': item.CreatedDate || item.CreatedOn || '',
-      'Packing Weight': item.PackingWeight || '',
-      'Total Weight': item.TotalWeight || '',
-      'Status': item.Status || ''
-    }))
-  );
-
-  const writeLabeledStockExcelFile = (rows, sheetName, filePrefix) => {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [
-      { wch: 8 }, { wch: 15 }, { wch: 14 }, { wch: 16 }, { wch: 22 },
-      { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 12 }, { wch: 12 },
-      { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
-      { wch: 14 }, { wch: 12 }
-    ];
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    const date = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `${filePrefix}_${date}.xlsx`);
-  };
-
   const parseLabeledStockResponse = (responseData) => {
     if (!responseData) return [];
     if (Array.isArray(responseData)) return responseData;
@@ -1565,12 +1519,10 @@ const CreateInvoice = () => {
 
       const isSoldExport = invoiceListStockMode === 'sold';
       const dataToExport = showAllData && allFilteredData.length > 0 ? allFilteredData : filteredStock;
-      const exportData = mapLabeledStockForExcel(dataToExport);
-      writeLabeledStockExcelFile(
-        exportData,
-        isSoldExport ? 'Sold Items' : 'Label Stock',
-        isSoldExport ? 'sold_items' : 'label_stock'
-      );
+      await exportItemsWithSavedTemplate(dataToExport, {
+        sheetName: isSoldExport ? 'Sold Items' : 'Label Stock',
+        filePrefix: isSoldExport ? 'sold_items' : 'LabelledStock_Export',
+      });
 
       // Show success notification before closing modal
       showSuccessNotification(
@@ -1592,7 +1544,7 @@ const CreateInvoice = () => {
       });
     } catch (error) {
       console.error('Excel export error:', error);
-      setExportErrors({ ...exportErrors, excel: 'Failed to export Excel. Please try again.' });
+      setExportErrors({ ...exportErrors, excel: error?.message || 'Failed to export Excel. Please try again.' });
       setExportLoading(false);
     }
   };
@@ -1700,7 +1652,10 @@ const CreateInvoice = () => {
         return;
       }
 
-      writeLabeledStockExcelFile(mapLabeledStockForExcel(rowsToExport), 'Sold Items', 'sold_items');
+      await exportItemsWithSavedTemplate(rowsToExport, {
+        sheetName: 'Sold Items',
+        filePrefix: 'sold_items',
+      });
 
       showSuccessNotification(
         'Export Successful',
@@ -1715,7 +1670,7 @@ const CreateInvoice = () => {
       console.error('Sold items Excel export error:', error);
       addNotification({
         title: 'Export failed',
-        description: 'Failed to export sold items. Please try again.',
+        description: error?.message || 'Failed to export sold items. Please try again.',
         type: 'error'
       });
     } finally {
@@ -1793,38 +1748,16 @@ const CreateInvoice = () => {
     setExportErrors({ ...exportErrors, email: '' });
 
     try {
-      const wb = XLSX.utils.book_new();
-      
-      // Use all filtered data if available, otherwise use current page data
       const dataToExport = showAllData && allFilteredData.length > 0 ? allFilteredData : filteredStock;
-      
-      const exportData = dataToExport.map((item, index) => ({
-        'Sr No': index + 1,
-        'Counter Name': item.CounterName || '',
-        'Item Code': item.ItemCode || '',
-        'RFID Code': item.RFIDCode || '',
-        'Product Name': item.ProductName || '',
-        'Category': item.Category || '',
-        'Gross Wt': item.GrossWt ? Number(item.GrossWt).toFixed(3) : '',
-        'Net Wt': item.NetWt ? Number(item.NetWt).toFixed(3) : '',
-        'Status': item.Status || ''
+      const exportData = await rowsForActiveExportTemplate(dataToExport);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      ws['!cols'] = Object.keys(exportData[0]).map((key) => ({
+        wch: Math.min(36, Math.max(12, String(key).length + 2)),
       }));
 
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      
-      ws['!cols'] = [
-        { wch: 8 },  // Sr No
-        { wch: 15 }, // Counter Name
-        { wch: 12 }, // Item Code
-        { wch: 15 }, // RFID Code
-        { wch: 25 }, // Product Name
-        { wch: 15 }, // Category
-        { wch: 12 }, // Gross Wt
-        { wch: 12 }, // Net Wt
-        { wch: 12 }  // Status
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Label Stock");
+      XLSX.utils.book_append_sheet(wb, ws, 'Label Stock');
 
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       
@@ -1833,8 +1766,7 @@ const CreateInvoice = () => {
       formData.append('clientCode', userInfo.ClientCode);
       formData.append('subject', 'RFID Label Stock Report');
       
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `label_stock_${date}.xlsx`;
+      const filename = labelledStockExportFileName();
       const excelBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       formData.append('file', excelBlob, filename);
 
@@ -1869,7 +1801,7 @@ const CreateInvoice = () => {
       console.error('Email export error:', error);
       setExportErrors({
         ...exportErrors,
-        email: error.response?.data?.message || 'Failed to send email. Please try again.'
+        email: error.response?.data?.message || error.message || 'Failed to send email. Please try again.'
       });
       setExportLoading(false);
     }
@@ -2898,6 +2830,9 @@ const CreateInvoice = () => {
           </button>
         </div>
         <p className="modal-subtitle">Choose your preferred export format</p>
+        <div style={{ marginBottom: 12 }}>
+          <ExcelExportTemplateBar />
+        </div>
 
         <div className="export-options">
           <button 

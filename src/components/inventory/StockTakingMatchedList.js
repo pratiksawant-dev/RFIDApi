@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
+import ExcelExportTemplateBar from './ExcelExportTemplateBar';
+import { rowsForActiveExportTemplate, worksheetFromTemplateRows } from '../../services/excelExportTemplateApi';
 import {
   FaCheckCircle,
   FaSearch,
@@ -514,42 +516,29 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
   }, [apiResponseMeta, filteredAndSortedList]);
 
   // Export to Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (filteredAndSortedList.length === 0) {
       toast.warn(`No ${cfg.word} records available to export.`);
       return;
     }
 
-    const exportData = filteredAndSortedList.map((item, index) => ({
-      'Sr. No': index + 1,
-      'Item Code': item.ItemCode ?? item.itemCode ?? '',
-      'RFID Tag / Code': item.RFIDTag ?? item.RFIDCode ?? item.rfidTag ?? item.rfidCode ?? '',
-      'SKU': item.SKU ?? item.sku ?? item.Sku ?? '',
-      'HUID': item.HUID ?? item.huid ?? item.HUIDCode ?? item.huidCode ?? '',
-      'Category': item.CategoryName ?? item.categoryName ?? '',
-      'Product Name': item.ProductName ?? item.productName ?? '',
-      'Design': item.DesignName ?? item.designName ?? '',
-      'Purity': item.PurityName ?? item.purityName ?? '',
-      'Gross Wt (g)': item.GrossWeight ?? item.grossWeight ?? item.GrossWt ?? '',
-      'Net Wt (g)': item.NetWeight ?? item.netWeight ?? item.NetWt ?? '',
-      'Stone Wt (g)': item.StoneWeight ?? item.stoneWeight ?? item.StoneWt ?? item.stonewt ?? '',
-      'Hallmark Amount': item.HallmarkAmount ?? item.hallmarkAmount ?? item.HallmarkAmt ?? item.HallMarkAmount ?? '',
-      'Counter Name': item.CounterName ?? item.counterName ?? '',
-      'Branch Name': item.BranchName ?? item.branchName ?? activeBranchName ?? '',
-      'Branch Address': item.BranchAddress ?? item.branchAddress ?? activeBranchAddress ?? '',
-      'Quantity': item.Quantity ?? item.quantity ?? 1,
-      'Status': item.Status ?? item.status ?? cfg.statusDefault,
-      'Scan Date': item.ScanDate ?? item.scanDate ?? '',
-      'Scan Time': item.ScanTime ?? item.scanTime ?? '',
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, cfg.excelSheet);
-
-    const fileName = `${cfg.excelPrefix}_${effectiveBranchAddress || 'Branch'}_${stockTakingDate || 'Date'}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-    toast.success('Exported to Excel successfully!');
+    try {
+      const rows = await rowsForActiveExportTemplate(filteredAndSortedList.map((item) => ({
+        ...item,
+        BranchName: item.BranchName ?? item.branchName ?? activeBranchName ?? '',
+        RFIDCode: item.RFIDCode ?? item.RFIDTag ?? item.rfidTag ?? item.rfidCode ?? '',
+        GrossWt: item.GrossWt ?? item.GrossWeight ?? item.grossWeight ?? '',
+        NetWt: item.NetWt ?? item.NetWeight ?? item.netWeight ?? '',
+        StoneWt: item.StoneWt ?? item.StoneWeight ?? item.stoneWeight ?? item.stonewt ?? '',
+      })));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheetFromTemplateRows(rows), cfg.excelSheet);
+      const fileName = `${cfg.excelPrefix}_${effectiveBranchAddress || 'Branch'}_${stockTakingDate || 'Date'}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success('Exported to Excel successfully!');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to export Excel.');
+    }
   };
 
   return (
@@ -693,6 +682,9 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
 
             {/* Right Actions: Load & Export */}
             <div className="filter-right-actions">
+              <div style={{ width: '100%', marginBottom: 8 }}>
+                <ExcelExportTemplateBar />
+              </div>
               <button
                 type="button"
                 className="btn-primary"

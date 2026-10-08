@@ -1,0 +1,109 @@
+.dussehra-pop {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
+.dussehra-pop-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.4);
+  animation: dussehra-fade 0.4s ease;
+}
+
+.dussehra-pop-card {
+  position: relative;
+  z-index: 1;
+  width: min(1040px, 92vw);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+  animation: dussehra-rise 0.46s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dussehra-pop-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dussehra-pop-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.16);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.dussehra-pop-x:hover {
+  background: #fff;
+  transform: scale(1.06);
+}
+
+.dussehra-pop-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.92);
+  transform-origin: left center;
+  animation: dussehra-timer 3s linear forwards;
+}
+
+.dussehra-pop.is-closing .dussehra-pop-backdrop {
+  animation: dussehra-fade-out 0.36s ease forwards;
+}
+
+.dussehra-pop.is-closing .dussehra-pop-card {
+  animation: dussehra-rise-out 0.36s ease forwards;
+}
+
+@keyframes dussehra-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dussehra-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes dussehra-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes dussehra-rise-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.99); }
+}
+
+@keyframes dussehra-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 640px) {
+  .dussehra-pop {
+    padding: 16px;
+  }
+}
