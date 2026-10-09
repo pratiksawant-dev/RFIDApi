@@ -21,6 +21,22 @@
   min-height: 240px;
 }
 
+.create-masters-list-card--branch .cm-table {
+  min-width: 880px;
+}
+
+.create-masters-list-card--branch .cm-table tbody td {
+  max-width: 280px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.create-masters-list-card--branch .cm-td-primary .cm-primary-text {
+  white-space: normal;
+  word-break: break-word;
+}
+
 .cm-list-head {
   flex-shrink: 0;
   padding: 8px 12px 8px;

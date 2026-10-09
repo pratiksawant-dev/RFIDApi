@@ -246,8 +246,7 @@ const Labeling = () => {
     if (userInfo && userInfo.ClientCode && !isFetchingRef.current) {
       // Only fetch if not already loading to prevent double loading
       const fetchData = async () => {
-        isFetchingRef.current = true;
-        // Show loader immediately when page loads
+        // Show loader immediately when page loads (fetchLabeledStock owns isFetchingRef)
         setLoading(true);
         try {
           // Reset filters to default on page load/refresh
@@ -282,7 +281,7 @@ const Labeling = () => {
           setError('Failed to load data. Please refresh the page.');
           setLoading(false);
         } finally {
-          isFetchingRef.current = false;
+          setLoading(false);
         }
       };
       fetchData();
@@ -480,12 +479,12 @@ const Labeling = () => {
         countersResponse,
         branchesResponse
       ] = await Promise.all([
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllProductMaster', requestBody, { headers }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllDesign', requestBody, { headers }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllCategory', requestBody, { headers }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllPurity', requestBody, { headers }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllCounters', requestBody, { headers }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllBranchMaster', requestBody, { headers })
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllProductMaster', requestBody, { headers, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllDesign', requestBody, { headers, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllCategory', requestBody, { headers, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllPurity', requestBody, { headers, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllCounters', requestBody, { headers, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllBranchMaster', requestBody, { headers, skipGlobalLoader: true }),
       ]);
 
       console.log('Counters API Response:', countersResponse.data);
@@ -707,7 +706,8 @@ const Labeling = () => {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
           },
-          timeout: 30000 // 30 seconds timeout
+          timeout: 30000, // 30 seconds timeout
+          skipGlobalLoader: true,
         }
       );
 

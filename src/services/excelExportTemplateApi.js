@@ -104,7 +104,11 @@ export const excelExportApiError = (error, fallback = 'Request failed.') => {
 };
 
 const postJson = (path, body) =>
-  axios.post(toRrgoldApiUrl(path), body, { headers: authHeaders(), timeout: 60000 });
+  axios.post(toRrgoldApiUrl(path), body, {
+    headers: authHeaders(),
+    timeout: 60000,
+    skipGlobalLoader: true,
+  });
 
 const HIDDEN_DUPLICATE_KEYS = {
   itemcode: 'Itemcode',

@@ -263,6 +263,7 @@ const SessionDetails = () => {
   const [matchedSearchQuery, setMatchedSearchQuery] = useState('');
   const [unmatchedSearchQuery, setUnmatchedSearchQuery] = useState('');
   const [clientCode, setClientCode] = useState('');
+  const [exportBusy, setExportBusy] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   const isSmallScreen = windowWidth <= 768;
@@ -353,6 +354,8 @@ const SessionDetails = () => {
       return;
     }
 
+    setExportBusy(true);
+    setGlobalLoading(true);
     try {
       const token = localStorage.getItem('token');
       const exportSession = await fetchStockVerificationSessionPages(clientCode, sessionId, {
@@ -444,6 +447,9 @@ const SessionDetails = () => {
         description: 'Failed to export session details. Please try again.',
         type: 'error',
       });
+    } finally {
+      setExportBusy(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -507,7 +513,7 @@ const SessionDetails = () => {
                 <button type="button" className="sv-chip" onClick={() => navigate('/stock-verification')}>
                   <FaArrowLeft /> Back
                 </button>
-                <button type="button" className="sv-chip sv-chip--accent" onClick={exportSessionDetails}>
+                <button type="button" className="sv-chip sv-chip--accent" onClick={exportSessionDetails} disabled={exportBusy}>
                   <FaFileExcel /> Export
                 </button>
               </div>

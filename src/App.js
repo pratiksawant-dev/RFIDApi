@@ -74,10 +74,13 @@ import OfflineApiBaseSettingsPage from './components/OfflineApiBaseSettingsPage'
 import DownloadFoldersSettingsPage from './components/DownloadFoldersSettingsPage';
 import PublicProductScanView from './components/public-scan/PublicProductScanView';
 import { setupApiRuntimeRouter } from './services/apiRuntimeRouter';
+import { redirectToLogin } from './utils/authRedirect';
+import { isTokenValid, msUntilTokenExpiry } from './utils/jwtSession';
+import { tryRenewUserSession, hasSavedLoginCredentials } from './services/sessionRenewal';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/rtl.css';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import Layout from './components/Layout';
 import AppLogoLoader from './components/common/Loader';
 import { bindGlobalLoader } from './services/globalLoader';
@@ -98,52 +101,40 @@ export const LoadingContext = createContext({
 export const useLoading = () => useContext(LoadingContext);
 
 const LoadingProvider = ({ children }) => {
-  const [loading, setLoading] = useState(false);
-  const [routeLoading, setRouteLoading] = useState(false);
+  const [loading, setLoadingState] = useState(false);
   const [apiLoading, setApiLoading] = useState(false);
-  const routeTimer = useRef(null);
+  const pageLoaderRef = useRef(false);
 
-  const notifyRouteChange = useCallback(() => {
-    setRouteLoading(true);
-    if (routeTimer.current) window.clearTimeout(routeTimer.current);
-    routeTimer.current = window.setTimeout(() => setRouteLoading(false), 700);
+  /** Page-level overlay (list pages). While true, axios global loader stays off to avoid double spinners. */
+  const setLoading = useCallback((value) => {
+    const on = Boolean(value);
+    pageLoaderRef.current = on;
+    setLoadingState(on);
+    if (on) setApiLoading(false);
   }, []);
+
+  const notifyRouteChange = useCallback(() => {}, []);
 
   useEffect(() => {
     bindGlobalLoader({
-      show: () => setApiLoading(true),
-      hide: () => setApiLoading(false),
+      show: () => {
+        if (pageLoaderRef.current) return;
+        setApiLoading(true);
+      },
+      hide: () => {
+        if (pageLoaderRef.current) return;
+        setApiLoading(false);
+      },
     });
     return () => bindGlobalLoader({});
   }, []);
 
-  useEffect(() => () => {
-    if (routeTimer.current) window.clearTimeout(routeTimer.current);
-  }, []);
-
   return (
     <LoadingContext.Provider value={{ loading, setLoading, notifyRouteChange }}>
-      <AppLogoLoader visible={Boolean(loading || routeLoading || apiLoading)} />
+      <AppLogoLoader visible={Boolean(loading || apiLoading)} />
       {children}
     </LoadingContext.Provider>
   );
-};
-
-const RouteLoadingSync = () => {
-  const location = useLocation();
-  const { notifyRouteChange } = useLoading();
-  const first = useRef(true);
-
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return undefined;
-    }
-    notifyRouteChange?.();
-    return undefined;
-  }, [location.pathname, notifyRouteChange]);
-
-  return null;
 };
 
 // Enhanced authentication check with navigation protection
@@ -372,72 +363,29 @@ const useAuthProtection = () => {
   }, [navigate]);
 };
 
+const clearUserAuthStorage = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('userInfo');
+  localStorage.removeItem('lastLoginTime');
+  localStorage.removeItem('showWelcomeToast');
+};
+
 // Protected route authentication check with enhanced validation
 const isAuthenticated = () => {
   const token = localStorage.getItem('token');
   if (!token) return false;
-
-  try {
-    // Validate token format and expiry
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const tokenPayload = JSON.parse(window.atob(base64));
-
-    // Check if token is expired (if exp field exists)
-    if (tokenPayload.exp) {
-      const currentTime = Math.floor(Date.now() / 1000);
-      const isValid = tokenPayload.exp > currentTime;
-
-      // If token is expired, clear storage
-      if (!isValid) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('lastLoginTime');
-      }
-
-      return isValid;
-    }
-
-    return true; // If no expiry field, consider valid
-  } catch (error) {
-    // Invalid token format, clear storage
-    localStorage.removeItem('token');
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('lastLoginTime');
-    return false;
-  }
+  const valid = isTokenValid(token);
+  if (!valid) clearUserAuthStorage();
+  return valid;
 };
 
 // Admin authentication check
 const isAdminAuthenticated = () => {
   const adminToken = localStorage.getItem('adminToken');
   if (!adminToken) return false;
-
-  try {
-    // Validate admin token format and expiry
-    const base64Url = adminToken.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const tokenPayload = JSON.parse(window.atob(base64));
-
-    // Check if token is expired (if exp field exists)
-    if (tokenPayload.exp) {
-      const currentTime = Math.floor(Date.now() / 1000);
-      const isValid = tokenPayload.exp > currentTime;
-
-      // If token is expired, clear storage
-      if (!isValid) {
-        localStorage.removeItem('adminToken');
-      }
-
-      return isValid;
-    }
-
-    return true; // If no expiry field, consider valid
-  } catch (error) {
-    // Invalid token format, clear storage
-    localStorage.removeItem('adminToken');
-    return false;
-  }
+  const valid = isTokenValid(adminToken);
+  if (!valid) localStorage.removeItem('adminToken');
+  return valid;
 };
 
 // Common page wrapper component with smooth scroll
@@ -460,73 +408,116 @@ const FullHeightPageWrapper = ({ children }) => (
   </div>
 );
 
-// Session timeout management
+/** Inactivity logout (JWT expiry is handled separately). Default 8 hours. */
+const IDLE_LOGOUT_MS = Number(process.env.REACT_APP_IDLE_LOGOUT_MS) || 8 * 60 * 60 * 1000;
+const TOKEN_POLL_MS = 30 * 1000;
+const RENEW_BEFORE_EXPIRY_MS = 12 * 60 * 1000;
+const WARN_BEFORE_EXPIRY_MS = 5 * 60 * 1000;
+
+// Session: JWT expiry + long idle timeout; optional silent renew when "Remember me" is on
 const useSessionTimeout = () => {
-  const navigate = useNavigate();
-  const timeoutRef = React.useRef(null);
-  const warningRef = React.useRef(null);
+  const idleTimeoutRef = React.useRef(null);
+  const tokenPollRef = React.useRef(null);
+  const expiryWarnTokenRef = React.useRef(null);
 
-  const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes
-  const WARNING_DURATION = 5 * 60 * 1000; // 5 minutes before timeout
-
-  const logout = React.useCallback(() => {
-    // Clear all authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('lastLoginTime');
-    localStorage.removeItem('showWelcomeToast');
+  const endUserSession = React.useCallback((sessionExpired = true) => {
+    clearUserAuthStorage();
     localStorage.removeItem('adminToken');
     sessionStorage.clear();
+    redirectToLogin({ sessionExpired, admin: false });
+  }, []);
 
-    // Navigate to login
-    navigate('/login?session_expired=true', { replace: true });
-  }, [navigate]);
+  const endAdminSession = React.useCallback(() => {
+    localStorage.removeItem('adminToken');
+    sessionStorage.clear();
+    redirectToLogin({ sessionExpired: true, admin: true });
+  }, []);
 
-  const resetTimeout = React.useCallback(() => {
-    // Clear existing timeouts
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (warningRef.current) clearTimeout(warningRef.current);
-
-    // Only set timeout if user is authenticated
+  const runTokenLifecycle = React.useCallback(async () => {
     const token = localStorage.getItem('token');
     const adminToken = localStorage.getItem('adminToken');
 
-    if (token || adminToken) {
-      // Set warning timeout
-      warningRef.current = setTimeout(() => {
-        console.warn('Session will expire in 5 minutes');
-      }, TIMEOUT_DURATION - WARNING_DURATION);
-
-      // Set logout timeout
-      timeoutRef.current = setTimeout(() => {
-        logout();
-      }, TIMEOUT_DURATION);
+    if (adminToken && !isTokenValid(adminToken)) {
+      endAdminSession();
+      return;
     }
-  }, [logout, TIMEOUT_DURATION, WARNING_DURATION]);
+
+    if (!token) return;
+
+    if (!isTokenValid(token)) {
+      endUserSession(true);
+      return;
+    }
+
+    const msLeft = msUntilTokenExpiry(token);
+    if (msLeft == null) return;
+
+    if (msLeft <= 0) {
+      endUserSession(true);
+      return;
+    }
+
+    if (msLeft <= RENEW_BEFORE_EXPIRY_MS) {
+      const renewed = await tryRenewUserSession();
+      if (renewed) {
+        expiryWarnTokenRef.current = null;
+        return;
+      }
+    }
+
+    if (
+      msLeft <= WARN_BEFORE_EXPIRY_MS &&
+      expiryWarnTokenRef.current !== token
+    ) {
+      expiryWarnTokenRef.current = token;
+      const minutes = Math.max(1, Math.ceil(msLeft / 60000));
+      const hint = hasSavedLoginCredentials()
+        ? 'We will try to refresh your session automatically.'
+        : 'Please save your work and sign in again soon.';
+      toast.info(`Your session expires in about ${minutes} minute(s). ${hint}`, {
+        position: 'top-right',
+        autoClose: 10000,
+      });
+    }
+  }, [endAdminSession, endUserSession]);
+
+  const resetIdleTimeout = React.useCallback(() => {
+    if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
+
+    const token = localStorage.getItem('token');
+    const adminToken = localStorage.getItem('adminToken');
+    if (!token && !adminToken) return;
+
+    idleTimeoutRef.current = setTimeout(() => {
+      if (adminToken && localStorage.getItem('adminToken')) {
+        endAdminSession();
+        return;
+      }
+      endUserSession(true);
+    }, IDLE_LOGOUT_MS);
+  }, [endAdminSession, endUserSession]);
 
   React.useEffect(() => {
-    // Events that reset the timeout
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
 
-    const resetTimeoutHandler = () => resetTimeout();
+    const onActivity = () => resetIdleTimeout();
 
-    // Add event listeners
-    events.forEach(event => {
-      document.addEventListener(event, resetTimeoutHandler, true);
+    events.forEach((event) => {
+      document.addEventListener(event, onActivity, true);
     });
 
-    // Initial timeout setup
-    resetTimeout();
+    resetIdleTimeout();
+    runTokenLifecycle();
+    tokenPollRef.current = setInterval(runTokenLifecycle, TOKEN_POLL_MS);
 
-    // Cleanup
     return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, resetTimeoutHandler, true);
+      events.forEach((event) => {
+        document.removeEventListener(event, onActivity, true);
       });
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (warningRef.current) clearTimeout(warningRef.current);
+      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
+      if (tokenPollRef.current) clearInterval(tokenPollRef.current);
     };
-  }, [resetTimeout]);
+  }, [resetIdleTimeout, runTokenLifecycle]);
 };
 
 // Global Authentication Guard Component
@@ -559,16 +550,22 @@ const AuthGuard = ({ children }) => {
 
       // Check if trying to access user routes
       if (userRoutes.includes(currentPath) || currentPath.startsWith('/box-rfid/box-list/')) {
-        if (!isAuthenticated()) {
-          navigate('/login', { replace: true });
+        const token = localStorage.getItem('token');
+        if (!token || !isTokenValid(token)) {
+          const hadSession = Boolean(token);
+          if (hadSession) clearUserAuthStorage();
+          redirectToLogin({ sessionExpired: hadSession });
           return;
         }
       }
 
       // Check if trying to access admin routes
       if (adminRoutes.includes(currentPath)) {
-        if (!isAdminAuthenticated()) {
-          navigate('/admin-login', { replace: true });
+        const adminToken = localStorage.getItem('adminToken');
+        if (!adminToken || !isTokenValid(adminToken)) {
+          const hadSession = Boolean(adminToken);
+          if (hadSession) localStorage.removeItem('adminToken');
+          redirectToLogin({ sessionExpired: hadSession, admin: true });
           return;
         }
       }
@@ -1254,7 +1251,6 @@ function App() {
       <NotificationProvider>
         <LoadingProvider>
           <Router>
-            <RouteLoadingSync />
             <div style={{
               minHeight: '100vh',
               display: 'flex',

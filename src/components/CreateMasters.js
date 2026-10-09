@@ -65,8 +65,52 @@ const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
   'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
   'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
-  'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Puducherry',
+  'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh',
+  'Chandigarh', 'Puducherry', 'Andaman and Nicobar Islands', 'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep',
 ].sort();
+
+const STATE_SELECT_OPTIONS = [
+  { id: '', name: 'Select state' },
+  ...INDIAN_STATES.map((s) => ({ id: s, name: s })),
+];
+
+/** Keep one row per key (highest Id wins) — removes duplicate names in lists/dropdowns. */
+const dedupeMasterList = (rows, keyFn) => {
+  const map = new Map();
+  for (const row of rows || []) {
+    const key = keyFn(row);
+    if (!key) continue;
+    const id = Number(row?.Id ?? row?.id) || 0;
+    const prev = map.get(key);
+    if (!prev || id >= (Number(prev?.Id ?? prev?.id) || 0)) map.set(key, row);
+  }
+  return Array.from(map.values());
+};
+
+const productDedupeKey = (row) => {
+  const name = String(row?.ProductName ?? row?.Name ?? '').trim().toLowerCase();
+  const cat = String(row?.CategoryId ?? row?.categoryId ?? '');
+  return name ? `${cat}|${name}` : '';
+};
+
+const purityDedupeKey = (row) => {
+  const name = String(row?.PurityName ?? row?.Name ?? '').trim().toLowerCase();
+  const cat = String(row?.CategoryId ?? row?.categoryId ?? '');
+  return name ? `${cat}|${name}` : '';
+};
+
+const suggestNextCounterNumber = (counters, branchId) => {
+  const branchKey = String(branchId ?? '');
+  let maxNum = 0;
+  for (const c of counters || []) {
+    if (branchKey && String(c?.BranchId ?? c?.branchId ?? '') !== branchKey) continue;
+    const raw = String(c?.CounterNumber ?? c?.counterNumber ?? '').trim();
+    const digits = raw.match(/\d+/);
+    const n = digits ? parseInt(digits[0], 10) : parseInt(raw, 10);
+    if (Number.isFinite(n) && n > maxNum) maxNum = n;
+  }
+  return String(maxNum + 1);
+};
 
 const getInitialVendorForm = () => ({
   vendorName: '',
@@ -178,6 +222,30 @@ const resolveCompanyId = (branches = []) => {
 const firstMasterId = (items) => {
   const row = (items || [])[0];
   return toIntOrUndefined(row?.Id ?? row?.id);
+};
+
+/** Pull readable text from RRGold API error bodies (400 validation, etc.). */
+const extractApiErrorMessage = (resData, fallback = 'Request failed.') => {
+  if (!resData) return fallback;
+  if (typeof resData === 'string' && resData.trim()) return resData.trim();
+  if (typeof resData !== 'object') return fallback;
+  const direct =
+    resData.message ??
+    resData.Message ??
+    resData.error ??
+    resData.Error ??
+    resData.title ??
+    resData.Title;
+  if (direct && String(direct).trim()) return String(direct).trim();
+  const errors = resData.errors ?? resData.Errors;
+  if (errors && typeof errors === 'object') {
+    const parts = Object.entries(errors).map(([key, val]) => {
+      const text = Array.isArray(val) ? val.join(', ') : String(val ?? '');
+      return `${key}: ${text}`;
+    });
+    if (parts.length) return parts.join(' ');
+  }
+  return fallback;
 };
 
 const rfidTextToHex = (str) =>
@@ -885,11 +953,13 @@ const CreateMasters = () => {
       axios.post(`${API_BASE}/api/ProductMaster/GetAllBoxMaster`, body, { headers }).then(r => r.data?.data ?? r.data ?? []).catch(() => []),
       axios.post(`${API_BASE}/api/ProductMaster/GetAllPacketMaster`, body, { headers }).then(r => r.data?.data ?? r.data ?? []).catch(() => []),
     ]).then(([categories, products, designs, purities, branches, counters, boxes, packets]) => {
+      const productRows = Array.isArray(products) ? products : [];
+      const purityRows = Array.isArray(purities) ? purities : [];
       setDropdownData({
         categories: Array.isArray(categories) ? categories : [],
-        products: Array.isArray(products) ? products : [],
+        products: dedupeMasterList(productRows, productDedupeKey),
         designs: Array.isArray(designs) ? designs : [],
-        purities: Array.isArray(purities) ? purities : [],
+        purities: dedupeMasterList(purityRows, purityDedupeKey),
         branches: Array.isArray(branches) ? branches : [],
         counters: Array.isArray(counters) ? counters : [],
         boxes: Array.isArray(boxes) ? boxes : [],
@@ -1012,6 +1082,9 @@ const CreateMasters = () => {
 
     setFormData((prev) => {
       const next = { ...prev, [key]: value };
+      if (activeOption === 'counter' && key === 'branchId' && editingId == null) {
+        next.counterNumber = suggestNextCounterNumber(dropdownData.counters, value);
+      }
       if (activeOption === 'box') {
         if (key === 'hexCode') {
           const hex = String(value || '').trim().toUpperCase();
@@ -1077,10 +1150,10 @@ const CreateMasters = () => {
         ];
       case 'counter':
         return [
+          { key: 'branchId', label: 'Branch', type: 'select', options: dropdownData.branches, optionLabel: 'BranchName', optionValue: 'Id', required: true, placeholder: 'Select an option', colSpan: 1 },
           { key: 'name', label: 'Counter Name', type: 'text', required: true, ...placeholder('Enter counter name'), colSpan: 1 },
+          { key: 'counterNumber', label: 'Counter Number', type: 'text', required: false, readOnly: !editingId, ...placeholder('Auto-generated when branch is selected'), colSpan: 1 },
           { key: 'counterDescription', label: 'Counter Description', type: 'text', required: false, ...placeholder('Enter description'), colSpan: 1 },
-          { key: 'branchId', label: 'Branch ID', type: 'select', options: dropdownData.branches, optionLabel: 'BranchName', optionValue: 'Id', required: true, placeholder: 'Select an option', colSpan: 1 },
-          { key: 'counterNumber', label: 'Counter Number', type: 'text', required: true, ...placeholder('Enter counter number'), colSpan: 1 },
           { key: 'financialYear', label: 'Financial Year', type: 'text', required: false, ...placeholder('Financial year'), colSpan: 1 },
         ];
       case 'box':
@@ -1120,7 +1193,7 @@ const CreateMasters = () => {
           { key: 'faxNumber', label: 'Fax Number', type: 'text', required: false, ...placeholder('Fax'), colSpan: 1 },
           { key: 'area', label: 'Area', type: 'text', required: false, ...placeholder('Area'), colSpan: 1 },
           { key: 'city', label: 'City', type: 'text', required: false, ...placeholder('City'), colSpan: 1 },
-          { key: 'state', label: 'State', type: 'select', required: true, placeholder: 'Select an option', options: [{ id: '', name: 'Select state' }, ...['Andhra Pradesh', 'Karnataka', 'Maharashtra', 'Tamil Nadu', 'Telangana'].map(s => ({ id: s, name: s }))], optionLabel: 'name', optionValue: 'id', colSpan: 1 },
+          { key: 'state', label: 'State', type: 'select', required: true, placeholder: 'Select an option', options: STATE_SELECT_OPTIONS, optionLabel: 'name', optionValue: 'id', colSpan: 1 },
           { key: 'gstin', label: 'GSTIN', type: 'text', required: false, ...placeholder('GSTIN'), colSpan: 1 },
           { key: 'financialYear', label: 'Financial Year', type: 'text', required: false, ...placeholder('Financial year'), colSpan: 1 },
           { key: 'branchType', label: 'Branch Type', type: 'select', required: true, placeholder: 'Select an option', options: BRANCH_TYPES, optionLabel: 'name', optionValue: 'id', colSpan: 1 },
@@ -1228,10 +1301,10 @@ const CreateMasters = () => {
         return cols([
           srNo,
           { key: 'BranchName', label: 'Branch Name', primary: true },
-          { key: 'Name', label: 'Name' },
           { key: 'Code', label: 'Code' },
           { key: 'City', label: 'City' },
           { key: 'State', label: 'State' },
+          { key: 'MobileNumber', label: 'Mobile' },
           { key: 'BranchType', label: 'Type', badge: true },
         ]);
       default:
@@ -1241,9 +1314,11 @@ const CreateMasters = () => {
 
   const listDataKey = LIST_DATA_KEYS[activeOption] || 'categories';
   const rawList = useMemo(() => {
-    const arr = dropdownData[listDataKey] || [];
+    let arr = dropdownData[listDataKey] || [];
+    if (activeOption === 'product') arr = dedupeMasterList(arr, productDedupeKey);
+    if (activeOption === 'purity') arr = dedupeMasterList(arr, purityDedupeKey);
     return [...arr].sort((a, b) => (Number(b?.Id ?? b?.id) || 0) - (Number(a?.Id ?? a?.id) || 0));
-  }, [dropdownData, listDataKey]);
+  }, [dropdownData, listDataKey, activeOption]);
   const listColumns = useMemo(() => getListColumns(), [activeOption]);
 
   const getCellDisplay = (row, colKey) => {
@@ -1264,6 +1339,7 @@ const CreateMasters = () => {
       BoxName: 'Name',
       CounterName: 'Name',
       CounterDescription: 'Description',
+      MobileNumber: 'mobileNumber',
       RFIDCode: 'rfidCode',
       HexCode: 'hexCode',
     };
@@ -1480,29 +1556,14 @@ const CreateMasters = () => {
       return payload;
     }
     if (activeOption === 'product') {
-      payload.CategoryId = formData.categoryId != null && formData.categoryId !== '' ? String(formData.categoryId) : '';
+      // Swagger: POST AddProductMaster body = tblProducts (additionalProperties: false).
+      const categoryId = toIntOrUndefined(formData.categoryId);
+      if (categoryId !== undefined) payload.CategoryId = categoryId;
       payload.ProductName = str(formData.productName) || '';
-      payload.StoneName = str(formData.stoneName) ?? payload.ProductName;
       payload.ShortName = str(formData.shortName) || '';
       payload.Description = str(formData.description) || '';
       payload.Slug = str(formData.slug) || '';
       payload.Status = str(formData.status) || 'Active';
-      payload.Shape = str(formData.shape) || '';
-      payload.ShapeName = str(formData.shapeName) || '';
-      payload.Clarity = str(formData.clarity) || '';
-      payload.ClarityName = str(formData.clarityName) || '';
-      payload.Color = str(formData.color) || '';
-      payload.ColorName = str(formData.colorName) || '';
-      payload.StoneWeightType = str(formData.stoneWeightType) || 'Gram';
-      payload.StonePieces = num(formData.stonePieces) !== undefined ? num(formData.stonePieces) : 1;
-      payload.StoneWeight = str(formData.stoneWeight) || '';
-      payload.StoneRate = str(formData.stoneRate) || '';
-      payload.StoneRatePerPiece = str(formData.stoneRatePerPiece) || '';
-      payload.StoneShape = num(formData.stoneShape) !== undefined ? num(formData.stoneShape) : 0;
-      payload.StoneColour = num(formData.stoneColour) !== undefined ? num(formData.stoneColour) : 0;
-      payload.StoneSize = num(formData.stoneSize) !== undefined ? num(formData.stoneSize) : 0;
-      payload.StoneSettingType = num(formData.stoneSettingType) !== undefined ? num(formData.stoneSettingType) : 0;
-      payload.StoneStatusType = num(formData.stoneStatusType) !== undefined ? num(formData.stoneStatusType) : 0;
       return payload;
     }
     if (activeOption === 'design') {
@@ -1533,7 +1594,9 @@ const CreateMasters = () => {
       if (counterName) payload.CounterName = counterName;
       const branchId = toIntOrUndefined(formData.branchId);
       if (branchId !== undefined) payload.BranchId = branchId;
-      const counterNumber = str(formData.counterNumber);
+      const counterNumber =
+        str(formData.counterNumber) ||
+        (branchId !== undefined ? suggestNextCounterNumber(dropdownData.counters, branchId) : null);
       if (counterNumber) payload.CounterNumber = counterNumber;
       const counterDescription = str(formData.counterDescription);
       if (counterDescription) payload.CounterDescription = counterDescription;
@@ -1569,22 +1632,27 @@ const CreateMasters = () => {
       return payload;
     }
     if (activeOption === 'packet') {
-      if (str(formData.packetName)) payload.Name = str(formData.packetName);
+      // Swagger: tblPacketMaster (additionalProperties: false) — no DesignId / SKU / Name.
+      payload.PacketName = str(formData.packetName) || '';
       const packetCategoryId = toIntOrUndefined(formData.categoryId);
       const packetProductId = toIntOrUndefined(formData.productId);
-      const packetDesignId = toIntOrUndefined(formData.designId);
       const packetBoxId = toIntOrUndefined(formData.boxId);
       const packetBranchId = toIntOrUndefined(formData.branchId);
       if (packetCategoryId !== undefined) payload.CategoryId = packetCategoryId;
       if (packetProductId !== undefined) payload.ProductId = packetProductId;
-      if (packetDesignId !== undefined) payload.DesignId = packetDesignId;
-      if (packetBoxId !== undefined) payload.BoxId = packetBoxId;
       if (packetBranchId !== undefined) payload.BranchId = packetBranchId;
+      if (packetBoxId !== undefined) payload.BoxId = packetBoxId;
       payload.CompanyId = resolveCompanyId(dropdownData.branches);
-      if (str(formData.emptyWeight)) payload.EmptyWeight = str(formData.emptyWeight);
+      payload.EmptyWeight = str(formData.emptyWeight) || '0';
+      payload.Status = str(formData.status) || 'Active';
       if (str(formData.description)) payload.Description = str(formData.description);
-      if (str(formData.sku)) payload.SKU = str(formData.sku);
-      if (str(formData.status)) payload.Status = str(formData.status);
+      if (packetBoxId !== undefined) {
+        const boxRow = (dropdownData.boxes || []).find(
+          (b) => String(b?.Id ?? b?.id) === String(packetBoxId)
+        );
+        const boxName = boxRow?.BoxName ?? boxRow?.Name ?? '';
+        if (boxName) payload.BoxName = String(boxName).trim();
+      }
       return payload;
     }
     if (activeOption === 'branch') {
@@ -1700,6 +1768,29 @@ const CreateMasters = () => {
     return null;
   };
 
+  const validateCounterDuplicate = (data = formData) => {
+    const norm = (v) => String(v ?? '').trim().toLowerCase();
+    const branchKey = String(data.branchId ?? '');
+    if (!branchKey) return null;
+    const name = norm(data.name);
+    const num = norm(data.counterNumber);
+    const currentId = editingId != null ? String(editingId) : null;
+    for (const c of dropdownData.counters || []) {
+      const cId = String(c?.Id ?? c?.id ?? '');
+      if (currentId && cId === currentId) continue;
+      if (String(c?.BranchId ?? c?.branchId ?? '') !== branchKey) continue;
+      const existingName = norm(c?.CounterName ?? c?.Name);
+      const existingNum = norm(c?.CounterNumber ?? c?.counterNumber);
+      if (name && existingName && name === existingName) {
+        return 'A counter with this name already exists for the selected branch.';
+      }
+      if (num && existingNum && num === existingNum) {
+        return 'This counter number is already used for the selected branch.';
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!clientCode) {
@@ -1712,10 +1803,40 @@ const CreateMasters = () => {
       toast.warning(`${missing.label} is required.`);
       return;
     }
+    if (activeOption === 'product' && toIntOrUndefined(formData.categoryId) === undefined) {
+      toast.warning('Category is required — select a valid category.');
+      return;
+    }
     if (activeOption === 'box') {
       const rfidConflict = validateBoxRfidUniqueness();
       if (rfidConflict) {
         toast.error(rfidConflict);
+        return;
+      }
+    }
+    if (activeOption === 'counter') {
+      const counterNumber =
+        String(formData.counterNumber ?? '').trim() ||
+        (formData.branchId
+          ? suggestNextCounterNumber(dropdownData.counters, formData.branchId)
+          : '');
+      const counterDup = validateCounterDuplicate({ ...formData, counterNumber });
+      if (counterDup) {
+        toast.error(counterDup);
+        return;
+      }
+    }
+    if (activeOption === 'packet') {
+      if (toIntOrUndefined(formData.categoryId) === undefined) {
+        toast.warning('Category is required — select a valid category.');
+        return;
+      }
+      if (toIntOrUndefined(formData.productId) === undefined) {
+        toast.warning('Product is required — select a valid product.');
+        return;
+      }
+      if (toIntOrUndefined(formData.branchId) === undefined) {
+        toast.warning('Branch is required — select a valid branch.');
         return;
       }
     }
@@ -1746,12 +1867,14 @@ const CreateMasters = () => {
       const res = await axios.post(url, payload, { headers: getAuthHeaders() });
       const data = res.data;
       const serverMsg = data?.message ?? data?.Message ?? data?.msg ?? '';
-      const serverErr = data?.error ?? data?.Error ?? data?.message ?? data?.Message ?? '';
+      const serverErr = extractApiErrorMessage(data, '');
       const ok =
         data?.status === 'success' ||
         data?.success === true ||
         (activeOption === 'box' && data?.id != null) ||
-        (res.status === 200 && data?.status !== 'failed');
+        (activeOption === 'product' && (data?.id != null || data?.Id != null)) ||
+        (activeOption === 'packet' && (data?.id != null || data?.Id != null)) ||
+        (res.status >= 200 && res.status < 300 && data?.status !== 'failed' && data?.success !== false);
       if (ok) {
         let boxRfidTagged = activeOption === 'box' && data?.isRfidTagged;
         const newBoxId = data?.id ?? data?.Id;
@@ -1797,8 +1920,8 @@ const CreateMasters = () => {
       }
     } catch (err) {
       const resData = err.response?.data;
-      const msg = resData?.message ?? resData?.Message ?? resData?.error ?? resData?.Error ?? err.message ?? 'Request failed.';
-      toast.error(typeof msg === 'string' ? msg : (resData?.message || 'Request failed.'));
+      const msg = extractApiErrorMessage(resData, err.message || 'Request failed.');
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -2904,9 +3027,13 @@ const CreateMasters = () => {
                             <input
                               type={f.type || 'text'}
                               value={formData[f.key] ?? ''}
+                              readOnly={Boolean(f.readOnly)}
                               onChange={(e) => updateField(f.key, e.target.value)}
                               placeholder={f.placeholder}
-                              style={baseStyles.input}
+                              style={{
+                                ...baseStyles.input,
+                                ...(f.readOnly ? { background: '#f1f5f9', cursor: 'not-allowed' } : {}),
+                              }}
                             />
                           )}
                         </div>
@@ -2935,6 +3062,7 @@ const CreateMasters = () => {
               <MasterListCard
                 title={`List of ${LIST_PLURAL[activeOption] ?? `${current.label}s`}`}
                 accent={current.color}
+                className={`create-masters-list-card--split${activeOption === 'branch' ? ' create-masters-list-card--branch' : ''}`}
                 searchValue={listSearch}
                 onSearchChange={(v) => { setListSearch(v); setListPage(1); }}
                 searchPlaceholder={`Search ${current.label} list...`}

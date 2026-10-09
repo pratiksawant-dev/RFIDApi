@@ -78,6 +78,13 @@ export const resolveSessionListPageCount = (paging, fallbackPageSize = SESSION_L
   return paging?.hasNextPage ? page + 1 : page;
 };
 
+/** API expects date-time (Swagger: StockVerificationBatchQuery.FromDate / ToDate). */
+export const toStockVerificationApiDateTime = (dateStr, { endOfDay = false } = {}) => {
+  const d = String(dateStr || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return undefined;
+  return endOfDay ? `${d}T23:59:59` : `${d}T00:00:00`;
+};
+
 /** List all sessions — do not send ScanBatchId or ReturnAllData. */
 export const buildStockVerificationListPayload = ({
   clientCode,
@@ -91,8 +98,10 @@ export const buildStockVerificationListPayload = ({
     PageNumber: pageNumber,
     PageSize: pageSize,
   };
-  if (dateFrom) payload.FromDate = dateFrom;
-  if (dateTo) payload.ToDate = dateTo;
+  const from = toStockVerificationApiDateTime(dateFrom, { endOfDay: false });
+  const to = toStockVerificationApiDateTime(dateTo, { endOfDay: true });
+  if (from) payload.FromDate = from;
+  if (to) payload.ToDate = to;
   return payload;
 };
 
@@ -184,6 +193,7 @@ export const fetchStockVerificationSessionPage = async (
     {
       headers: { 'Content-Type': 'application/json', ...headers },
       timeout: 90000,
+      skipGlobalLoader: true,
     }
   );
   const session = normalizeSessionDetails(data);

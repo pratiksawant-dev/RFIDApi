@@ -505,24 +505,15 @@ const LabelStockList = () => {
           setFilterValues(defaultFilters);
           setCurrentPage(1);
 
-          try {
-            await fetchLabeledStock(1, itemsPerPage, '', defaultFilters);
-          } catch (err) {
-            console.error('Stock data fetch failed:', err);
+          const [stockResult] = await Promise.allSettled([
+            fetchLabeledStock(1, itemsPerPage, '', defaultFilters),
+            fetchFilterData(),
+            fetchSavedTemplates(),
+          ]);
+          if (stockResult.status === 'rejected') {
+            console.error('Stock data fetch failed:', stockResult.reason);
             setError('Failed to load stock data. Please try again.');
           }
-
-          Promise.allSettled([
-            fetchFilterData(),
-            fetchSavedTemplates()
-          ]).then(([filterDataResult, templatesResult]) => {
-            if (filterDataResult.status === 'rejected') {
-              console.warn('Filter data fetch failed, but continuing with stock data:', filterDataResult.reason);
-            }
-            if (templatesResult.status === 'rejected') {
-              console.warn('Templates fetch failed, but continuing:', templatesResult.reason);
-            }
-          });
         } catch (error) {
           console.error('Error in initial data fetch:', error);
           setError('Failed to load data. Please refresh the page.');
@@ -724,12 +715,12 @@ const LabelStockList = () => {
         countersResult,
         branchesResult
       ] = await Promise.allSettled([
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllProductMaster', requestBody, { headers, ...timeoutConfig }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllDesign', requestBody, { headers, ...timeoutConfig }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllCategory', requestBody, { headers, ...timeoutConfig }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllPurity', requestBody, { headers, ...timeoutConfig }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllCounters', requestBody, { headers, ...timeoutConfig }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllBranchMaster', requestBody, { headers, ...timeoutConfig })
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllProductMaster', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllDesign', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllCategory', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllPurity', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllCounters', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllBranchMaster', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
       ]);
 
       // Extract responses from settled promises, handling failures
@@ -970,7 +961,7 @@ const LabelStockList = () => {
           },
           timeout: 20000,
           signal: controller.signal,
-          skipGlobalLoader: quiet,
+          skipGlobalLoader: true,
         }
       );
 

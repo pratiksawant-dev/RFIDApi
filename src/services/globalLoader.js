@@ -60,7 +60,7 @@ export const beginGlobalLoader = (url, config) => {
   if (pending === 1) {
     showTimer = setTimeout(() => {
       show();
-    }, 160);
+    }, 280);
   }
   return true;
 };

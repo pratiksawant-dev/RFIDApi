@@ -20,6 +20,7 @@ import {
 import { useLoading } from '../../App';
 import { useNotifications } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import TrayScanModal from '../common/TrayScanModal';
 import GridItemImage from '../common/GridItemImage';
 import CustomerSidebarForm from '../inventory/CustomerSidebarForm';
@@ -725,11 +726,11 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
     if (!searchTerm || searchTerm.trim().length === 0) {
       setSearchResults([]);
       setShowSearchResults(false);
-      return;
+      return [];
     }
 
     if (!userInfo?.ClientCode) {
-      return;
+      return [];
     }
 
     setSearching(true);
@@ -752,6 +753,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
       const results = normalizeArray(response.data);
       setSearchResults(results);
       setShowSearchResults(results.length > 0);
+      return results;
     } catch (error) {
       console.error('Error searching item code:', error);
       setSearchResults([]);
@@ -761,6 +763,7 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         title: 'Search Error',
         message: 'Failed to search for item. Please try again.'
       });
+      return [];
     } finally {
       setSearching(false);
     }
@@ -769,6 +772,13 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
   const handleItemCodeSubmit = async () => {
     const query = String(itemCodeSearch || '').trim();
     if (!query) return;
+
+    if (!customerName) {
+      const msg = 'Please select Customer Name before adding items.';
+      toast.error(msg);
+      addNotification({ type: 'error', title: 'Validation Error', message: msg });
+      return;
+    }
 
     // Prefer visible exact match if search already fetched data.
     const exactExisting = searchResults.find((item) =>
@@ -779,29 +789,29 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
       return;
     }
 
-    // Fallback: search now and then add exact/first item.
-    await handleItemCodeSearch(query);
-    setTimeout(() => {
-      setSearchResults((latest) => {
-        if (!Array.isArray(latest) || latest.length === 0) {
-          addNotification({
-            type: 'warning',
-            title: 'No Stock Found',
-            message: `No item found for "${query}".`,
-          });
-          return latest;
-        }
-        const exact = latest.find((item) =>
-          String(item.Itemcode || item.ItemCode || '').trim().toLowerCase() === query.toLowerCase()
-        );
-        selectItemFromSearch(exact || latest[0]);
-        return latest;
+    const results = await handleItemCodeSearch(query);
+    if (!Array.isArray(results) || results.length === 0) {
+      addNotification({
+        type: 'warning',
+        title: 'No Stock Found',
+        message: `No item found for "${query}".`,
       });
-    }, 0);
+      return;
+    }
+    const exact = results.find((item) =>
+      String(item.Itemcode || item.ItemCode || '').trim().toLowerCase() === query.toLowerCase()
+    );
+    selectItemFromSearch(exact || results[0]);
   };
 
   // Select item from search results and add to quotation
   const selectItemFromSearch = (item) => {
+    if (!customerName) {
+      const msg = 'Please select Customer Name before adding items.';
+      toast.error(msg);
+      addNotification({ type: 'error', title: 'Validation Error', message: msg });
+      return;
+    }
     // Check for duplicate Item Code
     const isDuplicate = quotationItems.some(quotationItem => 
       (quotationItem.Itemcode || quotationItem.ItemCode) === (item.Itemcode || item.ItemCode)
@@ -1354,19 +1364,23 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
   // Handle form submission
   const handleSubmit = async () => {
     if (!customerName || customerName === '') {
+      const msg = 'Please select a customer from the list (Customer Name is required).';
+      toast.error(msg);
       addNotification({
         type: 'error',
         title: 'Validation Error',
-        message: 'Please select a customer'
+        message: msg,
       });
       return;
     }
 
     if (quotationItems.length === 0) {
+      const msg = 'Please add at least one product to the quotation.';
+      toast.error(msg);
       addNotification({
         type: 'error',
         title: 'Validation Error',
-        message: 'Please add at least one product to the quotation'
+        message: msg,
       });
       return;
     }
@@ -1604,10 +1618,9 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         message: 'Quotation created successfully'
       });
 
-      // Navigate to quotation list after 1 second
       setTimeout(() => {
-        navigate('/quotation_list');
-      }, 1000);
+        navigate('/quotation_list', { state: { refreshQuotations: true } });
+      }, 800);
 
     } catch (error) {
       console.error('Error saving quotation:', error);
@@ -2951,10 +2964,11 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
                   Rate/Gm <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
-                  type="number"
-                  value={editingItem.RatePerGram || '0.00'}
+                  type="text"
+                  inputMode="decimal"
+                  value={editingItem.RatePerGram ?? ''}
                   onChange={(e) => updateEditingField('RatePerGram', e.target.value)}
-                  step="0.01"
+                  placeholder="0.00"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -2974,10 +2988,11 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
                   Making/Gm
                 </label>
                 <input
-                  type="number"
-                  value={editingItem.MakingPerGram || '0.00'}
+                  type="text"
+                  inputMode="decimal"
+                  value={editingItem.MakingPerGram ?? ''}
                   onChange={(e) => updateEditingField('MakingPerGram', e.target.value)}
-                  step="0.01"
+                  placeholder="0.00"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -2997,10 +3012,11 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
                   Making %
                 </label>
                 <input
-                  type="number"
-                  value={editingItem.MakingPercentage || '0.00'}
+                  type="text"
+                  inputMode="decimal"
+                  value={editingItem.MakingPercentage ?? ''}
                   onChange={(e) => updateEditingField('MakingPercentage', e.target.value)}
-                  step="0.01"
+                  placeholder="0.00"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -3020,10 +3036,11 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
                   Fixed Amount
                 </label>
                 <input
-                  type="number"
-                  value={editingItem.MakingFixedAmt || '0.00'}
+                  type="text"
+                  inputMode="decimal"
+                  value={editingItem.MakingFixedAmt ?? ''}
                   onChange={(e) => updateEditingField('MakingFixedAmt', e.target.value)}
-                  step="0.01"
+                  placeholder="0.00"
                   style={{
                     width: '100%',
                     padding: '8px 10px',

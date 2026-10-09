@@ -173,6 +173,7 @@ const StockVerification = () => {
   const [consolidationTreePage, setConsolidationTreePage] = useState(1);
   const [consolidationItemsPerPage, setConsolidationItemsPerPage] = useState(15);
   const [deletingByDate, setDeletingByDate] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
 
   const { addNotification } = useNotifications();
   const { t } = useTranslation();
@@ -286,6 +287,14 @@ const StockVerification = () => {
         dateTo,
       });
 
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        setError('From Date cannot be after To Date.');
+        toast.error('From Date cannot be after To Date.');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const response = await axios.post(STOCK_VERIFICATION_SESSION_URL, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -293,6 +302,7 @@ const StockVerification = () => {
         },
         timeout: 90000,
         signal: controller.signal,
+        skipGlobalLoader: true,
       });
 
       if (reqId !== sessionsReqIdRef.current) return;
@@ -783,6 +793,7 @@ const StockVerification = () => {
       return;
     }
 
+    setExportBusy(true);
     try {
       const wb = XLSX.utils.book_new();
 
@@ -867,6 +878,9 @@ const StockVerification = () => {
         description: error?.message || 'Failed to export session details. Please try again.',
         type: 'error'
       });
+    } finally {
+      setExportBusy(false);
+      setLoading(false);
     }
   };
 
@@ -878,6 +892,7 @@ const StockVerification = () => {
       return;
     }
 
+    setExportBusy(true);
     try {
       const wb = XLSX.utils.book_new();
       const branchesToExport = selectedBranchId
@@ -984,6 +999,9 @@ const StockVerification = () => {
     } catch (error) {
       console.error('Error exporting report:', error);
       toast.error(error?.message || 'Failed to export report');
+    } finally {
+      setExportBusy(false);
+      setLoading(false);
     }
   };
 
@@ -2608,8 +2626,9 @@ const StockVerification = () => {
                       type="button"
                       className="sv-chip sv-chip--accent"
                       onClick={exportSessionDetails}
+                      disabled={exportBusy}
                 >
-                  <FaFileExcel /> Export
+                  {exportBusy ? <FaSpinner className="fa-spin" /> : <FaFileExcel />} {exportBusy ? 'Exporting…' : 'Export'}
                     </button>
                     </div>
                   )}

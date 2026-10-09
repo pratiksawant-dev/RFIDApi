@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaPrint,
   FaArrowLeft,
@@ -43,10 +43,32 @@ const pageBtnStyleList = (disabled) => ({
   opacity: disabled ? 0.5 : 1,
 });
 
+const parseQuotationListResponse = (data) => {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== 'object') return [];
+  const nested = [
+    data.data,
+    data.Data,
+    data.Quotations,
+    data.quotations,
+    data.items,
+    data.Items,
+    data.Result,
+    data.result,
+    data.list,
+    data.List,
+  ];
+  for (const block of nested) {
+    if (Array.isArray(block)) return block;
+  }
+  return [];
+};
+
 const QuotationList = () => {
   const { loading, setLoading } = useLoading();
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [quotations, setQuotations] = useState([]);
   const [error, setError] = useState(null);
@@ -108,7 +130,7 @@ const QuotationList = () => {
         );
 
         // Normalize response data
-        const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        const data = parseQuotationListResponse(response.data);
         setQuotations(data);
         setCurrentPage(1);
       } catch (error) {
@@ -128,7 +150,7 @@ const QuotationList = () => {
       fetchQuotations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userInfo]);
+  }, [userInfo, location.key, location.state?.refreshQuotations]);
 
   // Format date
   const formatDate = (dateString) => {

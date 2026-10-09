@@ -84,6 +84,8 @@ const DashboardAnalytics = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [dummyTagUsage, setDummyTagUsage] = useState({ used: 350, unused: 180 });
   const [soldItemsApiCount, setSoldItemsApiCount] = useState(null);
+  /** Counter master rows (GetAllCounters — same source as Inventory → Counter). */
+  const [masterCounters, setMasterCounters] = useState([]);
   const [ratesModalOpen, setRatesModalOpen] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
   const [ratesSaving, setRatesSaving] = useState(false);
@@ -130,6 +132,45 @@ const DashboardAnalytics = () => {
       }
     }
     return null;
+  };
+
+  const counterMasterLabel = (row) =>
+    String(row?.CounterName ?? row?.Name ?? row?.counterName ?? row?.name ?? '').trim();
+
+  const normalizeMasterCounters = (payload) => {
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.Data)
+          ? payload.Data
+          : [];
+    return list.filter((row) => counterMasterLabel(row));
+  };
+
+  const fetchMasterCounters = async () => {
+    const clientCode = getClientCode();
+    if (!clientCode) {
+      setMasterCounters([]);
+      return;
+    }
+    try {
+      const response = await axios.post(
+        'https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllCounters',
+        { ClientCode: clientCode },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+            'Content-Type': 'application/json',
+          },
+          skipGlobalLoader: true,
+        }
+      );
+      setMasterCounters(normalizeMasterCounters(response.data?.data ?? response.data));
+    } catch (err) {
+      console.error('Error fetching counter master:', err);
+      setMasterCounters([]);
+    }
   };
 
   // Fetch analytics data
@@ -634,7 +675,12 @@ const DashboardAnalytics = () => {
   // Refresh data
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAnalyticsData(), fetchTagUsageData(), fetchSoldItemsCount()]);
+    await Promise.all([
+      fetchAnalyticsData(),
+      fetchMasterCounters(),
+      fetchTagUsageData(),
+      fetchSoldItemsCount(),
+    ]);
     setRefreshing(false);
     const userInfo = JSON.parse(localStorage.getItem('userInfo'));
     addNotification({
@@ -666,7 +712,7 @@ const DashboardAnalytics = () => {
   useEffect(() => {
     const initializeData = async () => {
       setLoadingProgress(0);
-      await fetchAnalyticsData();
+      await Promise.all([fetchAnalyticsData(), fetchMasterCounters()]);
       setLoadingProgress(100);
       // Add a small delay to ensure analytics data is loaded first
       setTimeout(() => {
@@ -1141,7 +1187,14 @@ const DashboardAnalytics = () => {
   const soldItems = filteredData.filter(item => item.Status === 'Sold').length;
   const soldItemsCount = soldItemsApiCount != null ? soldItemsApiCount : soldItems;
   const availableItems = filteredData.filter(item => item.Status !== 'Sold').length;
-  const uniqueCounters = [...new Set(filteredData.map(item => item.CounterName || item.Counter || 'Unassigned'))].length;
+  const countersWithStockNames = [
+    ...new Set(
+      filteredData.map((item) => String(item.CounterName || item.Counter || '').trim()).filter(Boolean)
+    ),
+  ];
+  const uniqueCountersFromStock = countersWithStockNames.length;
+  const masterCounterCount = masterCounters.length;
+  const counterCountKpi = masterCounterCount > 0 ? masterCounterCount : uniqueCountersFromStock;
   const topItemsTotalCount = Object.values(
     filteredData.reduce((acc, item) => {
       const product = item.ProductName || '-';
@@ -1157,13 +1210,11 @@ const DashboardAnalytics = () => {
     row.category.toLowerCase().includes(productSearch.toLowerCase()) ||
     row.design.toLowerCase().includes(productSearch.toLowerCase())
   ).length;
-  const counterWiseTotalCount = Object.entries(
-    filteredData.reduce((acc, item) => {
-      const counterName = item.CounterName || item.Counter || 'Unassigned';
-      acc[counterName] = (acc[counterName] || 0) + 1;
-      return acc;
-    }, {})
-  ).filter(([name]) => name && name.toLowerCase().includes(counterSearch.toLowerCase())).length;
+  const counterWiseTotalCount = (() => {
+    const masterNames = masterCounters.map((row) => counterMasterLabel(row)).filter(Boolean);
+    const names = masterNames.length ? [...new Set(masterNames)] : countersWithStockNames;
+    return names.filter((name) => name.toLowerCase().includes(counterSearch.toLowerCase())).length;
+  })();
   const categoryDistributionTotalCount = new Set(
     filteredData.map((item) => item.CategoryName || 'Unassigned')
   ).size;
@@ -2123,7 +2174,7 @@ const DashboardAnalytics = () => {
   const bestCategory = categoryPerf[0];
   const healthPct = totalItems > 0 ? Math.round((availableItems / Math.max(1, totalItems + soldItemsCount)) * 100) : 0;
   const healthTone = healthPct >= 70 ? '#16A34A' : healthPct >= 40 ? '#F59E0B' : '#EF4444';
-  const lowStockHint = uniqueCounters > 0 && totalItems / uniqueCounters < 8;
+  const lowStockHint = counterCountKpi > 0 && totalItems / counterCountKpi < 8;
   const hasStatusData = availableItems > 0 || soldItemsCount > 0;
   const hasRfidData = usedTags > 0 || unusedTags > 0;
 
@@ -2160,18 +2211,25 @@ const DashboardAnalytics = () => {
     row.design.toLowerCase().includes(productSearch.toLowerCase())
   ).sort((a, b) => b.qty - a.qty);
 
-  const groupedCounters = Object.entries(
-    filteredData.reduce((acc, item) => {
-      const counterName = item.CounterName || item.Counter || 'Unassigned';
-      if (!acc[counterName]) acc[counterName] = { name: counterName, qty: 0, gross: 0, net: 0 };
-      acc[counterName].qty += 1;
-      acc[counterName].gross += parseFloat(item.GrossWt || item.GrossWeight) || 0;
-      acc[counterName].net += parseFloat(item.NetWt || item.NetWeight) || 0;
-      return acc;
-    }, {})
-  ).filter(([name]) => name.toLowerCase().includes(counterSearch.toLowerCase()))
-    .map(([, row]) => row)
-    .sort((a, b) => b.qty - a.qty);
+  const stockTotalsByCounter = filteredData.reduce((acc, item) => {
+    const counterName = String(item.CounterName || item.Counter || 'Unassigned').trim() || 'Unassigned';
+    if (!acc[counterName]) acc[counterName] = { name: counterName, qty: 0, gross: 0, net: 0 };
+    acc[counterName].qty += 1;
+    acc[counterName].gross += parseFloat(item.GrossWt || item.GrossWeight) || 0;
+    acc[counterName].net += parseFloat(item.NetWt || item.NetWeight) || 0;
+    return acc;
+  }, {});
+  const masterCounterNames = masterCounters.map((row) => counterMasterLabel(row)).filter(Boolean);
+  const counterNamesForTable = masterCounterNames.length
+    ? [...new Set(masterCounterNames)]
+    : Object.keys(stockTotalsByCounter);
+  const groupedCounters = counterNamesForTable
+    .filter((name) => name.toLowerCase().includes(counterSearch.toLowerCase()))
+    .map((name) => {
+      const fromStock = stockTotalsByCounter[name];
+      return fromStock || { name, qty: 0, gross: 0, net: 0 };
+    })
+    .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
 
   const categoryBadgeTone = (name) => {
     const n = String(name || '').toLowerCase();
@@ -2247,7 +2305,7 @@ const DashboardAnalytics = () => {
     { icon: FaWeight, label: t('analytics.netWeight'), value: totalNetWeight, suffix: ' g', decimals: 2, color: '#DB2777', bg: '#FDF2F8' },
     { icon: FaTags, label: t('analytics.newRfidTags'), value: totalRfidNew, suffix: '', decimals: 0, color: '#F59E0B', bg: '#FFFBEB' },
     { icon: FaShoppingCart, label: t('analytics.soldItems'), value: soldItemsCount, suffix: '', decimals: 0, color: '#EF4444', bg: '#FEF2F2' },
-    { icon: FaStore, label: t('analytics.counterCount'), value: uniqueCounters, suffix: '', decimals: 0, color: '#4C1D95', bg: '#EDE9FE' },
+    { icon: FaStore, label: t('analytics.counterCount'), value: counterCountKpi, suffix: '', decimals: 0, color: '#4C1D95', bg: '#EDE9FE' },
   ];
 
   const categoryBarColors = {
@@ -2764,7 +2822,7 @@ const DashboardAnalytics = () => {
 
       <nav className="erp-mobile-nav">
         <Link to="/analytics" className="active"><FaHome size={14} /> Dashboard</Link>
-        <Link to="/stock"><FaBoxes size={14} /> Inventory</Link>
+        <Link to="/label-stock"><FaBoxes size={14} /> Inventory</Link>
         <Link to="/stock-tracking"><FaListUl size={14} /> Counters</Link>
         <Link to="/reports"><FaFileAlt size={14} /> Reports</Link>
         <Link to="/profile-menu"><FaUsers size={14} /> Settings</Link>

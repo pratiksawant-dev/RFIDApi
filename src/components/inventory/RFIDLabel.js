@@ -36,6 +36,7 @@ import { generateClientPrn } from '../../utils/prnTemplates';
 import SuccessNotification from '../common/SuccessNotification';
 import PageHeader from '../common/PageHeader';
 import { saveBlobWithPreferredFolder } from '../../services/exportDownloadHelper';
+import { exportItemsWithSavedTemplate } from '../../services/excelExportTemplateApi';
 import { useLoading } from '../../App';
 
 const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
@@ -248,6 +249,7 @@ const RFIDLabel = () => {
   const [isGridView, setIsGridView] = useState(false);
   const [allFilteredData, setAllFilteredData] = useState([]);
   const [loadingAllData, setLoadingAllData] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -560,6 +562,165 @@ const RFIDLabel = () => {
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
+    }
+  };
+
+  const getSelectedStockRows = () => {
+    if (selectedItems.length) return selectedItems;
+    if (selectedRows.length) {
+      return labelledStock.filter((row) => selectedRows.includes(row.Id));
+    }
+    return [];
+  };
+
+  const fetchAllRowsForExport = async () => {
+    if (!clientCode) return [];
+    const safeFilters = filterValues || {};
+    const pageSize = Math.min(Math.max(totalRecords || 500, 100), 5000);
+    const payload = {
+      ClientCode: clientCode,
+      CategoryId: getFilterValueForAPI('categoryId', safeFilters.categoryId),
+      ProductId: getFilterValueForAPI('productId', safeFilters.productId),
+      DesignId: getFilterValueForAPI('designId', safeFilters.designId),
+      PurityId: getFilterValueForAPI('purityId', safeFilters.purityId),
+      FromDate: safeFilters.dateFrom?.trim() || null,
+      ToDate: safeFilters.dateTo?.trim() || null,
+      RFIDCode: '',
+      PageNumber: 1,
+      PageSize: pageSize,
+      BranchId: 0,
+      Status: safeFilters.status !== 'All' ? safeFilters.status : 'ApiActive',
+      SearchQuery: searchProduct?.trim() || '',
+      ListType: sortConfig?.direction === 'desc' ? 'descending' : 'ascending',
+      SortColumn: sortConfig?.key || null,
+    };
+    const response = await axios.post(
+      'https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllLabeledStock',
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000,
+        skipGlobalLoader: true,
+      }
+    );
+    if (Array.isArray(response.data)) return response.data;
+    if (Array.isArray(response.data?.data)) return response.data.data;
+    return [];
+  };
+
+  const handlePrnExportSelected = async () => {
+    const rows = getSelectedStockRows();
+    if (!rows.length) {
+      toast.error('Select at least one item to export.');
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      await exportItemsWithSavedTemplate(rows, {
+        sheetName: 'PRN Label Stock',
+        filePrefix: 'PRN_Label_Export',
+      });
+      toast.success('Export completed.');
+    } catch (err) {
+      toast.error(err?.message || 'Export failed.');
+    } finally {
+      setBulkActionLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handlePrnExportAll = async () => {
+    setBulkActionLoading(true);
+    try {
+      const rows = await fetchAllRowsForExport();
+      if (!rows.length) {
+        toast.error('No rows to export.');
+        return;
+      }
+      await exportItemsWithSavedTemplate(rows, {
+        sheetName: 'PRN Label Stock',
+        filePrefix: 'PRN_Label_Export_All',
+      });
+      toast.success(`Exported ${rows.length} row(s).`);
+    } catch (err) {
+      toast.error(err?.message || 'Export failed.');
+    } finally {
+      setBulkActionLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handlePrnDeleteSelected = async () => {
+    const rows = getSelectedStockRows();
+    if (!rows.length) {
+      toast.error('Please select items to delete.');
+      return;
+    }
+    if (!window.confirm(`Delete ${rows.length} selected item(s)?`)) return;
+    setBulkActionLoading(true);
+    try {
+      const itemCodes = rows.map((r) => r.ItemCode).filter(Boolean);
+      const delRes = await axios.post(
+        'https://rrgold.loyalstring.co.in/api/ProductMaster/DeleteLabelledStockItems',
+        { ClientCode: clientCode, ItemCodes: itemCodes },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+          },
+          skipGlobalLoader: true,
+        }
+      );
+      if (delRes.data?.success === false) {
+        throw new Error(delRes.data?.message || delRes.data?.Message || 'Delete failed.');
+      }
+      toast.success('Selected items deleted.');
+      setSelectedRows([]);
+      setSelectedItems([]);
+      await fetchLabelledStock(currentProductPage, productsPerPage, searchProduct, filterValues);
+    } catch (err) {
+      toast.error(err?.response?.data?.Message || err?.message || 'Delete failed.');
+    } finally {
+      setBulkActionLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handlePrnReport = async () => {
+    const rows = getSelectedStockRows().length ? getSelectedStockRows() : labelledStock;
+    if (!rows.length) {
+      toast.error('No data for report.');
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4');
+      doc.setFontSize(14);
+      doc.text('PRN Label Manager — Stock Report', 14, 14);
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()} · ${rows.length} row(s)`, 14, 22);
+      doc.autoTable({
+        startY: 28,
+        head: [['Item Code', 'Product', 'Category', 'Gross Wt', 'Net Wt', 'RFID']],
+        body: rows.map((r) => [
+          String(r.ItemCode || '—'),
+          String(r.ProductName || '—'),
+          String(r.CategoryName || '—'),
+          String(r.GrossWt ?? r.GrossWeight ?? '—'),
+          String(r.NetWt ?? r.NetWeight ?? '—'),
+          String(r.RFIDCode || '—'),
+        ]),
+        styles: { fontSize: 8 },
+      });
+      doc.save(`PRN_Label_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('Report downloaded.');
+    } catch (err) {
+      toast.error(err?.message || 'Report failed.');
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -1473,29 +1634,21 @@ const RFIDLabel = () => {
                 </div>
                 <div className="sv-toolbar-actions">
                   <span className="sv-count-pill">{recordCount.toLocaleString()} rows</span>
-                  <button type="button" className="sv-chip" onClick={() => toast.info('Export functionality coming soon')}>
-                    <FaFileExport /> Export All
+                  <button type="button" className="sv-chip" onClick={handlePrnExportAll} disabled={bulkActionLoading}>
+                    {bulkActionLoading ? <FaSpinner style={{ animation: 'spin 1s linear infinite' }} /> : <FaFileExport />} Export All
                   </button>
                   <button
                     type="button"
                     className="sv-chip"
-                    onClick={() => {
-                      if (selectedRows.length === 0) {
-                        toast.error('Please select items to delete');
-                        return;
-                      }
-                      if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected item(s)?`)) {
-                        toast.info('Delete functionality coming soon');
-                      }
-                    }}
-                    disabled={selectedRows.length === 0}
+                    onClick={handlePrnDeleteSelected}
+                    disabled={selectedRows.length === 0 || bulkActionLoading}
                   >
                     <FaTrash /> Delete
                   </button>
-                  <button type="button" className="sv-chip" onClick={() => toast.info('Export functionality coming soon')}>
+                  <button type="button" className="sv-chip" onClick={handlePrnExportSelected} disabled={bulkActionLoading}>
                     <FaFileExport /> Export
                   </button>
-                  <button type="button" className="sv-chip" onClick={() => toast.info('Report functionality coming soon')}>
+                  <button type="button" className="sv-chip" onClick={handlePrnReport} disabled={bulkActionLoading}>
                     <FaFilePdf /> Report
                   </button>
                   <button
