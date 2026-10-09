@@ -161,3 +161,47 @@ describe('LS000533 PRN generation', () => {
     expect(prn).toContain('TNLCR1.5|18001|TENNISN|Y|1.5pt|1pc|1.68ct|18in107pc|10.710');
   });
 });
+
+describe('LS000680 PRN generation', () => {
+  it('matches the client diamond label for SFRI322', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'SFRI322',
+        ProductName: 'DIAMOND NOSE PIN',
+        GrossWt: '5.080',
+        NetWt: '0.446',
+        TotalDiamondWeight: '0.12',
+        TotalDiamondPieces: 6,
+        DiamondColour: 'E-F',
+        DiamondClarity: 'VVS',
+        MRP: '120000',
+        PurityName: 'T925',
+        DesignName: 'VJDD',
+        MakingPercentage: '20',
+        MakingFixedAmt: '1000',
+      },
+      'LS000680'
+    );
+
+    expect(prn).toContain('~PAPER;LABELS 2;MEDIA 0');
+    expect(prn).toContain('~PAPER;INTENSITY 0;SPEED IPS 2;SLEW IPS 2;TYPE 0');
+    expect(prn).toContain('RFWTAG;64;EPC');
+    expect(prn).toContain('16;H;*2400*');
+    expect(prn).toContain('*53465249333232*');
+    expect(prn).toContain('"DIAMOND NOSE PIN"');
+    expect(prn).toContain('"5.080"');
+    expect(prn).toContain('"0.12 cts\\"');
+    expect(prn).toContain('"0.446"');
+    expect(prn).toContain('"6 \\"');
+    expect(prn).toContain('"E-F \\"');
+    expect(prn).toContain('"120000"');
+    expect(prn).toContain('"VVS"');
+    expect(prn).toContain('"T925 \\"');
+    expect(prn).toContain('"VJDD"');
+    expect(prn).toContain('"SFRI322"');
+    expect(prn).toContain('"%.20.00"');
+    expect(prn).toContain('"1000"');
+    expect(prn).toContain(`${String.fromCharCode(14)}&SFRI322`);
+    expect(prn).not.toContain("SFRI'322");
+  });
+});

@@ -1218,6 +1218,174 @@ END
 `;
 };
 
+const formatPlainAmount = (value) => {
+  const n = parseFloat(value);
+  if (Number.isNaN(n)) return '0';
+  return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+};
+
+const formatDiamondCts2 = (value) => {
+  const n = parseFloat(value);
+  if (Number.isNaN(n)) return '0.00';
+  return n.toFixed(2);
+};
+
+/** Making line on LS000680 — sample prints "%.20.00" */
+const formatLS000680MakingPercent = (value) => {
+  const n = parseFloat(value);
+  if (Number.isNaN(n)) return '%.0.00';
+  return `%.${n.toFixed(2)}`;
+};
+
+const resolveLS000680DiamondWt = (item) =>
+  item.TotalDiamondWeight ?? item.DiamondWt ?? item.DiamondWeight ?? item.diamondweight ?? '';
+
+const resolveLS000680DiamondPcs = (item) => {
+  const raw =
+    item.TotalDiamondPieces ??
+    item.DiamondPcs ??
+    item.DiamondPieces ??
+    0;
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) ? '0' : String(n);
+};
+
+const firstDiamondEntry = (item) =>
+  (Array.isArray(item?.Diamonds) && item.Diamonds[0]) ||
+  (Array.isArray(item?.diamonds) && item.diamonds[0]) ||
+  null;
+
+const resolveLS000680DiamondColour = (item) => {
+  const diamond = firstDiamondEntry(item);
+  return String(
+    item.DiamondColour ||
+    item.DiamondColor ||
+    item.diamondColour ||
+    diamond?.DiamondColour ||
+    diamond?.DiamondColor ||
+    ''
+  ).trim();
+};
+
+const resolveLS000680DiamondClarity = (item) => {
+  const diamond = firstDiamondEntry(item);
+  return String(
+    item.DiamondClarity ||
+    item.diamondClarity ||
+    diamond?.DiamondClarity ||
+    ''
+  ).trim();
+};
+
+const resolveLS000680DesignCode = (item) =>
+  String(
+    item.DesignName ||
+    item.Design ||
+    item.design ||
+    item.CollectionName ||
+    item.VendorName ||
+    ''
+  ).trim();
+
+/** Sample PC for a 64-bit EPC is *2400* = (wordCount << 11) | 0x0400. Hex is not zero-padded. */
+const resolveLS000680EpcMemory = (itemCode) => {
+  const epcHex = stringToHex(String(itemCode || '').trim());
+  if (!epcHex) {
+    return { epcBits: 48, pcValue: '*1C00*', epcHex: '' };
+  }
+  const words = Math.max(3, Math.ceil(epcHex.length / 4));
+  const epcBits = words * 16;
+  const pcWord = (words << 11) | 0x0400;
+  const pcValue = `*${pcWord.toString(16).toUpperCase().padStart(4, '0')}*`;
+  return { epcBits, pcValue, epcHex };
+};
+
+const formatLS000680BarcodePayload = (itemCode) => {
+  const code = String(itemCode || '').trim();
+  return `${String.fromCharCode(14)}&${code}`;
+};
+
+// LS000680 — diamond label (ENGINE 3941×710, client sample layout)
+const generateLS000680Prn = (item) => {
+  const itemCode = String(item.ItemCode || item.RFIDCode || '').trim();
+  const productName = prnQuote(item.ProductName || item.CategoryName || '');
+  const grossWt = prnQuote(formatWeight3(item.GrossWt ?? item.GrossWeight ?? item.grosswt));
+  const netWt = prnQuote(formatWeight3(item.NetWt ?? item.NetWeight ?? item.netwt));
+  const diamondCts = `${prnQuote(formatDiamondCts2(resolveLS000680DiamondWt(item)))} cts\\`;
+  const diamondPcs = `${prnQuote(resolveLS000680DiamondPcs(item))} \\`;
+  const diamondColour = `${prnQuote(resolveLS000680DiamondColour(item))} \\`;
+  const diamondClarity = prnQuote(resolveLS000680DiamondClarity(item));
+  const price = prnQuote(formatPlainAmount(item.MRP ?? item.Price ?? item.TagPrice ?? 0));
+  const purity = `${prnQuote(String(item.PurityName || item.Purity || item.purity || '').trim())} \\`;
+  const designCode = prnQuote(resolveLS000680DesignCode(item));
+  const makingPercent = prnQuote(
+    formatLS000680MakingPercent(item.MakingPercentage ?? item.MakingPer ?? 0)
+  );
+  const makingCharge = prnQuote(
+    formatPlainAmount(item.MakingFixedAmt ?? item.FixedAmt ?? item.MakingCharge ?? 0)
+  );
+  const { epcBits, pcValue, epcHex } = resolveLS000680EpcMemory(itemCode);
+  const barcodePayload = formatLS000680BarcodePayload(itemCode);
+
+  return `<xpml><page quantity='0' pitch='18.0 mm'></xpml>!PTX_SETUP
+ENGINE-WIDTH;3941:LENGTH;710:MIRROR;0.
+PTX_END
+~PAPER;ROTATE 0
+~CONFIG
+UPC DESCENDERS;0
+END
+~PAPER;LABELS 2;MEDIA 0
+~PAPER;INTENSITY 0;SPEED IPS 2;SLEW IPS 2;TYPE 0
+~PAPER;CUT 0;PAUSE 0;TEAR 0
+~CONFIG
+CHECK DYNAMIC BCD;0
+SLASH ZERO;0
+UPPERCASE;0
+AUTO WRAP;0
+HOST FORM LENGTH;1
+END
+<xpml></page></xpml><xpml><page quantity='1' pitch='18.0 mm'></xpml>~CREATE;FORM-0;51
+SCALE;DOT;203;203
+ISET;'UTF8'
+RFWTAG;16;PC
+16;H;${pcValue}
+STOP
+RFWTAG;${epcBits};EPC
+${epcBits};H;*${epcHex}*
+STOP
+FONT;FACE 92250;BOLD 0;SLANT 0
+ALPHA
+INV;POINT;109;783;7;7;"${productName}"
+INV;POINT;85;783;7;7;"G.W :"
+INV;POINT;85;728;7;7;"${grossWt}"
+INV;POINT;60;783;7;8;"Dia :"
+INV;POINT;60;728;7;7;"${diamondCts}"
+INV;POINT;35;783;7;7;"N.W :"
+INV;POINT;35;728;7;7;"${netWt}"
+INV;POINT;14;781;7;7;"PC - "
+INV;POINT;14;728;7;7;"${diamondPcs}"
+INV;POINT;14;699;7;7;"${diamondColour}"
+INV;POINT;59;659;7;7;"${price}"
+INV;POINT;14;652;7;7;"${diamondClarity}"
+INV;POINT;42;505;7;7;"${purity}"
+INV;POINT;42;444;7;7;"${designCode}"
+INV;POINT;118;504;7;7;"${itemCode}"
+INV;POINT;12;504;7;7;"${makingPercent}"
+INV;POINT;12;427;7;7;"MC -"
+INV;POINT;12;373;7;7;"${makingCharge}"
+STOP
+BARCODE
+C128B;INV;XRD1:1:2:2:3:3:4:4;H3.11;72;396
+"${barcodePayload}"
+STOP
+END
+~EXECUTE;FORM-0;1
+<xpml></page></xpml>
+~NORMAL
+~DELETE FORM;FORM-0
+`;
+};
+
 // Main function to generate client-specific PRN
 export const generateClientPrn = (item, clientCode) => {
   const rawCode = (clientCode || '').trim().toUpperCase();
@@ -1241,6 +1409,8 @@ export const generateClientPrn = (item, clientCode) => {
       return generateLS000551Prn(item);
     case 'LS000606':
       return generateLS000606Prn(item);
+    case 'LS000680':
+      return generateLS000680Prn(item);
     case 'LS000443':
       // Check category for LS000443 - Gold, Silver, or Diamond
       // Also check ProductId for category detection

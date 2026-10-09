@@ -41,7 +41,7 @@ import { useLoading } from '../../App';
 
 const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
 const DEFAULT_PAGE_SIZE = 15;
-const PRN_ENABLED_CLIENT_CODES = ['LS000224', 'LS000428', 'LS000431', 'LS000443', 'LS000533', 'LS000544', 'LS000488','LS000551', 'LS000606'];
+const PRN_ENABLED_CLIENT_CODES = ['LS000224', 'LS000428', 'LS000431', 'LS000443', 'LS000533', 'LS000544', 'LS000488','LS000551', 'LS000606', 'LS000680'];
 const LS000431_PRN_FILE_PATH = `${process.env.PUBLIC_URL || ''}/DelhiOPNewFont.prn`;
 
 const getUniqueOptions = (data, field) => {
@@ -519,6 +519,9 @@ const RFIDLabel = () => {
           DiamondWt: item.TotalDiamondWeight !== undefined && item.TotalDiamondWeight !== null ? item.TotalDiamondWeight : (item.DiamondWt || ''),
           DiamondPcs: item.TotalDiamondPieces !== undefined && item.TotalDiamondPieces !== null ? item.TotalDiamondPieces : (item.DiamondPcs || ''),
           DiamondAmount: item.TotalDiamondAmount !== undefined && item.TotalDiamondAmount !== null ? item.TotalDiamondAmount : (item.DiamondAmount || ''),
+          DiamondColour: item.DiamondColour || item.DiamondColor || '',
+          DiamondClarity: item.DiamondClarity || '',
+          MakingPercentage: item.MakingPercentage !== undefined && item.MakingPercentage !== null ? item.MakingPercentage : '',
           MakingFixedAmt: item.MakingFixedAmt !== undefined && item.MakingFixedAmt !== null ? item.MakingFixedAmt : (item.MakingFixedAmt || ''),
           FixedAmt: item.MakingFixedAmt !== undefined && item.MakingFixedAmt !== null ? item.MakingFixedAmt : (item.FixedAmt || ''),
           HallmarkAmount:
