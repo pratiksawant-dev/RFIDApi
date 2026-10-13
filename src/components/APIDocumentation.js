@@ -368,24 +368,35 @@ const APIDocumentation = () => {
       name: 'Delete All Stock for Client',
       endpoint: 'DeleteAllStockForClient',
       method: 'DELETE',
-      baseUrl: 'https://soni.loyalstring.co.in/api/ProductMaster',
-      description: 'Delete all stock items for a specific client. Use with caution as this is irreversible.',
+      baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
+      description:
+        'Label Stock List → More → Delete all. RRGold host (same as GetAllLabeledStock). Irreversible — removes labelled stock for the client. No request body; pass ClientCode as query string. Requires Authorization: Bearer {token}.',
       sampleBody: null,
-      urlParams: '?ClientCode=LS000123',
+      urlParams: '?ClientCode=LS000410',
+      urlParamHelp: [
+        { name: 'ClientCode', required: true, example: 'LS000410', note: 'Logged-in client code' },
+      ],
       responseFormat: {
-        message: "All stock deleted successfully"
-      }
+        status: 'success',
+        message: 'All stock deleted successfully for client LS000410.',
+        deletedCount: 192,
+        clientCode: 'LS000410',
+      },
     },
     {
       id: 'delete-stock-by-branch',
       name: 'Delete Stock for Client by Branch',
       endpoint: 'DeleteStockForClientByBranch',
       method: 'DELETE',
-      baseUrl: 'https://soni.loyalstring.co.in/api/ProductMaster',
+      baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
       description:
-        'Deletes ApiActive labelled stock for one branch only. Query: ClientCode + BranchName.',
+        'Label Stock List → delete by branch. RRGold ProductMaster. Deletes ApiActive labelled stock for one branch only. Query: ClientCode + BranchName (exact name from branch master).',
       sampleBody: null,
       urlParams: '?ClientCode=LS000410&BranchName=Main%20Showroom',
+      urlParamHelp: [
+        { name: 'ClientCode', required: true, example: 'LS000410' },
+        { name: 'BranchName', required: true, example: 'Main Showroom', note: 'URL-encode spaces' },
+      ],
       responseFormat: {
         status: 'success',
         message: "Successfully deleted 120 ApiActive labelled stock record(s) for branch 'Main Showroom' only.",
@@ -1222,6 +1233,18 @@ Content-Type: application/json`}
                         }}>
                           {api.baseUrl}/{api.endpoint}{api.urlParams}
                         </p>
+                        {Array.isArray(api.urlParamHelp) && api.urlParamHelp.length > 0 ? (
+                          <ul style={{ margin: '12px 0 0', paddingLeft: '20px', fontSize: '14px', color: '#475569' }}>
+                            {api.urlParamHelp.map((row) => (
+                              <li key={row.name} style={{ marginBottom: '6px' }}>
+                                <strong>{row.name}</strong>
+                                {row.required ? ' (required)' : ''}
+                                {row.example ? ` — e.g. ${row.example}` : ''}
+                                {row.note ? ` — ${row.note}` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
                     )}
 

@@ -8,6 +8,61 @@ export const getGetAllEmployeeUrl = () => toRrgoldApiUrl('/api/ClientOnboarding/
 export const getGetAllBranchMasterUrl = () => toRrgoldApiUrl('/api/ClientOnboarding/GetAllBranchMaster');
 export const getGetAllCountersUrl = () => toRrgoldApiUrl('/api/ClientOnboarding/GetAllCounters');
 
+export const normalizeOnboardingList = (data) => {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    return data.data || data.Data || data.items || data.Items || data.result || data.Result || [];
+  }
+  return [];
+};
+
+export const pickCounterMasterName = (row) =>
+  String(row?.CounterName ?? row?.counterName ?? row?.Name ?? row?.name ?? '').trim();
+
+export const pickCounterMasterId = (row) =>
+  row?.Id ?? row?.id ?? row?.CounterId ?? row?.counterId ?? null;
+
+export const resolveBranchNameById = (branchId, branches = []) => {
+  if (branchId == null || branchId === '') return '';
+  const hit = (Array.isArray(branches) ? branches : []).find(
+    (b) => String(b?.Id ?? b?.id) === String(branchId)
+  );
+  return String(hit?.BranchName ?? hit?.Name ?? hit?.name ?? '').trim();
+};
+
+export const normalizeCounterMasterRow = (row, branches = []) => {
+  if (!row || typeof row !== 'object') return null;
+  const branchId = row.BranchId ?? row.branchId ?? null;
+  const counterName = pickCounterMasterName(row);
+  const counterDesc = String(
+    row?.CounterDescription ??
+      row?.counterDescription ??
+      row?.Description ??
+      row?.description ??
+      ''
+  ).trim();
+  const counterNumber = String(row?.CounterNumber ?? row?.counterNumber ?? '').trim();
+  const branchName =
+    String(row?.BranchName ?? row?.branchName ?? '').trim() ||
+    resolveBranchNameById(branchId, branches);
+  return {
+    ...row,
+    Id: row.Id ?? row.id,
+    CounterName: counterName,
+    Name: counterName,
+    CounterDescription: counterDesc,
+    Description: counterDesc,
+    CounterNumber: counterNumber,
+    BranchId: branchId,
+    BranchName: branchName,
+  };
+};
+
+export const normalizeCounterMasterRows = (rows, branches = []) =>
+  (Array.isArray(rows) ? rows : [])
+    .map((row) => normalizeCounterMasterRow(row, branches))
+    .filter(Boolean);
+
 export function validateVendorSidebarForm(v) {
   if (!String(v?.vendorName || '').trim()) return 'Vendor Name is required.';
   if (!String(v?.companyName || '').trim()) return 'Company Name is required.';

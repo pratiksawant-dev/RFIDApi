@@ -47,6 +47,151 @@ import { labelledStockExportFileName, exportItemsWithSavedTemplate, rememberedEx
 import { buildTrayStockLookupPayload } from '../../utils/epcLookup';
 import { saveBlobWithPreferredFolder } from '../../services/exportDownloadHelper';
 import { toRrgoldApiUrl } from '../../services/apiBaseConfig';
+import {
+  normalizeOnboardingList,
+  normalizeCounterMasterRows,
+  pickCounterMasterName,
+} from '../../services/memberOnboardingApi';
+
+const labeledStockApiUrl = (path) => toRrgoldApiUrl(path);
+
+/** Parse filter dropdown value when it stores a master row Id (string or number). */
+const parseFilterMasterId = (value) => {
+  if (value === 'All' || value == null || value === '') return 0;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+const normalizeMasterApiList = (responseData) => {
+  if (!responseData) return [];
+  if (Array.isArray(responseData)) return responseData;
+  return normalizeOnboardingList(responseData);
+};
+
+const masterRowId = (row) => Number(row?.Id ?? row?.id ?? 0) || 0;
+
+const CATEGORY_NAME_KEYS = ['CategoryName', 'Name', 'categoryName'];
+const PRODUCT_NAME_KEYS = ['ProductName', 'Name', 'productName'];
+const DESIGN_NAME_KEYS = ['DesignName', 'Name', 'designName'];
+const BRANCH_NAME_KEYS = ['BranchName', 'Name', 'branchName', 'name'];
+const PURITY_NAME_KEYS = ['PurityName', 'Name', 'Purity', 'purityName'];
+
+const pickMasterLabel = (item, keys) => {
+  if (item == null) return '';
+  if (typeof item !== 'object') return String(item).trim();
+  for (const key of keys) {
+    const value = item[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+  return '';
+};
+
+const findMasterIdByName = (items, value, nameKeys) => {
+  if (!value || value === 'All') return 0;
+  const wanted = String(value).trim().toLowerCase();
+  const match = (items || []).find((item) =>
+    nameKeys.some((key) => String(item?.[key] || '').trim().toLowerCase() === wanted)
+  );
+  return masterRowId(match);
+};
+
+const resolveCategoryFilterId = (value, apiFilterData) => {
+  const direct = parseFilterMasterId(value);
+  if (direct) return direct;
+  return findMasterIdByName(apiFilterData?.categories, value, CATEGORY_NAME_KEYS);
+};
+
+const resolveProductFilterId = (value, apiFilterData) => {
+  const direct = parseFilterMasterId(value);
+  if (direct) return direct;
+  return findMasterIdByName(apiFilterData?.products, value, PRODUCT_NAME_KEYS);
+};
+
+const resolveDesignFilterId = (value, apiFilterData) => {
+  const direct = parseFilterMasterId(value);
+  if (direct) return direct;
+  return findMasterIdByName(apiFilterData?.designs, value, DESIGN_NAME_KEYS);
+};
+
+const resolvePurityFilterId = (value, apiFilterData) => {
+  const direct = parseFilterMasterId(value);
+  if (direct) return direct;
+  return findMasterIdByName(apiFilterData?.purities, value, PURITY_NAME_KEYS);
+};
+
+const resolveBranchFilterId = (value, apiFilterData) => {
+  const direct = parseFilterMasterId(value);
+  if (direct) return direct;
+  return findMasterIdByName(apiFilterData?.branches, value, BRANCH_NAME_KEYS);
+};
+
+const resolveCounterFilterId = (value, apiFilterData) => {
+  const direct = parseFilterMasterId(value);
+  if (direct) return direct;
+  if (!value || value === 'All') return 0;
+  const wanted = String(value).trim().toLowerCase();
+  const match = (apiFilterData?.counters || []).find((counter) => {
+    const name = pickCounterMasterName(counter).toLowerCase();
+    return name === wanted;
+  });
+  return masterRowId(match);
+};
+
+/** Single payload shape for GetAllLabeledStock (list, export, all-data). */
+const buildGetAllLabeledStockPayload = ({
+  clientCode,
+  filters = {},
+  apiFilterData = {},
+  search = '',
+  sort = {},
+  page = 1,
+  pageSize = 25,
+  activeOnly = false,
+  includePagination = true,
+}) => {
+  const categoryId = resolveCategoryFilterId(filters.categoryId, apiFilterData);
+  const productId = resolveProductFilterId(filters.productId, apiFilterData);
+  const designId = resolveDesignFilterId(filters.designId, apiFilterData);
+  const purityId = resolvePurityFilterId(filters.purityId, apiFilterData);
+  const branchId = resolveBranchFilterId(filters.branch, apiFilterData);
+  const counterId = resolveCounterFilterId(filters.counterName, apiFilterData);
+
+  let status = 'ApiActive';
+  if (activeOnly) status = 'Active';
+  else if (filters.status && filters.status !== 'All') status = filters.status;
+
+  const payload = {
+    ClientCode: clientCode,
+    CategoryId: categoryId,
+    ProductId: productId,
+    DesignId: designId,
+    PurityId: purityId,
+    FromDate: filters.dateFrom && String(filters.dateFrom).trim() !== '' ? String(filters.dateFrom).trim() : null,
+    ToDate: filters.dateTo && String(filters.dateTo).trim() !== '' ? String(filters.dateTo).trim() : null,
+    RFIDCode: '',
+    BranchId: branchId,
+    Status: status,
+    SearchQuery: search && String(search).trim() !== '' ? String(search).trim() : '',
+    ListType: sort && sort.direction === 'desc' ? 'descending' : 'ascending',
+    SortColumn: sort && sort.key ? sort.key : null,
+  };
+
+  if (includePagination) {
+    payload.PageNumber = page;
+    payload.PageSize = pageSize;
+  } else {
+    payload.PageNumber = 1;
+    payload.PageSize = 999999;
+  }
+
+  if (counterId > 0) payload.CounterId = counterId;
+  if (filters.boxName && filters.boxName !== 'All') payload.BoxName = filters.boxName;
+  if (filters.vendor && filters.vendor !== 'All') payload.Vendor = filters.vendor;
+
+  return payload;
+};
 import { getDeleteStockForClientByBranchUrl, getDeleteAllStockForClientUrl } from '../../services/authApiConfig';
 import { runAutoPushFolderSyncOnce, extractAutoPushUsername } from '../../services/autoPushStockSyncService';
 import CloseIcon from '@mui/icons-material/Close';
@@ -552,59 +697,20 @@ const LabelStockList = () => {
         return;
       }
 
-      // Build payload for all data: BranchId, CounterId, CategoryId, ProductId, PurityId as IDs
-      const allBranchId = filterValues.branch !== 'All' && filterValues.branch && apiFilterData.branches?.length
-        ? (() => {
-            const selectedBranch = apiFilterData.branches.find(branch => {
-              const n = branch.BranchName || branch.Name || branch.branchName || branch.name || '';
-              return n === filterValues.branch || n.toLowerCase() === filterValues.branch.toLowerCase();
-            });
-            return selectedBranch ? Number(selectedBranch.Id ?? selectedBranch.id ?? 0) : 0;
-          })()
-        : 0;
-      const payload = {
-        ClientCode: clientCode,
-        CategoryId: Number(getFilterValueForAPI('categoryId', filterValues.categoryId)) || 0,
-        ProductId: Number(getFilterValueForAPI('productId', filterValues.productId)) || 0,
-        DesignId: Number(getFilterValueForAPI('designId', filterValues.designId)) || 0,
-        PurityId: Number(getFilterValueForAPI('purityId', filterValues.purityId)) || 0,
-        FromDate: filterValues.dateFrom && filterValues.dateFrom.trim() !== '' ? filterValues.dateFrom.trim() : null,
-        ToDate: filterValues.dateTo && filterValues.dateTo.trim() !== '' ? filterValues.dateTo.trim() : null,
-        RFIDCode: "",
-        PageNumber: 1,
-        PageSize: 999999,
-        BranchId: allBranchId,
-        Status: showActiveOnlyRef.current ? 'Active' : 'ApiActive',
-        SearchQuery: searchQuery && searchQuery.trim() !== '' ? searchQuery.trim() : "",
-        ListType: "ascending",
-        SortColumn: sortConfig.key || null
-      };
-
-      if (filterValues.counterName !== 'All' && filterValues.counterName) {
-        const selectedCounter = apiFilterData.counters?.find(counter =>
-          counter.CounterName === filterValues.counterName ||
-          counter.Name === filterValues.counterName ||
-          counter.counterName === filterValues.counterName ||
-          (counter.CounterName && counter.CounterName.toLowerCase() === filterValues.counterName.toLowerCase()) ||
-          (counter.Name && counter.Name.toLowerCase() === filterValues.counterName.toLowerCase())
-        );
-        if (selectedCounter) {
-          payload.CounterId = Number(selectedCounter.Id ?? selectedCounter.id ?? 0);
-        } else {
-          console.warn('Counter not found in API data (all data fetch):', filterValues.counterName);
-        }
-      }
-      if (filterValues.boxName !== 'All' && filterValues.boxName) {
-        payload.BoxName = filterValues.boxName;
-      }
-      if (filterValues.vendor !== 'All' && filterValues.vendor) {
-        payload.Vendor = filterValues.vendor;
-      }
+      const payload = buildGetAllLabeledStockPayload({
+        clientCode,
+        filters: filterValues,
+        apiFilterData,
+        search: searchQuery,
+        sort: sortConfig,
+        activeOnly: showActiveOnlyRef.current,
+        includePagination: false,
+      });
 
       console.log('Fetching ALL filtered data:', payload);
 
       const response = await axios.post(
-        'https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllLabeledStock',
+        labeledStockApiUrl('/api/ProductMaster/GetAllLabeledStock'),
         payload,
         {
           headers: {
@@ -694,7 +800,7 @@ const LabelStockList = () => {
   const fetchFilterData = async () => {
     try {
       const clientCode = userInfo?.ClientCode;
-      if (!clientCode) return;
+      if (!clientCode) return null;
 
       // Fetch all filter data in parallel for faster loading
       const headers = {
@@ -715,12 +821,12 @@ const LabelStockList = () => {
         countersResult,
         branchesResult
       ] = await Promise.allSettled([
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllProductMaster', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllDesign', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllCategory', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllPurity', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllCounters', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
-        axios.post('https://rrgold.loyalstring.co.in/api/ClientOnboarding/GetAllBranchMaster', requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post(labeledStockApiUrl('/api/ProductMaster/GetAllProductMaster'), requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post(labeledStockApiUrl('/api/ProductMaster/GetAllDesign'), requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post(labeledStockApiUrl('/api/ProductMaster/GetAllCategory'), requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post(labeledStockApiUrl('/api/ProductMaster/GetAllPurity'), requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post(labeledStockApiUrl('/api/ClientOnboarding/GetAllCounters'), requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
+        axios.post(labeledStockApiUrl('/api/ClientOnboarding/GetAllBranchMaster'), requestBody, { headers, ...timeoutConfig, skipGlobalLoader: true }),
       ]);
 
       // Extract responses from settled promises, handling failures
@@ -766,24 +872,17 @@ const LabelStockList = () => {
         });
       }
 
-      // Handle different response structures - some APIs might return objects or arrays
-      const normalizeArray = (data) => {
-        if (!data) return [];
-        if (Array.isArray(data)) return data;
-        if (data && typeof data === 'object') {
-          // If it's an object, try to extract array from common properties
-          return data.data || data.items || data.results || data.list || [];
-        }
-        return [];
-      };
-
+      const branchesArr = normalizeMasterApiList(branchesResponse?.data);
       const normalizedData = {
-        products: normalizeArray(productsResponse?.data),
-        designs: normalizeArray(designsResponse?.data),
-        categories: normalizeArray(categoriesResponse?.data),
-        purities: normalizeArray(puritiesResponse?.data),
-        counters: normalizeArray(countersResponse?.data),
-        branches: normalizeArray(branchesResponse?.data)
+        products: normalizeMasterApiList(productsResponse?.data),
+        designs: normalizeMasterApiList(designsResponse?.data),
+        categories: normalizeMasterApiList(categoriesResponse?.data),
+        purities: normalizeMasterApiList(puritiesResponse?.data),
+        counters: normalizeCounterMasterRows(
+          normalizeMasterApiList(countersResponse?.data),
+          branchesArr
+        ),
+        branches: branchesArr,
       };
 
       setApiFilterData(normalizedData);
@@ -796,6 +895,8 @@ const LabelStockList = () => {
         counters: normalizedData.counters.length,
         branches: normalizedData.branches.length
       });
+
+      return normalizedData;
 
     } catch (error) {
       console.error('Error in fetchFilterData:', error);
@@ -816,11 +917,13 @@ const LabelStockList = () => {
         counters: prev?.counters?.length > 0 ? prev.counters : [],
         branches: prev?.branches?.length > 0 ? prev.branches : []
       }));
+      return null;
     }
   };
 
   const fetchLabeledStock = async (page = currentPage, pageSize = itemsPerPage, search = searchQuery, filters = filterValues, sort = sortConfig, options = {}) => {
-    const { force = false, quiet = false, activeOnly } = options || {};
+    const { force = false, quiet = false, activeOnly, apiFilterDataOverride } = options || {};
+    const mastersForPayload = apiFilterDataOverride || apiFilterData;
     if (isFetchingRef.current && !force) {
       console.log('Already fetching, skipping duplicate fetch');
       return;
@@ -884,75 +987,33 @@ const LabelStockList = () => {
 
       setError(null); // Clear any existing errors
 
-      // Build the payload: BranchId, CounterId, CategoryId, ProductId, PurityId as IDs for GetAllLabeledStock API
-      const resolvedBranchId = safeFilters.branch !== 'All' && safeFilters.branch && apiFilterData.branches?.length
-        ? (() => {
-            const selectedBranch = apiFilterData.branches.find(branch => {
-              const branchName = branch.BranchName || branch.Name || branch.branchName || branch.name || '';
-              return branchName === safeFilters.branch || branchName.toLowerCase() === safeFilters.branch.toLowerCase();
-            });
-            return selectedBranch ? Number(selectedBranch.Id ?? selectedBranch.id ?? 0) : 0;
-          })()
-        : 0;
-      const resolvedCategoryId = Number(getFilterValueForAPI('categoryId', safeFilters.categoryId)) || 0;
-      const resolvedProductId = Number(getFilterValueForAPI('productId', safeFilters.productId)) || 0;
-      const resolvedPurityId = Number(getFilterValueForAPI('purityId', safeFilters.purityId)) || 0;
-      const resolvedDesignId = Number(getFilterValueForAPI('designId', safeFilters.designId)) || 0;
-
-      const payload = {
-        ClientCode: clientCode,
-        CategoryId: resolvedCategoryId,
-        ProductId: resolvedProductId,
-        DesignId: resolvedDesignId,
-        PurityId: resolvedPurityId,
-        FromDate: safeFilters.dateFrom && safeFilters.dateFrom.trim() !== '' ? safeFilters.dateFrom.trim() : null,
-        ToDate: safeFilters.dateTo && safeFilters.dateTo.trim() !== '' ? safeFilters.dateTo.trim() : null,
-        RFIDCode: "", // Always include RFIDCode as empty string
-        PageNumber: page,
-        PageSize: pageSize,
-        BranchId: resolvedBranchId,
-        Status: (activeOnly !== undefined ? activeOnly : showActiveOnlyRef.current) ? 'Active' : 'ApiActive',
-        SearchQuery: search && search.trim() !== '' ? search.trim() : "",
-        ListType: sort && sort.direction === 'desc' ? "descending" : "ascending",
-        SortColumn: sort && sort.key ? sort.key : null // Include SortColumn based on current sort configuration
-      };
-
-      // Counter: send CounterId in payload when user selects a counter
-      if (safeFilters.counterName !== 'All' && safeFilters.counterName) {
-        const selectedCounter = apiFilterData.counters?.find(counter =>
-          counter.CounterName === safeFilters.counterName ||
-          counter.Name === safeFilters.counterName ||
-          counter.counterName === safeFilters.counterName ||
-          (counter.CounterName && counter.CounterName.toLowerCase() === safeFilters.counterName.toLowerCase()) ||
-          (counter.Name && counter.Name.toLowerCase() === safeFilters.counterName.toLowerCase())
-        );
-        if (selectedCounter) {
-          payload.CounterId = Number(selectedCounter.Id ?? selectedCounter.id ?? 0);
-        } else {
-          console.warn('Counter not found in API data:', safeFilters.counterName, 'Available counters:', apiFilterData.counters);
-        }
-      }
-      if (safeFilters.boxName !== 'All' && safeFilters.boxName) {
-        payload.BoxName = safeFilters.boxName;
-      }
-      if (safeFilters.vendor !== 'All' && safeFilters.vendor) {
-        payload.Vendor = safeFilters.vendor;
-      }
+      const payload = buildGetAllLabeledStockPayload({
+        clientCode,
+        filters: safeFilters,
+        apiFilterData: mastersForPayload,
+        search,
+        sort,
+        page,
+        pageSize,
+        activeOnly: activeOnly !== undefined ? activeOnly : showActiveOnlyRef.current,
+        includePagination: true,
+      });
 
       console.log(`API Request - Page ${page}:`, payload);
       console.log('Filter → API IDs:', {
         branch: safeFilters.branch,
         branchId: payload.BranchId,
-        counterName: safeFilters.counterName,
+        counter: safeFilters.counterName,
         counterId: payload.CounterId,
         categoryId: payload.CategoryId,
         productId: payload.ProductId,
         purityId: payload.PurityId,
-        designId: payload.DesignId
+        designId: payload.DesignId,
+        status: payload.Status,
       });
 
       const response = await axios.post(
-        'https://rrgold.loyalstring.co.in/api/ProductMaster/GetAllLabeledStock',
+        labeledStockApiUrl('/api/ProductMaster/GetAllLabeledStock'),
         payload,
         {
           headers: {
@@ -1763,7 +1824,7 @@ const LabelStockList = () => {
     const category = filterValues.categoryId;
     const linkKeys = ['CategoryId', 'categoryId', 'CategoryID', 'CategoryName', 'categoryName'];
     if (category && category !== 'All' && masterHasLink(source, linkKeys)) {
-      const categoryId = findNamedId(apiFilterData.categories, category, categoryNameKeys);
+      const categoryId = resolveCategoryFilterId(category, apiFilterData);
       const wanted = String(category).trim().toLowerCase();
       list = source.filter((item) => {
         const cid = Number(item.CategoryId ?? item.categoryId ?? item.CategoryID ?? 0) || 0;
@@ -1783,7 +1844,7 @@ const LabelStockList = () => {
     const category = filterValues.categoryId;
     const productLink = ['ProductId', 'productId', 'ProductID', 'ProductName', 'productName'];
     if (product && product !== 'All' && masterHasLink(source, productLink)) {
-      const productId = findNamedId(productsForFilters(), product, productNameKeys);
+      const productId = resolveProductFilterId(product, apiFilterData);
       const wanted = String(product).trim().toLowerCase();
       list = source.filter((item) => {
         const pid = Number(item.ProductId ?? item.productId ?? item.ProductID ?? 0) || 0;
@@ -1793,9 +1854,9 @@ const LabelStockList = () => {
         return false;
       });
     } else if (category && category !== 'All') {
-      const categoryId = findNamedId(apiFilterData.categories, category, categoryNameKeys);
+      const categoryId = resolveCategoryFilterId(category, apiFilterData);
       const productIds = new Set(
-        productsForFilters().map((item) => Number(item.Id ?? item.id ?? 0)).filter(Boolean)
+        productsForFilters().map((item) => masterRowId(item)).filter(Boolean)
       );
       const linkKeys = ['ProductId', 'productId', 'CategoryId', 'categoryId', 'CategoryName', 'categoryName'];
       if (masterHasLink(source, linkKeys)) {
@@ -1909,7 +1970,7 @@ const LabelStockList = () => {
     if (currentValue !== 'All' && currentValue) {
       const selectedOption = allOptions.find(opt => {
         const optValue = getOptionValue ? getOptionValue(opt) : opt;
-        return optValue === currentValue;
+        return String(optValue) === String(currentValue);
       });
       if (selectedOption) {
         displayValue = getOptionLabel ? getOptionLabel(selectedOption) : (getOptionValue ? getOptionValue(selectedOption) : selectedOption);
@@ -2058,7 +2119,7 @@ const LabelStockList = () => {
                     showOptions.map((option, index) => {
                       const optionValue = getOptionValue ? getOptionValue(option) : option;
                       const optionLabel = getOptionLabel ? getOptionLabel(option) : option;
-                      const isSelected = currentValue === optionValue;
+                      const isSelected = String(currentValue) === String(optionValue);
                       return (
                         <div
                           key={index}
@@ -2149,52 +2210,17 @@ const LabelStockList = () => {
         status: 'All'
       };
 
-      // Export payload: BranchId, CounterId, CategoryId, ProductId, PurityId as IDs
-      const exportBranchId = safeFilters.branch !== 'All' && safeFilters.branch && apiFilterData.branches?.length
-        ? (() => {
-            const selectedBranch = apiFilterData.branches.find(branch => {
-              const n = branch.BranchName || branch.Name || branch.branchName || branch.name || '';
-              return n === safeFilters.branch || n.toLowerCase() === safeFilters.branch.toLowerCase();
-            });
-            return selectedBranch ? Number(selectedBranch.Id ?? selectedBranch.id ?? 0) : 0;
-          })()
-        : 0;
-      const payload = {
-        ClientCode: clientCode,
-        CategoryId: Number(getFilterValueForAPI('categoryId', safeFilters.categoryId)) || 0,
-        ProductId: Number(getFilterValueForAPI('productId', safeFilters.productId)) || 0,
-        DesignId: Number(getFilterValueForAPI('designId', safeFilters.designId)) || 0,
-        PurityId: Number(getFilterValueForAPI('purityId', safeFilters.purityId)) || 0,
-        FromDate: safeFilters.dateFrom && safeFilters.dateFrom.trim() !== '' ? safeFilters.dateFrom.trim() : null,
-        ToDate: safeFilters.dateTo && safeFilters.dateTo.trim() !== '' ? safeFilters.dateTo.trim() : null,
-        RFIDCode: "",
-        BranchId: exportBranchId,
-        Status: showActiveOnly ? 'Active' : (safeFilters.status !== 'All' ? safeFilters.status : 'ApiActive'),
-        SearchQuery: searchQuery && searchQuery.trim() !== '' ? searchQuery.trim() : "",
-        ListType: sortConfig && (sortConfig.direction === 'desc' || sortConfig.direction === 'descending') ? "descending" : "ascending",
-        SortColumn: sortConfig && sortConfig.key ? sortConfig.key : null
-      };
+      const payload = buildGetAllLabeledStockPayload({
+        clientCode,
+        filters: safeFilters,
+        apiFilterData,
+        search: searchQuery,
+        sort: sortConfig,
+        activeOnly: showActiveOnly,
+        includePagination: false,
+      });
       const templateId = Number(activeExportTemplate?.id) || rememberedExcelExportTemplateId();
       if (templateId > 0) payload.templateId = templateId;
-
-      if (safeFilters.counterName !== 'All' && safeFilters.counterName) {
-        const selectedCounter = apiFilterData.counters?.find(counter =>
-          counter.CounterName === safeFilters.counterName ||
-          counter.Name === safeFilters.counterName ||
-          counter.counterName === safeFilters.counterName ||
-          (counter.CounterName && counter.CounterName.toLowerCase() === safeFilters.counterName.toLowerCase()) ||
-          (counter.Name && counter.Name.toLowerCase() === safeFilters.counterName.toLowerCase())
-        );
-        if (selectedCounter) {
-          payload.CounterId = Number(selectedCounter.Id ?? selectedCounter.id ?? 0);
-        }
-      }
-      if (safeFilters.boxName !== 'All' && safeFilters.boxName) {
-        payload.BoxName = safeFilters.boxName;
-      }
-      if (safeFilters.vendor !== 'All' && safeFilters.vendor) {
-        payload.Vendor = safeFilters.vendor;
-      }
 
       console.log('Export All Report - API Request:', payload);
 
@@ -2651,51 +2677,17 @@ const LabelStockList = () => {
 
   // Helper function to get the actual ID value for API payload
   const getFilterValueForAPI = (field, value) => {
-    if (value === 'All' || value === 0 || !value) return 0;
-
     switch (field) {
       case 'categoryId':
-        const category = apiFilterData.categories?.find(cat =>
-          cat.CategoryName === value ||
-          cat.Name === value ||
-          cat.categoryName === value ||
-          (cat.CategoryName && cat.CategoryName.toLowerCase() === value.toLowerCase()) ||
-          (cat.Name && cat.Name.toLowerCase() === value.toLowerCase())
-        );
-        const categoryId = category ? (category.Id || category.id || 0) : 0;
-        if (!category && value !== 'All') {
-          console.warn('Category not found in API data:', value, 'Available categories:', apiFilterData.categories);
-        }
-        return categoryId;
+        return resolveCategoryFilterId(value, apiFilterData);
       case 'productId':
-        const productId = findNamedId(productsForFilters(), value, productNameKeys);
-        if (!productId && value !== 'All') {
-          console.warn('Product not found in API data:', value);
-        }
-        return productId;
+        return resolveProductFilterId(value, apiFilterData);
       case 'designId':
-        const designId = findNamedId(designsForFilters(), value, designNameKeys);
-        if (!designId && value !== 'All') {
-          console.warn('Design not found in API data:', value);
-        }
-        return designId;
+        return resolveDesignFilterId(value, apiFilterData);
       case 'purityId':
-        const purity = apiFilterData.purities?.find(p =>
-          (p.PurityName && p.PurityName === value) ||
-          (p.Name && p.Name === value) ||
-          (p.Purity && p.Purity === value) ||
-          (p.purityName && p.purityName === value) ||
-          (p.PurityName && p.PurityName.toLowerCase() === String(value).toLowerCase()) ||
-          (p.Name && p.Name.toLowerCase() === String(value).toLowerCase()) ||
-          (p.Purity && p.Purity.toLowerCase() === String(value).toLowerCase())
-        );
-        const purityId = purity ? (purity.Id || purity.id || 0) : 0;
-        if (!purity && value !== 'All') {
-          console.warn('Purity not found in API data:', value, 'Available purities:', apiFilterData.purities);
-        }
-        return purityId;
+        return resolvePurityFilterId(value, apiFilterData);
       default:
-        return value;
+        return parseFilterMasterId(value) || value;
     }
   };
 
@@ -2795,63 +2787,31 @@ const LabelStockList = () => {
     fetchLabeledStock(1, itemsPerPage, '', defaultFilters, sortConfig, { force: true, activeOnly: false });
   };
 
-  const handleApplyFilters = () => {
+  const handleApplyFilters = async () => {
     console.log('Applying filters:', filterValues);
-    console.log('API Filter Data available:', {
-      products: apiFilterData.products?.length || 0,
-      designs: apiFilterData.designs?.length || 0,
-      categories: apiFilterData.categories?.length || 0,
-      counters: apiFilterData.counters?.length || 0,
-      branches: apiFilterData.branches?.length || 0
-    });
-    console.log('Counter name filter:', filterValues.counterName);
-
-    // Check if filter data is loaded, if not, fetch it first
-    const hasFilterData = apiFilterData.products?.length > 0 ||
+    const hasFilterData =
+      apiFilterData.products?.length > 0 ||
       apiFilterData.designs?.length > 0 ||
       apiFilterData.categories?.length > 0 ||
       apiFilterData.counters?.length > 0 ||
       apiFilterData.branches?.length > 0;
 
+    let masters = apiFilterData;
     if (!hasFilterData) {
-      console.warn('Filter data not loaded yet, fetching filter data first...');
-      fetchFilterData().then(() => {
-        // Wait a bit for state to update, then apply filters
-        setTimeout(() => {
-          setShowFilterPanel(false);
-          setCurrentPage(1);
-          // Show loader immediately
-          setLoading(true);
-          fetchLabeledStock(1, itemsPerPage, searchQuery, filterValues);
-          if (showAllData) {
-            fetchAllFilteredData();
-          }
-        }, 500);
-      }).catch(err => {
-        console.error('Error fetching filter data before applying filters:', err);
-        // Still try to apply filters even if filter data fetch fails
-        setShowFilterPanel(false);
-        setCurrentPage(1);
-        // Show loader immediately
-        setLoading(true);
-        fetchLabeledStock(1, itemsPerPage, searchQuery, filterValues);
-        if (showAllData) {
-          fetchAllFilteredData();
-        }
-      });
-    } else {
-      setShowFilterPanel(false);
-      // Reset to first page when applying filters
-      setCurrentPage(1);
-      // Show loader immediately
-      setLoading(true);
-      // Explicitly fetch data with current filter values
-      fetchLabeledStock(1, itemsPerPage, searchQuery, filterValues);
+      console.warn('Filter masters not loaded — fetching GetAllCategory / Product / Design…');
+      const loaded = await fetchFilterData();
+      if (loaded) masters = loaded;
+    }
 
-      // If user is viewing all data, also refresh the all data
-      if (showAllData) {
-        fetchAllFilteredData();
-      }
+    setShowFilterPanel(false);
+    setCurrentPage(1);
+    setLoading(true);
+    fetchLabeledStock(1, itemsPerPage, searchQuery, filterValues, sortConfig, {
+      force: true,
+      apiFilterDataOverride: masters,
+    });
+    if (showAllData) {
+      fetchAllFilteredData();
     }
   };
 
@@ -3559,19 +3519,28 @@ const LabelStockList = () => {
         return;
       }
 
-      const response = await axios.delete(getDeleteAllStockForClientUrl(), {
+      const deleteUrl = getDeleteAllStockForClientUrl();
+      const response = await axios.delete(deleteUrl, {
         params: { ClientCode: clientCode },
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
       });
 
-      if (response.data && response.data.success !== false) {
+      const data = response.data || {};
+      const status = String(data.status || data.Status || '').toLowerCase();
+      const ok =
+        status === 'success' ||
+        data.success === true ||
+        (response.status === 200 && data.success !== false && status !== 'failed');
+
+      if (ok) {
         setShowDeleteAllStockConfirm(false);
         setSelectedRows([]);
         showSuccessNotification(
           'Delete All Successful',
-          `All stock items for client ${clientCode} have been deleted successfully.`
+          data.message ||
+            `All stock items for client ${clientCode} have been deleted successfully.`
         );
 
         await fetchLabeledStock();
@@ -3582,15 +3551,16 @@ const LabelStockList = () => {
 
         addNotification({
           title: 'All stock deleted',
-          description: `All stock items deleted for client ${clientCode}`,
+          description: data.message || `All stock items deleted for client ${clientCode}`,
           type: 'success'
         });
       } else {
-        throw new Error(response.data?.message || 'Failed to delete all stock for client');
+        throw new Error(data.message || data.Message || 'Failed to delete all stock for client');
       }
     } catch (err) {
       setShowDeleteAllStockConfirm(false);
-      showSuccessNotification('Delete All Failed', err.message || 'Failed to delete all stock for client.');
+      const apiMsg = err.response?.data?.message || err.response?.data?.Message;
+      showSuccessNotification('Delete All Failed', apiMsg || err.message || 'Failed to delete all stock for client.');
     } finally {
       setDeleteAllStockLoading(false);
     }
@@ -4858,18 +4828,18 @@ const LabelStockList = () => {
                 'branch',
                 'Branch',
                 'Search branch...',
-                uniqueByLabel(apiFilterData.branches || [], ['BranchName', 'Name', 'branchName', 'name']),
-                (item) => item.BranchName || item.Name || item.branchName || item.name,
-                (item) => item.BranchName || item.Name || item.branchName || item.name,
+                uniqueByLabel(apiFilterData.branches || [], BRANCH_NAME_KEYS).filter((item) => masterRowId(item) > 0),
+                (item) => String(masterRowId(item) || ''),
+                (item) => pickMasterLabel(item, BRANCH_NAME_KEYS),
                 'All'
               )}</div>
               <div style={{ minWidth: 100, flex: '1 1 0', maxWidth: 160 }}>{renderSearchableDropdown(
                 'counterName',
                 'Counter Name',
                 'Search counter...',
-                uniqueByLabel(apiFilterData.counters || [], ['CounterName', 'Name', 'counterName']),
-                (item) => item.CounterName || item.Name || item.counterName,
-                (item) => item.CounterName || item.Name || item.counterName,
+                uniqueByLabel(apiFilterData.counters || [], ['CounterName', 'Name', 'counterName']).filter((item) => masterRowId(item) > 0),
+                (item) => String(masterRowId(item) || ''),
+                (item) => pickCounterMasterName(item) || pickMasterLabel(item, ['CounterName', 'Name']),
                 'All Counters'
               )}</div>
               <div style={{ minWidth: 100, flex: '1 1 0', maxWidth: 160 }}>{renderSearchableDropdown(
@@ -4885,36 +4855,36 @@ const LabelStockList = () => {
                 'categoryId',
                 'Category',
                 'Search category...',
-                uniqueByLabel(apiFilterData.categories || [], categoryNameKeys),
-                (item) => item.CategoryName || item.Name || item.categoryName,
-                (item) => item.CategoryName || item.Name || item.categoryName,
+                uniqueByLabel(apiFilterData.categories || [], categoryNameKeys).filter((item) => masterRowId(item) > 0),
+                (item) => String(masterRowId(item) || ''),
+                (item) => pickMasterLabel(item, categoryNameKeys),
                 'All Categories'
               )}</div>
               <div style={{ minWidth: 100, flex: '1 1 0', maxWidth: 160 }}>{renderSearchableDropdown(
                 'productId',
                 'Product',
                 'Search product...',
-                productsForFilters(),
-                (item) => item.ProductName || item.Name || item.productName,
-                (item) => item.ProductName || item.Name || item.productName,
+                productsForFilters().filter((item) => masterRowId(item) > 0),
+                (item) => String(masterRowId(item) || ''),
+                (item) => pickMasterLabel(item, productNameKeys),
                 'All Products'
               )}</div>
               <div style={{ minWidth: 100, flex: '1 1 0', maxWidth: 160 }}>{renderSearchableDropdown(
                 'designId',
                 'Design',
                 'Search design...',
-                designsForFilters(),
-                (item) => item.DesignName || item.Name || item.designName,
-                (item) => item.DesignName || item.Name || item.designName,
+                designsForFilters().filter((item) => masterRowId(item) > 0),
+                (item) => String(masterRowId(item) || ''),
+                (item) => pickMasterLabel(item, designNameKeys),
                 'All Designs'
               )}</div>
               <div style={{ minWidth: 100, flex: '1 1 0', maxWidth: 160 }}>{renderSearchableDropdown(
                 'purityId',
                 'Purity',
                 'Search purity...',
-                uniqueByLabel(apiFilterData.purities || [], ['PurityName', 'Name', 'Purity', 'purityName']),
-                (item) => item.PurityName || item.Name || item.Purity || item.purityName,
-                (item) => item.PurityName || item.Name || item.Purity || item.purityName,
+                uniqueByLabel(apiFilterData.purities || [], PURITY_NAME_KEYS).filter((item) => masterRowId(item) > 0),
+                (item) => String(masterRowId(item) || ''),
+                (item) => pickMasterLabel(item, PURITY_NAME_KEYS),
                 'All Purities'
               )}</div>
               <div style={{ minWidth: 100, flex: '1 1 0', maxWidth: 160 }}>{renderSearchableDropdown(

@@ -1,4 +1,4 @@
-import { getSoniApiBaseUrl } from './apiBaseConfig';
+import { getRrgoldApiBaseUrl, getSoniApiBaseUrl } from './apiBaseConfig';
 
 /**
  * Password login host (ProductMaster). Override: REACT_APP_AUTH_API_BASE_URL.
@@ -6,19 +6,30 @@ import { getSoniApiBaseUrl } from './apiBaseConfig';
 export const getAuthApiBaseUrl = () =>
   (process.env.REACT_APP_AUTH_API_BASE_URL || getSoniApiBaseUrl()).replace(/\/$/, '');
 
+/**
+ * ProductMaster inventory APIs (label stock list, delete stock, etc.).
+ * Uses RRGOLD base by mode — not Soni. Override: REACT_APP_PRODUCT_MASTER_API_BASE_URL.
+ */
+export const getProductMasterApiBaseUrl = () =>
+  (process.env.REACT_APP_PRODUCT_MASTER_API_BASE_URL || getRrgoldApiBaseUrl()).replace(/\/$/, '');
+
 export const getAuthLoginUrl = () => `${getAuthApiBaseUrl()}/api/ProductMaster/AuthLogin`;
 export const getAuthForgotPasswordUrl = () => `${getAuthApiBaseUrl()}/api/ProductMaster/AuthForgotPassword`;
 
 /** Preferred: same naming style as DeleteAllStockForClient. */
 export const getDeleteAllStockForBranchUrl = () =>
-  `${getAuthApiBaseUrl()}/api/ProductMaster/DeleteAllStockForBranch`;
+  `${getProductMasterApiBaseUrl()}/api/ProductMaster/DeleteAllStockForBranch`;
 
-/** Alias of DeleteAllStockForBranch (same action / query params). */
+/** DELETE …/DeleteStockForClientByBranch?ClientCode=&BranchName= */
 export const getDeleteStockForClientByBranchUrl = () =>
-  `${getAuthApiBaseUrl()}/api/ProductMaster/DeleteStockForClientByBranch`;
+  `${getProductMasterApiBaseUrl()}/api/ProductMaster/DeleteStockForClientByBranch`;
 
+/**
+ * DELETE …/DeleteAllStockForClient?ClientCode={code}
+ * Label Stock List “delete all” — documented in API Docs & Postman (RRGold).
+ */
 export const getDeleteAllStockForClientUrl = () =>
-  `${getAuthApiBaseUrl()}/api/ProductMaster/DeleteAllStockForClient`;
+  `${getProductMasterApiBaseUrl()}/api/ProductMaster/DeleteAllStockForClient`;
 
 /**
  * Local ASP.NET Kestrel default for /api/auth/fingerprint/* and /api/auth/passkey/*.

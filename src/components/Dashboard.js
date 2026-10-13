@@ -147,8 +147,6 @@ const API_GROUPS = [
         description: 'Remove specific items from labelled stock by item codes.',
         sampleBody: { ...PLAYGROUND_DELETE_LABELLED_STOCK_BODY, ItemCodes: [...PLAYGROUND_DELETE_LABELLED_STOCK_BODY.ItemCodes] },
       },
-      { id: 'delete-all-stock', name: 'Delete All Stock for Client', endpoint: 'DeleteAllStockForClient', method: 'DELETE', description: 'Delete all stock items for a client. Irreversible.', sampleBody: null, urlParams: '?ClientCode=LS000123' },
-      { id: 'delete-stock-by-branch', name: 'Delete Stock for Client by Branch', endpoint: 'DeleteStockForClientByBranch', method: 'DELETE', description: 'Deletes ApiActive labelled stock for one branch (ClientCode + BranchName query).', sampleBody: null, urlParams: '?ClientCode=LS000410&BranchName=Main%20Showroom' },
       {
         id: 'get-available-auth-plans',
         name: 'Get Available Auth Plans',
@@ -287,6 +285,39 @@ const API_GROUPS = [
       },
       { id: 'tag-usage', name: 'Get Used/Unused RFID Tags', endpoint: 'GetAllUsedAndUnusedTag', method: 'POST', description: 'Retrieve used and unused RFID tags.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
       { id: 'get-all-labeled-stock', name: 'Get All Labeled Stock', endpoint: 'GetAllLabeledStock', method: 'POST', description: 'Get labeled stock with pagination (Label Stock List).', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY, PageNumber: 1, PageSize: 25 } },
+      {
+        id: 'delete-all-stock',
+        name: 'Delete All Stock for Client',
+        endpoint: 'DeleteAllStockForClient',
+        method: 'DELETE',
+        description:
+          'Label Stock List → More → Delete all labelled stock. RRGold ProductMaster only (not Soni). Irreversible. Query: ClientCode. Bearer token required.',
+        sampleBody: null,
+        urlParams: '?ClientCode=LS000410',
+        responseFormat: {
+          status: 'success',
+          message: 'All stock deleted successfully for client LS000410.',
+          deletedCount: 192,
+          clientCode: 'LS000410',
+        },
+      },
+      {
+        id: 'delete-stock-by-branch',
+        name: 'Delete Stock for Client by Branch',
+        endpoint: 'DeleteStockForClientByBranch',
+        method: 'DELETE',
+        description:
+          'Label Stock List → delete by branch. RRGold ProductMaster. Deletes ApiActive labelled stock for one branch. Query: ClientCode + BranchName.',
+        sampleBody: null,
+        urlParams: '?ClientCode=LS000410&BranchName=Main%20Showroom',
+        responseFormat: {
+          status: 'success',
+          message: "Successfully deleted 120 ApiActive labelled stock record(s) for branch 'Main Showroom' only.",
+          deletedCount: 120,
+          clientCode: 'LS000410',
+          branchName: 'Main Showroom',
+        },
+      },
       { id: 'get-all-product-master', name: 'Get All Product Master', endpoint: 'GetAllProductMaster', method: 'POST', description: 'Get product master data for dropdowns.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
       { id: 'get-all-design', name: 'Get All Design', endpoint: 'GetAllDesign', method: 'POST', description: 'Get design master data.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
       { id: 'get-all-category', name: 'Get All Category', endpoint: 'GetAllCategory', method: 'POST', description: 'Get category master data.', sampleBody: { ...PLAYGROUND_CLIENT_CODE_ONLY } },
@@ -447,6 +478,11 @@ const withClientCodeUrlParams = (urlParams, clientCode) => {
 };
 
 const createPostmanCollection = () => {
+  const postmanHeaders = [
+    { key: 'Content-Type', value: 'application/json', type: 'text' },
+    { key: 'Authorization', value: 'Bearer {{bearerToken}}', type: 'text' },
+  ];
+
   const item = API_GROUPS.map((group) => ({
     name: group.name,
     item: group.apis.map((api) => {
@@ -454,11 +490,18 @@ const createPostmanCollection = () => {
       const endpointPath = `/api/${(baseUrl.split('/api/')[1] || '').replace(/^\/+/, '')}/${api.endpoint}`;
       const url = new URL(`${baseUrl}/${api.endpoint}${api.urlParams || ''}`);
       const rawBody = api.sampleBody === null || api.sampleBody === undefined ? {} : api.sampleBody;
+      const descriptionParts = [
+        getApiUseCase(api),
+        api.description || '',
+        api.responseFormat
+          ? `Sample response:\n${safeJsonString(api.responseFormat)}`
+          : '',
+      ].filter(Boolean);
       return {
         name: api.name,
         request: {
           method: api.method,
-          header: [{ key: 'Content-Type', value: 'application/json', type: 'text' }],
+          header: postmanHeaders,
           body: api.method === 'GET' || api.method === 'DELETE'
             ? undefined
             : { mode: 'raw', raw: safeJsonString(rawBody), options: { raw: { language: 'json' } } },
@@ -469,7 +512,7 @@ const createPostmanCollection = () => {
             path: endpointPath.split('/').filter(Boolean),
             query: Array.from(url.searchParams.entries()).map(([key, value]) => ({ key, value })),
           },
-          description: `Use case: ${getApiUseCase(api)}`,
+          description: descriptionParts.join('\n\n'),
         },
         response: [],
       };
@@ -480,8 +523,17 @@ const createPostmanCollection = () => {
     info: {
       name: 'RFID API Playground Collection',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
-      description: 'Generated from Dashboard API Playground.',
+      description:
+        'Generated from Dashboard API Playground. Set collection variable bearerToken (JWT from Auth Login). Delete-all stock uses RRGold: DELETE /api/ProductMaster/DeleteAllStockForClient?ClientCode=…',
     },
+    auth: {
+      type: 'bearer',
+      bearer: [{ key: 'token', value: '{{bearerToken}}', type: 'string' }],
+    },
+    variable: [
+      { key: 'bearerToken', value: '' },
+      { key: 'clientCode', value: 'LS000410' },
+    ],
     item,
   };
 };
@@ -591,9 +643,17 @@ const Dashboard = () => {
         apiResponse = await axios.get(url, { headers: requestConfig.headers });
       } else if (selectedApi.method === 'DELETE') {
         const deleteUrl = `${selectedApi.baseUrl}/${selectedApi.endpoint}`;
+        const params = {};
+        const paramString = withClientCodeUrlParams(selectedApi.urlParams, clientCode) || '';
+        if (paramString.startsWith('?')) {
+          new URLSearchParams(paramString.slice(1)).forEach((value, key) => {
+            params[key] = key === 'ClientCode' ? (clientCode || value) : value;
+          });
+        }
+        if (!params.ClientCode && clientCode) params.ClientCode = clientCode;
         apiResponse = await axios.delete(deleteUrl, {
           headers: requestConfig.headers,
-          data: { ClientCode: normalizedBody.ClientCode || clientCode },
+          params,
         });
       } else {
         switch (selectedApi.endpoint) {
