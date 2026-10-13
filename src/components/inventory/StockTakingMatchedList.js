@@ -680,11 +680,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
               </div>
             </div>
 
-            {/* Right Actions: Load & Export */}
-            <div className="filter-right-actions">
-              <div style={{ width: '100%', marginBottom: 8 }}>
-                <ExcelExportTemplateBar />
-              </div>
+            <div className="filter-load-actions">
               <button
                 type="button"
                 className="btn-primary"
@@ -694,9 +690,22 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
                 {loading ? <FaSpinner className="fa-spin" /> : <FaRedo />}
                 <span>{loading ? 'Loading...' : cfg.loadLabel}</span>
               </button>
+            </div>
+          </div>
+
+          <div className="export-panel">
+            <div className="export-panel-template">
+              <ExcelExportTemplateBar layout="inline" />
+            </div>
+            <div className="export-panel-actions">
+              <span className="export-panel-meta">
+                {filteredAndSortedList.length > 0
+                  ? `${filteredAndSortedList.length.toLocaleString()} row${filteredAndSortedList.length === 1 ? '' : 's'} ready to export`
+                  : 'Load data to enable export'}
+              </span>
               <button
                 type="button"
-                className="btn-excel"
+                className="btn-excel btn-excel--prominent"
                 onClick={handleExportExcel}
                 disabled={loading || filteredAndSortedList.length === 0}
                 title={`Export ${cfg.word} list to Excel`}
@@ -1285,13 +1294,47 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
           background: #e2e8f0;
           color: #0f172a;
         }
-        .filter-right-actions {
+        .filter-load-actions {
           display: flex;
-          align-items: center;
-          gap: 10px;
+          align-items: flex-end;
           margin-left: auto;
           align-self: flex-end;
           padding-bottom: 1px;
+          flex-shrink: 0;
+        }
+        .export-panel {
+          margin-top: 14px;
+          padding-top: 14px;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: stretch;
+          gap: 12px 16px;
+        }
+        .export-panel-template {
+          flex: 1 1 360px;
+          min-width: 0;
+        }
+        .export-panel-actions {
+          flex: 0 0 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 8px;
+          min-width: 168px;
+        }
+        .export-panel-meta {
+          font-size: 11px;
+          font-weight: 650;
+          color: #64748b;
+          text-align: right;
+          line-height: 1.35;
+          max-width: 220px;
+        }
+        .btn-excel--prominent {
+          min-width: 148px;
+          justify-content: center;
         }
         .btn-primary {
           height: 38px;
@@ -1764,14 +1807,24 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
           .branch-field, .date-field {
             width: 100%;
           }
-          .filter-right-actions {
+          .filter-load-actions {
             width: 100%;
             margin-left: 0;
-            justify-content: stretch;
           }
-          .filter-right-actions button {
-            flex: 1;
+          .filter-load-actions .btn-primary {
+            width: 100%;
             justify-content: center;
+          }
+          .export-panel-actions {
+            width: 100%;
+            align-items: stretch;
+          }
+          .export-panel-meta {
+            text-align: center;
+            max-width: none;
+          }
+          .export-panel-actions .btn-excel {
+            width: 100%;
           }
           .table-search-box {
             width: 100%;

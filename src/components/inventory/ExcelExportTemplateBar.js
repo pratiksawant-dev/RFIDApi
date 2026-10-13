@@ -56,7 +56,7 @@ const cloneFields = (fields) => {
   return kept.map((field, index) => ({ ...field, order: index + 1 }));
 };
 
-const ExcelExportTemplateBar = ({ onTemplateChange }) => {
+const ExcelExportTemplateBar = ({ onTemplateChange, layout = 'stacked' }) => {
   const notifications = useNotifications();
   const addNotification = notifications?.addNotification;
   const { clientCode, userId } = readExcelExportSession();
@@ -246,7 +246,9 @@ const ExcelExportTemplateBar = ({ onTemplateChange }) => {
   };
 
   const active = templates.find((item) => Number(item.id) === Number(activeId));
+  const activeTemplateTitle = active?.templateName || 'Default';
   const selectedCount = draftFields.filter((field) => field.selected).length;
+  const isInline = layout === 'inline';
   const query = fieldQuery.trim().toLowerCase();
   const visibleFields = draftFields
     .map((field, index) => ({ field, index }))
@@ -258,15 +260,18 @@ const ExcelExportTemplateBar = ({ onTemplateChange }) => {
 
   return (
     <>
-      <div className="eet-bar">
-        <div className="eet-bar-top">
-          <span className="eet-kicker">Excel columns</span>
-          <span className="eet-hint">
-            {active?.templateName || 'Default'}
-            {active?.isDefault || !templates.length ? ' · used for Excel' : ''}
-          </span>
-        </div>
+      <div className={`eet-bar${isInline ? ' is-inline' : ''}`}>
+        {!isInline ? (
+          <div className="eet-bar-top">
+            <span className="eet-kicker">Excel columns</span>
+            <span className="eet-hint" title={activeTemplateTitle}>
+              {activeTemplateTitle}
+              {active?.isDefault || !templates.length ? ' · used for Excel' : ''}
+            </span>
+          </div>
+        ) : null}
         <div className="eet-bar-row">
+        {isInline ? <span className="eet-kicker eet-kicker-inline">Excel columns</span> : null}
         <select
           className="eet-select"
           value={activeId || ''}
@@ -301,6 +306,14 @@ const ExcelExportTemplateBar = ({ onTemplateChange }) => {
           <FaStar />
         </button>
         </div>
+        {isInline ? (
+          <p className="eet-inline-caption" title={activeTemplateTitle}>
+            Template: <strong>{activeTemplateTitle}</strong>
+            {active?.isDefault ? ' (default)' : ''}
+            {' · '}
+            Pick columns with Edit fields
+          </p>
+        ) : null}
       </div>
       {error && !modalOpen ? <p className="eet-error">{error}</p> : null}
 
