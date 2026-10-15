@@ -16,8 +16,9 @@ internal static class Program
     private static DateTime _readLoopStartedAt = DateTime.MinValue;
     private static bool _readLoopHintPrinted;
 
-    /// <summary>Last successful TX attenuation (attDb10); re-applied right before inventory so scans match UI.</summary>
+    /// <summary>Last successful TX attenuation (attDb10). Applied on connect, not before every scan.</summary>
     private static uint? _lastPowerAttDb10;
+    private static readonly List<int> _deviceIds = new();
 
     private const byte CellConnectId = 1;
     private const byte CellUhfRssi = 4;
@@ -77,6 +78,12 @@ internal static class Program
                         break;
                     case "get-power":
                         GetPower();
+                        break;
+                    case "read-mem":
+                        ReadTagMemory(args);
+                        break;
+                    case "write-mem":
+                        WriteTagMemory(args);
                         break;
                     case "help":
                         PrintHelp();
@@ -160,6 +167,7 @@ internal static class Program
                 ApplyReaderScanDefaults();
                 Console.WriteLine("Connected via USB.");
                 var devices = GetConnectedDevices();
+                RememberDeviceIds(devices);
                 Console.WriteLine($"Connected devices detected by SDK: {devices.Count}");
             }
             else
@@ -214,6 +222,7 @@ internal static class Program
                 ApplyReaderScanDefaults();
                 Console.WriteLine($"Connected via Serial COM{comNumber}.");
                 var devices = GetConnectedDevices();
+                RememberDeviceIds(devices);
                 Console.WriteLine($"Connected devices detected by SDK: {devices.Count}");
             }
             else
@@ -296,10 +305,8 @@ internal static class Program
                 return;
             }
 
-            ApplyStoredPowerBeforeInventory();
-
             var startedDevices = 0;
-            var ids = GetConnectedDeviceIds();
+            var ids = _deviceIds.Count > 0 ? _deviceIds : new List<int>();
 
             // USB trays often need UHFInventory(); multi-COM setups use UHFInventoryById per link.
             if (string.Equals(_connectionMode, "usb", StringComparison.OrdinalIgnoreCase))
@@ -382,7 +389,7 @@ internal static class Program
             }
 
             _inventoryRunning = false;
-            var ids = GetConnectedDeviceIds();
+            var ids = _deviceIds;
             var stopOk = 0;
             if (ids.Count > 0)
             {
@@ -406,7 +413,7 @@ internal static class Program
             }
         }
 
-        _readerThread?.Join(500);
+        _readerThread?.Join(40);
         _readerThread = null;
 
         var totalTags = 0;
@@ -446,6 +453,7 @@ internal static class Program
         _connected = false;
         _connectionMode = "none";
         _lastPowerAttDb10 = null;
+        _deviceIds.Clear();
     }
 
     private static void PrintStatus()
@@ -479,6 +487,9 @@ internal static class Program
         Console.WriteLine("  connect-serial <comNumber> <baud>");
         Console.WriteLine("  set-power <0-300>   (UHFAPI attenuation: 0=max TX, higher=weaker; requires matching SDK exports)");
         Console.WriteLine("  get-power");
+        Console.WriteLine("  read-mem <token> <epcHex> <bank> <wordPtr> <wordCount> [accessPwdHex]");
+        Console.WriteLine("  write-mem <token> <epcHex> <bank> <wordPtr> <dataHex> [accessPwdHex]");
+        Console.WriteLine("    bank = epc | tid | user | res");
         Console.WriteLine("  start");
         Console.WriteLine("  stop");
         Console.WriteLine("  disconnect");
@@ -561,6 +572,257 @@ internal static class Program
             {
                 Console.WriteLine($"ERROR: {ex.Message}");
             }
+        }
+    }
+
+    private static byte ResolveMemoryBank(string name)
+    {
+        return name.Trim().ToLowerInvariant() switch
+        {
+            "res" or "reserved" or "0" => 0,
+            "epc" or "1" => 1,
+            "tid" or "2" => 2,
+            "user" or "usr" or "3" => 3,
+            _ => throw new InvalidOperationException("Bank must be epc, tid, user, or res.")
+        };
+    }
+
+    /// <summary>
+    /// UHFWriteData writes whole words (2 bytes, 4 hex chars).
+    /// Keep the hexcode as given and append 0 only until the length is a multiple of 4.
+    /// </summary>
+    private static byte[] ParseWriteWords(string hex)
+    {
+        var text = (hex ?? "").Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            text = text[2..];
+        }
+
+        text = text.Replace(" ", string.Empty).ToUpperInvariant();
+        if (text.Length == 0)
+        {
+            throw new InvalidOperationException("Write data is empty.");
+        }
+
+        foreach (var ch in text)
+        {
+            if (ch is < '0' or > '9' and < 'A' or > 'F')
+            {
+                throw new InvalidOperationException("Write data must be hex.");
+            }
+        }
+
+        while (text.Length % 4 != 0)
+        {
+            text += "0";
+        }
+
+        if (text.Length / 2 > 64)
+        {
+            throw new InvalidOperationException("Write data must be 2-64 bytes.");
+        }
+
+        return ParseHexBytes(text, "Write data");
+    }
+
+    private static byte[] WithEpcPc(byte[] epcData)
+    {
+        var words = epcData.Length / 2;
+        if (words < 1 || words > 31)
+        {
+            return epcData;
+        }
+
+        var framed = new byte[epcData.Length + 2];
+        framed[0] = (byte)((words << 3) & 0xF8);
+        framed[1] = 0;
+        Buffer.BlockCopy(epcData, 0, framed, 2, epcData.Length);
+        return framed;
+    }
+
+    private static byte[] ParseHexBytes(string hex, string label)
+    {
+        var text = (hex ?? "").Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            text = text[2..];
+        }
+
+        if (text.Length == 0 || text.Length % 2 != 0)
+        {
+            throw new InvalidOperationException($"{label} must be even-length hex.");
+        }
+
+        var bytes = new byte[text.Length / 2];
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            bytes[i] = Convert.ToByte(text.Substring(i * 2, 2), 16);
+        }
+
+        return bytes;
+    }
+
+    private static string ToPrintableAscii(byte[] data)
+    {
+        var chars = new char[data.Length];
+        for (var i = 0; i < data.Length; i++)
+        {
+            var b = data[i];
+            chars[i] = b is >= 32 and <= 126 ? (char)b : '.';
+        }
+
+        return new string(chars).Trim().Trim('.');
+    }
+
+    private static void EnsureReadyForMemoryOp()
+    {
+        if (!_connected)
+        {
+            throw new InvalidOperationException("Not connected.");
+        }
+
+        if (!_inventoryRunning)
+        {
+            return;
+        }
+
+        StopInventory();
+        Thread.Sleep(30);
+    }
+
+    private static void ReadTagMemory(string[] args)
+    {
+        if (args.Length < 6)
+        {
+            Console.WriteLine("Usage: read-mem <token> <epcHex> <bank> <wordPtr> <wordCount> [accessPwdHex]");
+            return;
+        }
+
+        var token = args[1];
+        try
+        {
+            EnsureReadyForMemoryOp();
+            var epc = ParseHexBytes(args[2], "EPC");
+            var bank = ResolveMemoryBank(args[3]);
+            if (!int.TryParse(args[4], out var wordPtr) || wordPtr < 0)
+            {
+                throw new InvalidOperationException("Invalid word pointer.");
+            }
+
+            if (!byte.TryParse(args[5], out var wordCount) || wordCount == 0 || wordCount > 32)
+            {
+                throw new InvalidOperationException("Word count must be 1-32.");
+            }
+
+            var pwd = args.Length >= 7 ? ParseHexBytes(args[6], "Access password") : new byte[] { 0, 0, 0, 0 };
+            if (pwd.Length != 4)
+            {
+                throw new InvalidOperationException("Access password must be 4 bytes (8 hex chars).");
+            }
+
+            var buffer = new byte[Math.Max(64, wordCount * 2)];
+            int code;
+            lock (Sync)
+            {
+                code = NativeMethods.UHFReadData(
+                    pwd,
+                    1,
+                    32,
+                    epc.Length * 8,
+                    epc,
+                    bank,
+                    wordPtr,
+                    wordCount,
+                    buffer);
+            }
+
+            var payload = new byte[wordCount * 2];
+            Buffer.BlockCopy(buffer, 0, payload, 0, payload.Length);
+            var ok = code == 0;
+            Console.WriteLine(
+                $"MEM token={token} action=read ok={(ok ? 1 : 0)} code={code} bank={args[3].ToLowerInvariant()} epc={ToHex(epc)} data={(ok ? ToHex(payload) : "")} ascii={(ok ? ToPrintableAscii(payload) : "")}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"MEM token={token} action=read ok=0 code=-1 message={ex.Message.Replace(' ', '_')}");
+        }
+    }
+
+    private static void WriteTagMemory(string[] args)
+    {
+        if (args.Length < 6)
+        {
+            Console.WriteLine("Usage: write-mem <token> <epcHex> <bank> <wordPtr> <dataHex> [accessPwdHex]");
+            return;
+        }
+
+        var token = args[1];
+        try
+        {
+            EnsureReadyForMemoryOp();
+            var epc = ParseHexBytes(args[2], "EPC");
+            var bank = ResolveMemoryBank(args[3]);
+            if (!int.TryParse(args[4], out var wordPtr) || wordPtr < 0)
+            {
+                throw new InvalidOperationException("Invalid word pointer.");
+            }
+
+            var data = ParseWriteWords(args[5]);
+
+            var pwd = args.Length >= 7 ? ParseHexBytes(args[6], "Access password") : new byte[] { 0, 0, 0, 0 };
+            if (pwd.Length != 4)
+            {
+                throw new InvalidOperationException("Access password must be 4 bytes (8 hex chars).");
+            }
+
+            if (bank == 1 && wordPtr == 2)
+            {
+                data = WithEpcPc(data);
+                wordPtr = 1;
+            }
+
+            var wordCount = (byte)(data.Length / 2);
+            int code;
+            lock (Sync)
+            {
+                code = NativeMethods.UHFWriteData(
+                    pwd,
+                    1,
+                    32,
+                    epc.Length * 8,
+                    epc,
+                    bank,
+                    wordPtr,
+                    wordCount,
+                    data);
+            }
+
+            if (code != 0)
+            {
+                Thread.Sleep(40);
+                lock (Sync)
+                {
+                    code = NativeMethods.UHFWriteData(
+                        pwd,
+                        1,
+                        32,
+                        epc.Length * 8,
+                        epc,
+                        bank,
+                        wordPtr,
+                        wordCount,
+                        data);
+                }
+            }
+
+            var ok = code == 0;
+            Console.WriteLine(
+                $"MEM token={token} action=write ok={(ok ? 1 : 0)} code={code} bank={args[3].ToLowerInvariant()} epc={ToHex(epc)} words={wordCount} ptr={wordPtr} data={ToHex(data)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"MEM token={token} action=write ok=0 code=-1 message={ex.Message.Replace(' ', '_')}");
         }
     }
 
@@ -727,9 +989,7 @@ internal static class Program
             switch (type)
             {
                 case 1:
-                    tag.Epc = field.Length > 2
-                        ? ToHex(field, 2, field.Length - 2)
-                        : ToHex(field);
+                    tag.Epc = EpcFromPcPrefixed(field);
                     break;
                 case 2:
                     tag.Tid = ToHex(field);
@@ -787,7 +1047,9 @@ internal static class Program
 
         if (uiiLen * 2 >= 4 && hex.Length >= 6 + uiiLen * 2 - 4)
         {
-            tag.Epc = hex.Substring(6, uiiLen * 2 - 4);
+            var pcAndEpc = new byte[uiiLen];
+            Buffer.BlockCopy(bufData, 1, pcAndEpc, 0, uiiLen);
+            tag.Epc = EpcFromPcPrefixed(pcAndEpc);
         }
 
         if (tidLen > 0 && tidIndex * 2 + tidLen * 2 <= hex.Length)
@@ -856,7 +1118,7 @@ internal static class Program
                     tag.ConnectId = field.Length > 0 ? field[0].ToString() : "";
                     break;
                 case CellUhfEpc:
-                    tag.Epc = ToHex(field);
+                    tag.Epc = EpcFromPcPrefixed(field);
                     break;
                 case CellUhfTid:
                     tag.Tid = ToHex(field);
@@ -884,6 +1146,45 @@ internal static class Program
         return tag;
     }
 
+    /// <summary>
+    /// Inventory frames from UHFAPI are often a fixed 12-byte EPC buffer.
+    /// The PC word (first 2 bytes, bits 15–11) is the real length in words.
+    /// Bytes past that length are SDK padding and are not part of the EPC.
+    /// </summary>
+    private static string EpcFromPcPrefixed(byte[] field)
+    {
+        if (field.Length == 0)
+        {
+            return "";
+        }
+
+        if (field.Length <= 2)
+        {
+            return ToHex(field);
+        }
+
+        var words = (field[0] >> 3) & 0x1F;
+        var epcLen = words * 2;
+        var available = field.Length - 2;
+        if (words is >= 1 and <= 31 && epcLen <= available)
+        {
+            return ToHex(field, 2, epcLen);
+        }
+
+        var end = field.Length;
+        while (end > 2 && field[end - 1] == 0)
+        {
+            end--;
+        }
+
+        if (end <= 2)
+        {
+            end = Math.Min(field.Length, 4);
+        }
+
+        return ToHex(field, 2, end - 2);
+    }
+
     private static string ToHex(byte[] bytes)
     {
         return BitConverter.ToString(bytes).Replace("-", string.Empty);
@@ -894,9 +1195,22 @@ internal static class Program
         return BitConverter.ToString(bytes, offset, count).Replace("-", string.Empty);
     }
 
+    private static void RememberDeviceIds(List<DeviceRow> devices)
+    {
+        _deviceIds.Clear();
+        _deviceIds.AddRange(devices.Select(d => d.Id).Where(id => id >= 0).Distinct());
+    }
+
     private static List<int> GetConnectedDeviceIds()
     {
-        return GetConnectedDevices().Select(d => d.Id).Where(id => id >= 0).Distinct().ToList();
+        if (_deviceIds.Count > 0)
+        {
+            return _deviceIds;
+        }
+
+        var devices = GetConnectedDevices();
+        RememberDeviceIds(devices);
+        return _deviceIds;
     }
 
     private static List<DeviceRow> GetConnectedDevices()
@@ -1393,6 +1707,30 @@ internal static class NativeMethods
 
     [DllImport("UHFAPI.dll", CallingConvention = CallingConvention.Cdecl)]
     public static extern int UHFGetTagData(byte[] tdata, int recvlen);
+
+    [DllImport("UHFAPI.dll", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int UHFReadData(
+        byte[] accessPwd,
+        byte filterBank,
+        int filterStartAddrBits,
+        int filterLenBits,
+        byte[] filterData,
+        byte bank,
+        int wordPtr,
+        byte wordCount,
+        byte[] readBuffer);
+
+    [DllImport("UHFAPI.dll", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int UHFWriteData(
+        byte[] accessPwd,
+        byte filterBank,
+        int filterStartAddrBits,
+        int filterLenBits,
+        byte[] filterData,
+        byte bank,
+        int wordPtr,
+        byte wordCount,
+        byte[] writeData);
 
     [DllImport("UHFAPI.dll", CallingConvention = CallingConvention.Cdecl)]
     public static extern int LinkGetInfo(byte[] info, int len);

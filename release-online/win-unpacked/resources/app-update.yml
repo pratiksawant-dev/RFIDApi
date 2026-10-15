@@ -1,4 +1,3 @@
-owner: pratiks1010
-repo: RFIDApi
-provider: github
+provider: generic
+url: https://qa-rfid-api.sparklerfid.net/api/AppUpdate/
 updaterCacheDirName: sparkle-rfid-dashboard-updater

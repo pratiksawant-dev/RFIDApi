@@ -21,6 +21,9 @@ win:
   target: nsis
   icon: build-resources/icon.ico
   signAndEditExecutable: false
+publish:
+  provider: generic
+  url: https://qa-rfid-api.sparklerfid.net/api/AppUpdate/
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

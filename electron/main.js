@@ -29,6 +29,12 @@ let bridgeStdoutBuffer = "";
 const FERONIA_BASE_URL = "http://192.168.29.245:93/api/TamannaahBS";
 const DEFAULT_FERONIA_TOKEN = "EC3276D0-6700-4B2A-82D4-A1C028827625";
 const APP_UPDATE_URL = String(process.env.ELECTRON_AUTO_UPDATE_URL || "").trim();
+const DEV_UPDATE_URL = "https://qa-rfid-api.sparklerfid.net/api/AppUpdate/";
+const resolveUpdateFeedUrl = () => {
+  if (APP_UPDATE_URL) return APP_UPDATE_URL;
+  if (isDev) return DEV_UPDATE_URL;
+  return "";
+};
 let updateDownloadRequested = false;
 let updateHandlersBound = false;
 let latestUpdateInfo = null;
@@ -230,15 +236,17 @@ const sendUpdaterEvent = (payload) => {
 };
 
 const setupAutoUpdater = () => {
-  if (isDev || updateHandlersBound) return;
-  if (!APP_UPDATE_URL && !hasPackagedUpdaterConfig()) return;
+  if (updateHandlersBound) return;
+  const feedUrl = resolveUpdateFeedUrl();
+  if (!feedUrl && !hasPackagedUpdaterConfig()) return;
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-  if (APP_UPDATE_URL) {
+  if (isDev) autoUpdater.forceDevUpdateConfig = true;
+  if (feedUrl) {
     autoUpdater.setFeedURL({
       provider: "generic",
-      url: APP_UPDATE_URL
+      url: feedUrl
     });
   }
 
@@ -294,15 +302,7 @@ const setupAutoUpdater = () => {
 };
 
 const checkForAppUpdates = async () => {
-  if (isDev) {
-    return {
-      ok: false,
-      reason: "skipped",
-      details: "Auto-update checks are disabled in development mode.",
-      currentVersion: app.getVersion()
-    };
-  }
-  if (!APP_UPDATE_URL && !hasPackagedUpdaterConfig()) {
+  if (!resolveUpdateFeedUrl() && !hasPackagedUpdaterConfig()) {
     return {
       ok: false,
       reason: "not-configured",
@@ -310,6 +310,7 @@ const checkForAppUpdates = async () => {
       currentVersion: app.getVersion()
     };
   }
+  setupAutoUpdater();
   try {
     const result = await autoUpdater.checkForUpdates();
     const latestVersion = String(result?.updateInfo?.version || "").trim();
@@ -1120,8 +1121,7 @@ ipcMain.handle("rfid-bridge-stop-service", async () => {
 ipcMain.handle("app-check-for-updates", async () => checkForAppUpdates());
 ipcMain.handle("app-get-version", async () => ({ version: app.getVersion() }));
 ipcMain.handle("app-start-update-download", async () => {
-  if (isDev) return { ok: false, reason: "skipped", details: "Auto-update download is disabled in development mode." };
-  if (!APP_UPDATE_URL && !hasPackagedUpdaterConfig()) {
+  if (!resolveUpdateFeedUrl() && !hasPackagedUpdaterConfig()) {
     return { ok: false, reason: "not-configured", details: "Updater feed is not configured." };
   }
   if (updateDownloadRequested) return { ok: true, status: "already-downloading" };
@@ -1136,8 +1136,7 @@ ipcMain.handle("app-start-update-download", async () => {
   }
 });
 ipcMain.handle("app-install-downloaded-update", async () => {
-  if (isDev) return { ok: false, reason: "skipped", details: "Install update is disabled in development mode." };
-  if (!APP_UPDATE_URL && !hasPackagedUpdaterConfig()) {
+  if (!resolveUpdateFeedUrl() && !hasPackagedUpdaterConfig()) {
     return { ok: false, reason: "not-configured", details: "Updater feed is not configured." };
   }
   if (!latestUpdateInfo) return { ok: false, reason: "No downloaded update available." };

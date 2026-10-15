@@ -2,7 +2,7 @@
   "name": "sparkle-rfid-dashboard",
   "homepage": ".",
   "main": "electron/main.js",
-  "version": "0.1.91",
+  "version": "0.1.95",
   "private": true,
   "proxy": "http://3.109.131.101:816",
   "dependencies": {
@@ -65,7 +65,7 @@
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "build:electron:only": "npm run build:icon && npm run build:bridge && npm run build:web && electron-builder --win",
-    "build:electron:online": "npx --yes env-cmd@10 -f .env.online -- cmd /c \"npm run version:patch && npm run build:icon && npm run build:bridge && craco build && electron-builder --win --config electron-builder.online.json\"",
+    "build:electron:online": "npx --yes env-cmd@10 -f .env.online -- cmd /c \"npm run version:patch && npm run build:icon && npm run build:bridge && craco build && electron-builder --win --config electron-builder.online.json && node scripts/upload-online-update.js\"",
     "build:electron:offline": "npx --yes env-cmd@10 -f .env.offline -- cmd /c \"npm run version:patch && npm run build:icon && npm run build:bridge && craco build && electron-builder --win --config electron-builder.offline.json\"",
     "build:electron:both": "npm run build:electron:online && npm run build:electron:offline",
     "build:electron": "npm run build:electron:online",

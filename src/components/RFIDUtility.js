@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowRight, FaClipboardList, FaCogs, FaImages, FaInfoCircle, FaMicrochip, FaProjectDiagram, FaSyncAlt, FaWaveSquare } from 'react-icons/fa';
+import { FaArrowRight, FaCheck, FaClipboardList, FaCogs, FaImages, FaInfoCircle, FaLayerGroup, FaMicrochip, FaPen, FaProjectDiagram, FaSyncAlt, FaWaveSquare } from 'react-icons/fa';
 import '../styles/RFIDUtility.css';
 import { isInventoryTrayEnabled, setInventoryTrayEnabled } from '../services/trayModeService';
 import ExeApiModeBanner from './common/ExeApiModeBanner';
@@ -23,6 +23,15 @@ const utilityMenus = [
     icon: FaWaveSquare,
     theme: 'rfid-card-blue',
     route: '/rfid-utility/tray-connect',
+  },
+  {
+    id: 'write-tag',
+    title: 'Write Tag',
+    subtitle: 'Read and encode',
+    description: 'Read tray EPCs, type a barcode, and write it into USER memory or the EPC.',
+    icon: FaPen,
+    theme: 'rfid-card-green',
+    route: '/rfid-utility/write-tag',
   },
   {
     id: 'device-settings',
@@ -114,30 +123,33 @@ const RFIDUtility = () => {
   return (
     <div className="rfid-utility-page">
       <div className="rfid-utility-header">
-       
-        <h1>RFID Utility Center</h1>
-        <p>Quick access menus for RFID operations and settings.</p>
-        <ExeApiModeBanner />
-      </div>
-      <div style={{ marginBottom: 18, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span className="rfid-utility-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M5 12a7 7 0 0 1 14 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M8.2 12a3.8 3.8 0 0 1 7.6 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="12" cy="15.2" r="1.35" fill="currentColor" />
+          </svg>
+        </span>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Enable Tray For Inventory Management</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>When enabled, Invoice page can scan EPC tags from RFID tray.</div>
+          <h1>RFID Utility Center</h1>
+          <p>Quick access menus for RFID operations and settings.</p>
+        </div>
+      </div>
+      <ExeApiModeBanner variant="strip" />
+      <div className="rfid-tray-banner">
+        <span className="rfid-tray-banner-icon" aria-hidden="true">
+          <FaLayerGroup />
+        </span>
+        <div className="rfid-tray-banner-copy">
+          <strong>Enable Tray For Inventory Management</strong>
+          <span>When enabled, Invoice page can scan EPC tags from RFID tray.</span>
         </div>
         <button
           type="button"
+          className={`rfid-tray-toggle${inventoryTrayEnabled ? ' is-on' : ''}`}
           onClick={handleToggleInventoryTray}
-          style={{
-            border: `1px solid ${inventoryTrayEnabled ? '#16a34a' : '#cbd5e1'}`,
-            background: inventoryTrayEnabled ? '#16a34a' : '#ffffff',
-            color: inventoryTrayEnabled ? '#ffffff' : '#475569',
-            borderRadius: 999,
-            padding: '8px 14px',
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
         >
+          <FaCheck />
           {inventoryTrayEnabled ? 'Enabled' : 'Disabled'}
         </button>
       </div>
@@ -159,11 +171,15 @@ const RFIDUtility = () => {
                 <span className="rfid-card-icon">
                   <Icon />
                 </span>
+                <span className="rfid-card-kicker">{menu.subtitle}</span>
                 <h3>{menu.title}</h3>
                 <p>{menu.description}</p>
                 <div className="rfid-card-footer">
                   <span className="rfid-card-action">
                     Explore <FaArrowRight />
+                  </span>
+                  <span className="rfid-card-go" aria-hidden="true">
+                    <FaArrowRight />
                   </span>
                 </div>
               </div>

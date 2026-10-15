@@ -134,16 +134,17 @@ const isConnectCommandSettled = (lines, cmd) => {
 };
 
 /** Wait until bridge emits a real connect result (not just the echoed IPC CMD line). */
-export const waitForConnectBridgeResponse = async (lineHistory, startIndex, cmd, timeoutMs = 2200) => {
+export const waitForConnectBridgeResponse = async (lineHistory, startIndex, cmd, timeoutMs = 2200, settleMs = 100) => {
   const history = Array.isArray(lineHistory) ? lineHistory : [];
   const startedAt = Date.now();
+  const pollMs = settleMs < 50 ? 25 : 80;
   while (Date.now() - startedAt < timeoutMs) {
     const lines = history.slice(startIndex);
     if (lines.length > 0 && isConnectCommandSettled(lines, cmd)) {
-      await waitMs(100);
+      if (settleMs > 0) await waitMs(settleMs);
       return history.slice(startIndex);
     }
-    await waitMs(80);
+    await waitMs(pollMs);
   }
   return history.slice(startIndex);
 };
@@ -157,12 +158,12 @@ const parseSdkDeviceCountFromHistory = (history) => {
   return 0;
 };
 
-const resolveEffectiveDeviceCount = async (getDeviceCount, history, timeoutMs = 2000) => {
+const resolveEffectiveDeviceCount = async (getDeviceCount, history, timeoutMs = 2000, pollMs = 100) => {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     const count = Math.max(getDeviceCount(), parseSdkDeviceCountFromHistory(history));
     if (count > 0) return count;
-    await waitMs(100);
+    await waitMs(pollMs);
   }
   return Math.max(getDeviceCount(), parseSdkDeviceCountFromHistory(history));
 };
@@ -194,6 +195,7 @@ export const connectTrayReaders = async ({
   powerAttDb10,
   parsePowerAttDb10,
   getDeviceCount = () => 0,
+  quick = false,
 }) => {
   const { commands, errors, mode } = buildTrayConnectCommands({
     connectionMode,
@@ -231,7 +233,8 @@ export const connectTrayReaders = async ({
       history,
       start,
       cmd,
-      mode === TRAY_CONNECTION_MODES.usb ? 2800 : 1800
+      quick ? 900 : (mode === TRAY_CONNECTION_MODES.usb ? 2800 : 1800),
+      quick ? 20 : 100
     );
     if (cmd === 'connect-usb') {
       usbAttempt = evaluateUsbConnectAttempt(lines);
@@ -246,10 +249,12 @@ export const connectTrayReaders = async ({
     }
   }
 
-  await runCommand('devices');
-  await runCommand('status');
+  if (!quick) {
+    await runCommand('devices');
+    await runCommand('status');
+  }
 
-  let effectiveDeviceCount = await resolveEffectiveDeviceCount(getDeviceCount, history, 2200);
+  let effectiveDeviceCount = await resolveEffectiveDeviceCount(getDeviceCount, history, quick ? 350 : 2200, quick ? 40 : 100);
   if (mode === TRAY_CONNECTION_MODES.usb && effectiveDeviceCount === 0 && usbAttempt.ok === true) {
     effectiveDeviceCount = 1;
   }

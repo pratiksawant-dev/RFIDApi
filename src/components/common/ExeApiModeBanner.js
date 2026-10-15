@@ -1,8 +1,9 @@
 import React from 'react';
+import { FaCloud, FaDesktop } from 'react-icons/fa';
 import { getApiMode, getRrgoldApiBaseUrl, getSoniApiBaseUrl } from '../../services/apiBaseConfig';
 
 /** Shown in Electron screens so users know Online vs Offline EXE behavior. */
-const ExeApiModeBanner = ({ compact = false }) => {
+const ExeApiModeBanner = ({ compact = false, variant = 'default' }) => {
   if (typeof window === 'undefined' || !window.electronAPI) return null;
 
   const isOffline = getApiMode() === 'offline';
@@ -10,6 +11,22 @@ const ExeApiModeBanner = ({ compact = false }) => {
   const apiHint = isOffline
     ? `Local APIs · RRGOLD ${getRrgoldApiBaseUrl()} · Soni ${getSoniApiBaseUrl()}`
     : 'Cloud APIs · loyalstring.co.in';
+
+  if (variant === 'strip') {
+    return (
+      <div className={`exe-mode-strip${isOffline ? ' is-offline' : ''}`}>
+        <span className="exe-mode-strip-live">
+          <FaDesktop />
+          {label}
+        </span>
+        <span className="exe-mode-strip-divider" aria-hidden="true" />
+        <span className="exe-mode-strip-hint">
+          <FaCloud />
+          {apiHint}
+        </span>
+      </div>
+    );
+  }
 
   if (compact) {
     return (
