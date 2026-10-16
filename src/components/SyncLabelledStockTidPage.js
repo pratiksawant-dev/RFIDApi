@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaSyncAlt, FaCheckCircle, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
+import { FaSyncAlt, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
 import { RiBarcodeFill } from 'react-icons/ri';
 import { toast } from 'react-toastify';
 import BackToProfileMenu from './common/BackToProfileMenu';
+import NetworkErrorState from './common/NetworkErrorState';
 import {
   getSyncLabelledStockTidUrl,
   syncLabelledStockTidFromRfidTable,
@@ -121,12 +122,13 @@ const SyncLabelledStockTidPage = () => {
           <p className="sync-tid-kicker">Live ProductMaster</p>
           <h1>Sync Labelled Stock TID</h1>
           <p>
-            Copies EPC values from the RFID tables into labelled stock <strong>TIDNumber</strong> for this client.
+            Copy EPC values from the RFID tables into labelled stock TID numbers for this client.
           </p>
         </div>
       </header>
 
       <section className="sync-tid-card">
+        <span className="sync-tid-card-bar" />
         <div className="sync-tid-meta">
           <div>
             <span>Client code</span>
@@ -134,18 +136,42 @@ const SyncLabelledStockTidPage = () => {
           </div>
           <div>
             <span>Live API</span>
-            <strong className="sync-tid-url">{liveUrl}</strong>
+            <strong className="sync-tid-url" title={liveUrl}>{liveUrl}</strong>
           </div>
         </div>
 
         <div className="sync-tid-map">
           <h3><FaInfoCircle /> What this updates</h3>
-          <ul>
-            <li>Reads every <code>RFIDCode</code> from labelled stock.</li>
-            <li>Looks up <code>tblRFID.BarcodeNumber</code> → <code>TidValue</code>.</li>
-            <li>Looks up <code>tblRFIDdetails.RFIDCode</code> → <code>TIDValue</code>.</li>
-            <li>Writes the EPC into labelled stock <code>TIDNumber</code>. Multiple EPCs are joined with a comma.</li>
-          </ul>
+          <ol>
+            <li>
+              <span>1</span>
+              <div>
+                <strong>Read labelled stock</strong>
+                <p>Every <em>RFIDCode</em> for this client is collected.</p>
+              </div>
+            </li>
+            <li>
+              <span>2</span>
+              <div>
+                <strong>Match barcode EPC</strong>
+                <p><em>tblRFID.BarcodeNumber</em> is matched to <em>TidValue</em>.</p>
+              </div>
+            </li>
+            <li>
+              <span>3</span>
+              <div>
+                <strong>Match RFID details</strong>
+                <p><em>tblRFIDdetails.RFIDCode</em> is matched to <em>TIDValue</em>.</p>
+              </div>
+            </li>
+            <li>
+              <span>4</span>
+              <div>
+                <strong>Write TID number</strong>
+                <p>The EPC is saved on <em>TIDNumber</em>. More than one EPC is joined with a comma.</p>
+              </div>
+            </li>
+          </ol>
         </div>
 
         {(loading || progress > 0) && (
@@ -161,10 +187,7 @@ const SyncLabelledStockTidPage = () => {
         )}
 
         {error && (
-          <div className="sync-tid-alert sync-tid-alert--error">
-            <FaExclamationTriangle />
-            <span>{error}</span>
-          </div>
+          <NetworkErrorState error={error} onRetry={() => setConfirmOpen(true)} variant="inline" />
         )}
 
         {result && !loading && (
@@ -251,113 +274,176 @@ const SyncLabelledStockTidPage = () => {
 
 const pageStyles = `
   .sync-tid-page {
-    max-width: 1080px;
+    max-width: 980px;
     margin: 0 auto;
-    padding: 8px 8px 32px;
+    padding: 4px 4px 40px;
     color: #0f172a;
     font-family: Inter, "Plus Jakarta Sans", system-ui, sans-serif;
   }
   .sync-tid-hero {
     display: flex;
-    gap: 16px;
+    gap: 14px;
     align-items: flex-start;
-    margin: 8px 0 18px;
+    margin: 4px 0 16px;
   }
   .sync-tid-icon {
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
     border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: #ede9fe;
     color: #6d28d9;
-    font-size: 24px;
+    font-size: 22px;
     flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.08);
   }
   .sync-tid-kicker {
-    margin: 0 0 4px;
+    margin: 2px 0 4px;
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #7c3aed;
   }
   .sync-tid-hero h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: clamp(22px, 2.4vw, 28px);
     font-weight: 800;
     letter-spacing: -0.03em;
+    line-height: 1.15;
   }
   .sync-tid-hero p {
     margin: 6px 0 0;
+    max-width: 640px;
     color: #64748b;
     font-size: 14px;
     line-height: 1.5;
   }
   .sync-tid-card,
   .sync-tid-table-wrap {
+    position: relative;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e5e7eb;
     border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    padding: 18px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+  }
+  .sync-tid-card-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6d28d9, #93c5fd);
   }
   .sync-tid-meta {
     display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 12px;
+    margin: 4px 0 16px;
+  }
+  .sync-tid-meta > div {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f8fafc;
   }
   .sync-tid-meta span {
     display: block;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
   }
   .sync-tid-meta strong {
     display: block;
-    margin-top: 4px;
-    font-size: 14px;
+    margin-top: 6px;
+    font-size: 15px;
+    letter-spacing: -0.02em;
   }
   .sync-tid-url {
-    word-break: break-all;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 12px !important;
-    color: #334155;
     font-weight: 600 !important;
+    color: #334155;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   .sync-tid-map {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: #fff;
   }
   .sync-tid-map h3 {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0 0 8px;
+    margin: 0 0 12px;
     font-size: 14px;
-    color: #334155;
+    font-weight: 800;
+    color: #0f172a;
   }
-  .sync-tid-map ul {
+  .sync-tid-map h3 svg { color: #6d28d9; }
+  .sync-tid-map ol {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
     margin: 0;
-    padding-left: 18px;
-    color: #475569;
-    font-size: 13px;
-    line-height: 1.6;
+    padding: 0;
   }
-  .sync-tid-map code {
-    background: #e2e8f0;
-    border-radius: 4px;
-    padding: 1px 5px;
+  .sync-tid-map li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 10px;
+    border-radius: 12px;
+    background: #f8fafc;
+  }
+  .sync-tid-map li > span {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #ede9fe;
+    color: #6d28d9;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .sync-tid-map li strong {
+    display: block;
+    font-size: 13px;
+    color: #0f172a;
+  }
+  .sync-tid-map li p {
+    margin: 3px 0 0;
     font-size: 12px;
+    line-height: 1.45;
+    color: #64748b;
+  }
+  .sync-tid-map em {
+    font-style: normal;
+    font-weight: 700;
+    color: #334155;
   }
   .sync-tid-progress {
     margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
   }
   .sync-tid-progress-top {
     display: flex;
@@ -367,8 +453,9 @@ const pageStyles = `
     color: #475569;
     margin-bottom: 8px;
   }
+  .sync-tid-progress-top strong { color: #6d28d9; }
   .sync-tid-track {
-    height: 10px;
+    height: 8px;
     border-radius: 999px;
     background: #e2e8f0;
     overflow: hidden;
@@ -376,9 +463,10 @@ const pageStyles = `
   .sync-tid-fill {
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #7c3aed, #2563eb);
+    background: linear-gradient(90deg, #6d28d9, #2563eb);
     transition: width 0.35s ease;
   }
+  .sync-tid-card .app-net-error { margin-bottom: 16px; }
   .sync-tid-alert {
     display: flex;
     align-items: flex-start;
@@ -388,32 +476,37 @@ const pageStyles = `
     font-size: 13px;
     margin-bottom: 16px;
   }
-  .sync-tid-alert--error {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
-  }
   .sync-tid-alert--ok {
     background: #f0fdf4;
     color: #166534;
     border: 1px solid #bbf7d0;
   }
+  .sync-tid-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 4px;
+  }
   .sync-tid-run {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    height: 40px;
     border: none;
-    border-radius: 12px;
-    padding: 12px 18px;
+    border-radius: 999px;
+    padding: 0 16px;
     background: #6d28d9;
     color: #fff;
     font-weight: 700;
     font-size: 14px;
     cursor: pointer;
+    transition: background 0.16s ease, transform 0.16s ease;
   }
+  .sync-tid-run:hover:not(:disabled) { background: #5b21b6; }
   .sync-tid-run:disabled {
-    opacity: 0.65;
-    cursor: wait;
+    opacity: 0.6;
+    cursor: not-allowed;
   }
   .sync-tid-run .is-spin {
     animation: sync-tid-spin 0.8s linear infinite;
@@ -425,32 +518,44 @@ const pageStyles = `
     margin: 16px 0;
   }
   .sync-tid-stats article {
+    position: relative;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e5e7eb;
     border-radius: 14px;
-    padding: 14px;
+    padding: 14px 14px 12px;
+    overflow: hidden;
+  }
+  .sync-tid-stats article::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 3px;
+    background: var(--tone);
   }
   .sync-tid-stats span {
     display: block;
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     color: #64748b;
   }
   .sync-tid-stats strong {
     display: block;
-    margin-top: 6px;
-    font-size: 24px;
+    margin-top: 8px;
+    font-size: 26px;
+    letter-spacing: -0.03em;
     color: var(--tone);
   }
-  .sync-tid-table-wrap {
-    margin-top: 4px;
-  }
+  .sync-tid-table-wrap { margin-top: 4px; }
   .sync-tid-table-wrap h3 {
     margin: 0 0 12px;
-    font-size: 16px;
+    font-size: 15px;
+    font-weight: 800;
   }
-  .sync-tid-table-scroll {
-    overflow-x: auto;
-  }
+  .sync-tid-table-scroll { overflow-x: auto; }
   .sync-tid-table-wrap table {
     width: 100%;
     border-collapse: collapse;
@@ -460,7 +565,7 @@ const pageStyles = `
   .sync-tid-table-wrap td {
     text-align: left;
     padding: 10px 8px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #eef2f7;
     vertical-align: top;
   }
   .sync-tid-table-wrap th {
@@ -468,7 +573,9 @@ const pageStyles = `
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    background: #f8fafc;
   }
+  .sync-tid-table-wrap tbody tr:hover td { background: #fafafa; }
   .sync-tid-epc {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 12px;
@@ -481,11 +588,11 @@ const pageStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 40;
+    z-index: 80;
     padding: 20px;
   }
   .sync-tid-modal-card {
-    width: min(480px, 100%);
+    width: min(440px, 100%);
     background: #fff;
     border-radius: 16px;
     padding: 22px;
@@ -493,6 +600,8 @@ const pageStyles = `
   }
   .sync-tid-modal-card h3 {
     margin: 0 0 8px;
+    font-size: 18px;
+    letter-spacing: -0.02em;
   }
   .sync-tid-modal-card p {
     margin: 0;
@@ -507,11 +616,12 @@ const pageStyles = `
     margin-top: 18px;
   }
   .sync-tid-modal-actions button {
-    border: 1px solid #cbd5e1;
+    height: 36px;
+    border: 1px solid #e5e7eb;
     background: #fff;
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-weight: 600;
+    border-radius: 999px;
+    padding: 0 14px;
+    font-weight: 700;
     cursor: pointer;
   }
   .sync-tid-modal-actions .is-primary {
@@ -523,10 +633,17 @@ const pageStyles = `
     to { transform: rotate(360deg); }
   }
   @media (max-width: 900px) {
+    .sync-tid-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
     .sync-tid-meta,
-    .sync-tid-stats {
-      grid-template-columns: 1fr;
-    }
+    .sync-tid-map ol,
+    .sync-tid-stats { grid-template-columns: 1fr; }
+    .sync-tid-actions { align-items: stretch; }
+    .sync-tid-run { width: 100%; justify-content: center; }
+    .sync-tid-hero h1 { font-size: 22px; }
+    .sync-tid-modal-actions { flex-wrap: wrap; }
+    .sync-tid-modal-actions button { flex: 1; }
   }
 `;
 

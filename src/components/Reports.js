@@ -32,6 +32,7 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 import { useLoading } from '../App';
 import { useNotifications } from '../context/NotificationContext';
 import PageHeader from './common/PageHeader';
+import NetworkErrorState from './common/NetworkErrorState';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend, ArcElement);
 
@@ -1789,20 +1790,7 @@ const Reports = () => {
 
       {/* Error Message */}
       {error && (
-        <div style={{
-          background: '#fef2f2',
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          color: '#dc2626'
-        }}>
-          <FaExclamationTriangle />
-          <span>{error}</span>
-        </div>
+        <NetworkErrorState error={error} onRetry={fetchReportData} variant="inline" />
       )}
 
       {/* Dashboard (default) */}

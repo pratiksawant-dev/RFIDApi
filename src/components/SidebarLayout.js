@@ -33,7 +33,6 @@ import {
   FaTools,
   FaShoppingBag,
   FaCog,
-  FaChevronDown,
   FaSync,
 } from 'react-icons/fa';
 import {
@@ -47,6 +46,35 @@ import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from '../hooks/useTranslation';
 import axios from 'axios';
 import BrandLogo from './common/BrandLogo';
+import { getUserErrorMessage, isNetworkError } from '../utils/userErrorMessage';
+
+const SIDEBAR_DRAWER_QUERY = '(max-width: 1024px)';
+
+const appPages = [
+  { path: '/download-folder-settings', icon: FaDatabase, label: 'Download Folders' },
+  { path: '/dashboard', icon: FaPlug, label: 'API Testing' },
+  { path: '/api-documentation', icon: HiDocumentText, label: 'API Integration Guide' },
+  { path: '/rfid-integration', icon: FaSync, label: 'Quick Integration' },
+  { path: '/download-api-doc', icon: FaFileInvoice, label: 'Download API Doc' },
+  { path: '/download-resources', icon: FaFileUpload, label: 'Download Resources' },
+  { path: '/single-use-tags', icon: FaTag, label: 'Single Use Tags' },
+  { path: '/sync-labelled-stock-tid', icon: FaBarcode, label: 'Sync Labelled Stock TID' },
+  { path: '/fingerprint-register', icon: FaUserCircle, label: 'Fingerprint Login' },
+  { path: '/face-register', icon: FaUserCircle, label: 'Face Login' },
+];
+
+const utilityPages = [
+  { path: '/rfid-utility/auto-push-stock', icon: FaSync, label: 'Auto Push Stock' },
+  { path: '/rfid-utility/tray-connect', icon: FaPlug, label: 'RFID Tray Connect' },
+  { path: '/rfid-utility/write-tag', icon: FaTag, label: 'Write Tag' },
+  { path: '/rfid-utility/about-sparkle', icon: HiDocument, label: 'About' },
+  { path: '/rfid-utility/map-fields', icon: FaLayerGroup, label: 'Map Fields' },
+  { path: '/rfid-utility/template', icon: FaClipboardList, label: 'Templates' },
+  { path: '/rfid-utility/item-images', icon: FaPaintBrush, label: 'Item Image Folder' },
+  { path: '/sync-labelled-stock-tid', icon: FaBarcode, label: 'Sync Labelled Stock TID' },
+];
+
+const sidebarIsDrawer = () => window.matchMedia(SIDEBAR_DRAWER_QUERY).matches;
 
 const SidebarLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -62,19 +90,25 @@ const SidebarLayout = ({ children }) => {
       return false;
     }
   });
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !sidebarIsDrawer());
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [userInfo, setUserInfo] = useState({});
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupError, setBackupError] = useState('');
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(() => sidebarIsDrawer());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rfidPlanInfo, setRfidPlanInfo] = useState(null);
 
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
+  const userPanelRef = useRef(null);
+  const asideRef = useRef(null);
+  const flyoutRef = useRef(null);
+  const openFlyoutTimer = useRef(null);
+  const closeFlyoutTimer = useRef(null);
+  const [flyout, setFlyout] = useState(null);
 
   // Section 0: Quick Access
   const navigationProfile = [
@@ -185,23 +219,36 @@ const SidebarLayout = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-      else setSidebarOpen(true);
+    const media = window.matchMedia(SIDEBAR_DRAWER_QUERY);
+    const onChange = (event) => {
+      setIsMobile(event.matches);
+      setSidebarOpen(!event.matches);
     };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    if (media.addEventListener) media.addEventListener('change', onChange);
+    else media.addListener(onChange);
+    return () => {
+      if (media.removeEventListener) media.removeEventListener('change', onChange);
+      else media.removeListener(onChange);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isMobile || !sidebarOpen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isMobile, sidebarOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
         setNotificationsOpen(false);
       }
-      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+      const inProfile = settingsRef.current && settingsRef.current.contains(event.target);
+      const inPanel = userPanelRef.current && userPanelRef.current.contains(event.target);
+      if (!inProfile && !inPanel) {
         setSettingsOpen(false);
       }
     };
@@ -335,8 +382,8 @@ const SidebarLayout = ({ children }) => {
         type: 'success',
       });
     } catch (err) {
-      if (err.message && err.message.includes('Network Error')) {
-        setBackupError('Network error: Unable to reach the backup server.');
+      if (isNetworkError(err)) {
+        setBackupError(getUserErrorMessage(err));
       } else if (err.response?.data?.error) {
         setBackupError(err.response.data.error);
       } else {
@@ -374,13 +421,60 @@ const SidebarLayout = ({ children }) => {
 
   const compact = !isMobile && sidebarCollapsed;
 
+  const pagesForItem = (item) => {
+    if (item.path === '/profile-menu') return { key: 'apps', title: 'All Apps & Resources', items: appPages };
+    if (item.path === '/rfid-utility') return { key: 'utility', title: 'RFID Utility', items: utilityPages };
+    return null;
+  };
+
+  const clearFlyoutTimers = () => {
+    clearTimeout(openFlyoutTimer.current);
+    clearTimeout(closeFlyoutTimer.current);
+  };
+
+  const closeFlyoutSoon = () => {
+    clearTimeout(closeFlyoutTimer.current);
+    closeFlyoutTimer.current = setTimeout(() => {
+      flyoutRef.current = null;
+      setFlyout(null);
+    }, 160);
+  };
+
+  const queueFlyout = (event, spec) => {
+    if (!spec?.items?.length) return;
+    clearTimeout(closeFlyoutTimer.current);
+    const target = event.currentTarget;
+    if (flyoutRef.current?.key === spec.key) return;
+    clearTimeout(openFlyoutTimer.current);
+    openFlyoutTimer.current = setTimeout(() => {
+      const aside = asideRef.current?.getBoundingClientRect();
+      const row = target.getBoundingClientRect();
+      const panelHeight = Math.min(spec.items.length * 34 + 44, 440);
+      const top = Math.max(12, Math.min(row.top - 10, window.innerHeight - panelHeight - 12));
+      const width = 272;
+      let left = (aside?.right || row.right) + 8;
+      if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+      const next = { ...spec, top, left };
+      flyoutRef.current = next;
+      setFlyout(next);
+    }, 70);
+  };
+
+  useEffect(() => {
+    flyoutRef.current = null;
+    setFlyout(null);
+  }, [location.pathname]);
+
+  useEffect(() => () => clearFlyoutTimers(), []);
+
   const renderMenuItem = (item) => {
     const { path, icon: Icon, label, comingSoon } = item;
     const isActive = location.pathname === path;
+    const pages = pagesForItem(item);
     if (comingSoon) {
       return (
         <div key={path} className="ssb-item is-soon" title={compact ? label : 'Coming Soon'}>
-          <Icon />
+          <span className="ssb-ico" aria-hidden="true"><Icon /></span>
           {!compact && <span className="ssb-item-label">{label}</span>}
           {!compact && <span className="ssb-soon">Soon</span>}
         </div>
@@ -391,11 +485,15 @@ const SidebarLayout = ({ children }) => {
         key={path}
         to={path}
         onClick={() => isMobile && setSidebarOpen(false)}
-        className={`ssb-item${isActive ? ' is-active' : ''}`}
+        onMouseEnter={(event) => queueFlyout(event, pages)}
+        onMouseLeave={closeFlyoutSoon}
+        onFocus={(event) => queueFlyout(event, pages)}
+        className={`ssb-item${isActive ? ' is-active' : ''}${pages ? ' has-flyout' : ''}`}
         title={compact ? label : ''}
       >
-        <Icon />
+        <span className="ssb-ico" aria-hidden="true"><Icon /></span>
         {!compact && <span className="ssb-item-label">{label}</span>}
+        {!compact && (item.path === '/profile-menu' || item.path === '/rfid-utility') ? <FaChevronRight className="ssb-fly-hint" aria-hidden="true" /> : null}
       </Link>
     );
   };
@@ -404,21 +502,18 @@ const SidebarLayout = ({ children }) => {
     const visible = items || [];
     if (visible.length === 0) return null;
     return (
-      <div key={title}>
+      <div key={title} className="ssb-group">
         {!compact && <div className="ssb-sec">{title}</div>}
-        {visible.map(renderMenuItem)}
+        {visible.map((item) => renderMenuItem(item))}
       </div>
     );
   };
 
   const toggleSettings = () => {
-    if (compact) {
-      setSidebarCollapsed(false);
-      setSettingsOpen(true);
-      return;
-    }
     setSettingsOpen((open) => !open);
   };
+
+  const closeSettings = () => setSettingsOpen(false);
 
   return (
     <div className={`ssb-app${compact ? ' is-compact' : ''}${isMobile ? ' is-mobile' : ''}${sidebarOpen ? ' is-open' : ''}`}>
@@ -438,7 +533,7 @@ const SidebarLayout = ({ children }) => {
       )}
 
       <div className="ssb-shell">
-        <aside className="ssb" aria-label="Main navigation">
+        <aside className="ssb" aria-label="Main navigation" ref={asideRef}>
           <div className="ssb-brand">
             <Link to="/analytics" className="ssb-logo" title="Sparkle RFID" onClick={() => isMobile && setSidebarOpen(false)}>
               <BrandLogo variant="mark" height={44} />
@@ -456,73 +551,118 @@ const SidebarLayout = ({ children }) => {
           </div>
 
           <nav className="ssb-nav">
-            {renderSection('Inventory Management', inventorySession)}
+            {renderSection('Inventory', inventorySession)}
             {renderSection('Transaction', navigationSection2)}
-            {renderSection('RFID Tags Management', navigationSection3)}
+            {renderSection('RFID', navigationSection3)}
             {showThirdPartyMenu && renderSection('Third Party', navigationSection5)}
             {showFeroniaMenu && renderSection('Third Party', navigationSectionFeronia)}
             {showKumar916Menu && renderSection('Third Party', navigationSectionKumar916)}
             {showVarakrupaMenu && renderSection('Third Party', navigationSectionVarakrupa)}
-            {renderSection('Main Menu', navigationProfile)}
+            {renderSection('Apps', navigationProfile)}
           </nav>
 
           <div className="ssb-foot" ref={settingsRef}>
-            {settingsOpen && (
-              <div className="ssb-settings">
-                {!compact && <div className="ssb-sec">Settings</div>}
-                <Link
-                  to="/profile-menu"
-                  className={`ssb-item${location.pathname === '/profile-menu' ? ' is-active' : ''}`}
-                  title="Preferences"
-                  onClick={() => isMobile && setSidebarOpen(false)}
-                >
-                  <FaCog />
-                  {!compact && <span className="ssb-item-label">Preferences</span>}
-                </Link>
-                <button type="button" className="ssb-item" onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
-                  {isFullscreen ? <FaCompress /> : <FaExpand />}
-                  {!compact && <span className="ssb-item-label">{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>}
-                </button>
-                <button type="button" className="ssb-item" onClick={() => { setShowBackupModal(true); setSettingsOpen(false); }} title="Download backup">
-                  <FaDatabase />
-                  {!compact && <span className="ssb-item-label">Backup</span>}
-                </button>
-                <button type="button" className="ssb-item ssb-item-danger" onClick={handleLogout} title="Logout">
-                  <FaSignOutAlt />
-                  {!compact && <span className="ssb-item-label">Logout</span>}
-                </button>
-              </div>
-            )}
-
             <button
               type="button"
               className={`ssb-profile${settingsOpen ? ' is-open' : ''}${compact ? ' is-compact' : ''}`}
               onClick={toggleSettings}
-              title={`${username} • Settings`}
+              title={`${username} · ${clientCode}${formattedPlanExpiry ? ` · Expires ${formattedPlanExpiry}` : ''}`}
               aria-expanded={settingsOpen}
-              aria-haspopup="true"
+              aria-haspopup="dialog"
             >
-              <span className="ssb-profile-row">
-                <span className="ssb-avatar">{avatarLetter}</span>
-                {!compact && (
-                  <>
-                    <span className="ssb-user-meta">
-                      <span className="ssb-user-name">{username}</span>
-                      <span className="ssb-user-sub">Settings · {clientCode}</span>
-                    </span>
-                    <FaChevronDown className="ssb-user-chevron" />
-                  </>
-                )}
-              </span>
-              {!compact && (planName || formattedPlanExpiry) ? (
-                <span className="ssb-profile-plan">
-                  <strong>{planName || 'RFID plan'}</strong>
-                  <span>{formattedPlanExpiry ? `Expires ${formattedPlanExpiry}` : 'Manage plan in Settings'}</span>
-                </span>
-              ) : null}
+              <span className="ssb-avatar">{avatarLetter}</span>
+              {!compact && (
+                <>
+                  <span className="ssb-user-meta">
+                    <span className="ssb-user-name">{username}</span>
+                    <span className="ssb-user-sub">{clientCode}</span>
+                  </span>
+                  {planName ? <strong className="ssb-plan-chip">{planName}</strong> : null}
+                  <FaChevronRight className="ssb-user-chevron" />
+                </>
+              )}
             </button>
           </div>
         </aside>
+
+        {flyout ? (
+          <div
+            className="ssb-flyout"
+            style={{ top: flyout.top, left: flyout.left }}
+            role="menu"
+            aria-label={flyout.title}
+            onMouseEnter={() => clearTimeout(closeFlyoutTimer.current)}
+            onMouseLeave={closeFlyoutSoon}
+          >
+            <div className="ssb-flyout-title">{flyout.title}</div>
+            <div className="ssb-flyout-list">
+              {flyout.items.map((page) => {
+                const Icon = page.icon;
+                const active = location.pathname === page.path;
+                return (
+                  <Link
+                    key={page.path}
+                    to={page.path}
+                    role="menuitem"
+                    className={`ssb-flyout-item${active ? ' is-active' : ''}`}
+                    onClick={() => {
+                      flyoutRef.current = null;
+                      setFlyout(null);
+                      if (isMobile) setSidebarOpen(false);
+                    }}
+                  >
+                    <span className="ssb-ico" aria-hidden="true">{Icon ? <Icon /> : null}</span>
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {settingsOpen && (
+          <div className="ssb-user-panel" ref={userPanelRef} role="dialog" aria-label="Account">
+            <div className="ssb-user-panel-head">
+              <span className="ssb-avatar">{avatarLetter}</span>
+              <span className="ssb-user-meta">
+                <span className="ssb-user-name">{username}</span>
+                {planName ? <strong className="ssb-plan-chip">{planName}</strong> : null}
+              </span>
+            </div>
+            <div className="ssb-profile-facts">
+              <span className="ssb-fact">
+                <span className="ssb-fact-label">Client</span>
+                <span className="ssb-fact-value">{clientCode}</span>
+              </span>
+              <span className="ssb-fact">
+                <span className="ssb-fact-label">Expires</span>
+                <span className="ssb-fact-value">{formattedPlanExpiry || 'Not set'}</span>
+              </span>
+            </div>
+            <div className="ssb-user-panel-actions">
+              <Link
+                to="/profile-menu"
+                className={`ssb-item${location.pathname === '/profile-menu' ? ' is-active' : ''}`}
+                onClick={() => { closeSettings(); if (isMobile) setSidebarOpen(false); }}
+              >
+                <span className="ssb-ico" aria-hidden="true"><FaCog /></span>
+                <span className="ssb-item-label">Preferences</span>
+              </Link>
+              <button type="button" className="ssb-item" onClick={() => { toggleFullscreen(); closeSettings(); }}>
+                <span className="ssb-ico" aria-hidden="true">{isFullscreen ? <FaCompress /> : <FaExpand />}</span>
+                <span className="ssb-item-label">{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
+              </button>
+              <button type="button" className="ssb-item" onClick={() => { setShowBackupModal(true); closeSettings(); }}>
+                <span className="ssb-ico" aria-hidden="true"><FaDatabase /></span>
+                <span className="ssb-item-label">Backup</span>
+              </button>
+              <button type="button" className="ssb-item ssb-item-danger" onClick={handleLogout}>
+                <span className="ssb-ico" aria-hidden="true"><FaSignOutAlt /></span>
+                <span className="ssb-item-label">Logout</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         <main
           className={`ssb-main${!sidebarOpen ? ' has-topbar' : ''}${location.pathname === '/analytics' ? ' analytics-fit-main' : ''}`}

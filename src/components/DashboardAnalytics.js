@@ -43,6 +43,7 @@ import { useNotifications } from '../context/NotificationContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './common/PageHeader';
+import NetworkErrorState from './common/NetworkErrorState';
 import DussehraOfferPopup from './common/DussehraGreeting';
 import UiButton from './common/UiButton';
 
@@ -2148,13 +2149,7 @@ const DashboardAnalytics = () => {
   if (error) {
     return (
       <div className="erp-dash">
-        <div className="erp-error">
-          <FaChartLine size={36} color="#EF4444" />
-          <p>{error}</p>
-          <button type="button" className="erp-primary-btn" onClick={fetchAnalyticsData}>
-            <FaSyncAlt /> Retry
-          </button>
-        </div>
+        <NetworkErrorState error={error} onRetry={fetchAnalyticsData} />
       </div>
     );
   }

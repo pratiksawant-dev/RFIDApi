@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
+import PageHeader from '../common/PageHeader';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -50,7 +51,6 @@ const TagUsage = () => {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [usedItemsPerPage, setUsedItemsPerPage] = useState(25);
   const [unusedItemsPerPage, setUnusedItemsPerPage] = useState(25);
   const [usedPageInput, setUsedPageInput] = useState('');
@@ -96,13 +96,6 @@ const TagUsage = () => {
 
   useEffect(() => {
     fetchTags();
-    
-    // Handle window resize for responsive design
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Filter tags based on search
@@ -265,7 +258,7 @@ const TagUsage = () => {
         tag.Status || '-'
       ]),
       theme: 'grid',
-      headStyles: { fillColor: [99, 102, 241] },
+      headStyles: { fillColor: [17, 17, 17], textColor: [243, 230, 196] },
       styles: { fontSize: 10 },
     });
     let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : y + 20;
@@ -281,7 +274,7 @@ const TagUsage = () => {
         tag.Status || '-'
       ]),
       theme: 'grid',
-      headStyles: { fillColor: [16, 185, 129] },
+      headStyles: { fillColor: [17, 17, 17], textColor: [243, 230, 196] },
       styles: { fontSize: 10 },
     });
     doc.save('RFID_Tags_Report.pdf');
@@ -298,7 +291,7 @@ const TagUsage = () => {
   };
 
   return (
-    <div className="tag-usage-compact" style={{ fontFamily: 'var(--font-family)', padding: '12px' }}>
+    <div className="tag-usage-page tag-usage-compact" style={{ fontFamily: 'var(--font-family)' }}>
       <style>
         {`
           .tag-usage-compact table,
@@ -347,212 +340,361 @@ const TagUsage = () => {
             font-size: 11px;
             padding: 0.25rem 0.5rem;
           }
+
+          .tag-usage-page {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            padding: 0;
+            min-height: 100%;
+            background: #ffffff;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+          .tag-usage-page * { box-sizing: border-box; }
+          .tu-top {
+            background: #fff;
+            border: 1px solid #e7dfd2;
+            border-top: 3px solid #C59D5F;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(17, 17, 17, 0.05);
+            margin-bottom: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+          }
+          .tu-top-inner { padding: 12px 14px 10px; }
+          .tag-usage-page .app-page-header { width: 100%; align-items: center; }
+          .tag-usage-page .app-page-title { color: #111111; }
+          .tag-usage-page .app-page-subtitle {
+            color: #8a8172;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+          }
+          .tu-stats {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+          }
+          .tu-stat {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 28px;
+            padding: 0 11px;
+            border-radius: 6px;
+            background: #111111;
+            color: #F3E6C4;
+            border: 1px solid #C59D5F;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+          }
+          .tu-stat svg { color: #C59D5F; width: 12px; height: 12px; }
+          .tu-stat--soft {
+            background: #fff;
+            color: #111111;
+            border-color: #e6d7b8;
+          }
+          .tu-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #efe6d6;
+          }
+          .tu-search {
+            position: relative;
+            flex: 1 1 220px;
+            min-width: 0;
+            margin: 0;
+          }
+          .tu-search svg {
+            position: absolute;
+            left: 9px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a89878;
+            width: 11px;
+            height: 11px;
+            pointer-events: none;
+          }
+          .tu-search input {
+            width: 100%;
+            height: 28px;
+            padding: 0 10px 0 28px;
+            font-size: 11px;
+            border: 1px solid #e6dcc8;
+            border-radius: 6px;
+            outline: none;
+            background: #fff;
+            color: #111;
+          }
+          .tu-search input:focus {
+            border-color: #C59D5F;
+            box-shadow: 0 0 0 3px rgba(197, 157, 95, 0.18);
+          }
+          .tu-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+          }
+          .tu-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 28px;
+            padding: 0 12px;
+            border-radius: 6px;
+            border: 1px solid #e6dcc8;
+            background: #fff;
+            color: #111;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .tu-btn:hover { background: #faf6ee; border-color: #C59D5F; }
+          .tu-btn--gold {
+            background: #111111;
+            color: #F3E6C4;
+            border-color: #111111;
+          }
+          .tu-btn--gold:hover { background: #1c1c1c; color: #F3E6C4; border-color: #C59D5F; }
+          .tu-btn svg { width: 12px; height: 12px; }
+          .tu-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 12px;
+            align-items: stretch;
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+          }
+          .tu-panel {
+            background: #fff;
+            border: 1px solid #e7dfd2;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: none;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+          }
+          .tu-panel > div:nth-child(2) {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+          }
+          .tu-panel-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #fff;
+            border-bottom: 1px solid #efe6d6;
+            color: #111;
+          }
+          .tu-panel-head svg { color: #C59D5F; width: 13px; height: 13px; flex: 0 0 auto; }
+          .tu-panel-head > span:first-of-type {
+            font-size: 12px;
+            font-weight: 700;
+            color: #111111;
+            letter-spacing: -0.01em;
+          }
+          .tu-count {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 700;
+            color: #6b5a38;
+            background: #fff;
+            border: 1px solid #e6d7b8;
+            border-radius: 999px;
+            padding: 2px 8px;
+          }
+          .tu-panel thead tr { background: #111111 !important; }
+          .tu-panel thead th {
+            background: #111111 !important;
+            color: #E8D5B0 !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 10px 12px !important;
+            border-bottom: 1px solid #C59D5F !important;
+            border-left-color: #2a2418 !important;
+          }
+          .tu-panel tbody td {
+            padding: 8px 12px !important;
+            color: #1a1a1a !important;
+            border-bottom: 1px solid #f0e8da !important;
+            background: #fff !important;
+            font-size: 12px !important;
+          }
+          .tu-panel tbody tr:nth-child(even) td { background: #ffffff !important; }
+          .tu-panel tbody tr:hover td { background: #fafafa !important; }
+          .tu-panel tbody td[colspan] {
+            color: #8a8172 !important;
+            text-align: center !important;
+            padding: 36px 12px !important;
+            background: #fff !important;
+          }
+          .tu-panel tbody td:nth-child(2) {
+            font-weight: 700 !important;
+            letter-spacing: 0.01em;
+            font-variant-numeric: tabular-nums;
+          }
+          .tu-panel tbody td:nth-child(3) {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+            color: #5c5346 !important;
+            font-size: 11px !important;
+          }
+          .tu-panel tbody td:last-child span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 64px;
+            padding: 3px 8px !important;
+            border-radius: 999px !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+          .tu-panel--used tbody td:last-child span {
+            background: #111111 !important;
+            color: #F3E6C4 !important;
+            border: 1px solid #C59D5F !important;
+          }
+          .tu-panel--unused tbody td:last-child span {
+            background: #fff !important;
+            color: #6b5a38 !important;
+            border: 1px solid #C59D5F !important;
+          }
+          .tu-pager {
+            background: #ffffff !important;
+            border-top: 1px solid #efe6d6 !important;
+            padding: 10px 12px !important;
+            flex-wrap: wrap !important;
+          }
+          .tu-pager > div {
+            min-width: 0;
+            flex-wrap: wrap !important;
+          }
+          .tu-pager button {
+            background: #fff !important;
+            color: #1a1a1a !important;
+            border: 1px solid #e6dcc8 !important;
+            border-radius: 8px !important;
+          }
+          .tu-pager button:hover:not(:disabled) {
+            border-color: #C59D5F !important;
+            background: #faf6ee !important;
+          }
+          .tu-pager button:disabled { opacity: 0.45 !important; }
+          .tu-pager .tu-page.is-on,
+          .tu-pager .tu-page.is-on:hover {
+            background: #111111 !important;
+            color: #F3E6C4 !important;
+            border-color: #111111 !important;
+          }
+          .tu-pager select,
+          .tu-pager input {
+            border: 1px solid #e6dcc8 !important;
+            border-radius: 8px !important;
+            background: #fff !important;
+            color: #111 !important;
+          }
+          .tu-pager select:focus,
+          .tu-pager input:focus {
+            outline: none;
+            border-color: #C59D5F !important;
+            box-shadow: 0 0 0 3px rgba(197, 157, 95, 0.16);
+          }
+          @media (max-width: 1280px) {
+            .tu-stats { justify-content: flex-start; }
+          }
+          @media (max-width: 1100px) {
+            .tu-grid { grid-template-columns: 1fr; }
+            .tu-toolbar-actions { margin-left: 0; width: 100%; }
+            .tu-stats { width: 100%; justify-content: flex-start; }
+            .tu-panel > div:nth-child(2) { max-height: min(62vh, 560px); }
+          }
+          @media (max-width: 768px) {
+            .tag-usage-page { padding: 0; gap: 8px; }
+            .tu-top { position: relative; }
+            .tu-top-inner { padding: 10px; }
+            .tu-search, .tu-btn { width: 100%; min-width: 0; }
+            .tu-toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+            .tu-stat { flex: 1 1 auto; justify-content: center; }
+          }
+          @media (max-width: 560px) {
+            .tu-toolbar-actions { grid-template-columns: 1fr; }
+            .tu-pager { flex-direction: column !important; align-items: stretch !important; }
+            .tu-panel thead th,
+            .tu-panel tbody td { padding: 8px !important; }
+            .tu-panel tbody td:nth-child(3) { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+          }
         `}
       </style>
 
-      {/* Unified Header & Action Section */}
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '12px',
-        padding: '12px 14px',
-        marginBottom: '16px',
-        boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
-        border: '1px solid #e5e7eb'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          <div>
-            <h2 style={{
-              margin: 0,
-              fontSize: '1.1rem',
-              fontWeight: 700,
-              color: '#1e293b',
-              lineHeight: '1.2'
-            }}>Report of Used and Unused Tags</h2>
-          </div>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 12px',
-              background: '#eff6ff',
-              borderRadius: '8px',
-              border: '1px solid #dbeafe'
-            }}>
-              <FaTag style={{ color: '#3b82f6', fontSize: '14px' }} />
-              <span style={{ fontSize: '11px', color: '#1e40af', fontWeight: 600 }}>Used: {usedCount}</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 12px',
-              background: '#f0fdf4',
-              borderRadius: '8px',
-              border: '1px solid #dcfce7'
-            }}>
-              <FaTags style={{ color: '#10b981', fontSize: '14px' }} />
-              <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>Unused: {unusedCount}</span>
-            </div>
-            <div style={{
-              fontSize: '11px',
-              color: '#64748b',
-              fontWeight: 600
-            }}>
-              Total: {usedCount + unusedCount} records
+      <div className="tu-top">
+        <div className="tu-top-inner">
+          <PageHeader
+            title="RFID Tags Usage"
+            subtitle={`${(usedCount + unusedCount).toLocaleString()} records · ${usedCount.toLocaleString()} used · ${unusedCount.toLocaleString()} unused`}
+            barStyle={{ padding: 0, margin: 0, borderBottom: 'none' }}
+            actions={(
+              <div className="tu-stats">
+                <span className="tu-stat"><FaTag /> Used {usedCount.toLocaleString()}</span>
+                <span className="tu-stat tu-stat--soft"><FaTags /> Unused {unusedCount.toLocaleString()}</span>
+              </div>
+            )}
+          />
+          <div className="tu-toolbar">
+            <label className="tu-search">
+              <FaSearch />
+              <input
+                type="text"
+                placeholder="Search used tags"
+                value={usedSearch}
+                onChange={(e) => {
+                  setUsedSearch(e.target.value);
+                  setUsedCurrentPage(1);
+                }}
+              />
+            </label>
+            <label className="tu-search">
+              <FaSearch />
+              <input
+                type="text"
+                placeholder="Search unused tags"
+                value={unusedSearch}
+                onChange={(e) => {
+                  setUnusedSearch(e.target.value);
+                  setUnusedCurrentPage(1);
+                }}
+              />
+            </label>
+            <div className="tu-toolbar-actions">
+              <button type="button" className="tu-btn" onClick={fetchTags}>
+                <IoRefreshOutline /> Refresh
+              </button>
+              <button type="button" className="tu-btn tu-btn--gold" onClick={() => setExportModalOpen(true)}>
+                <FaFileExcel /> Export
+              </button>
             </div>
           </div>
-        </div>
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '10px',
-          alignItems: 'center',
-          paddingTop: '16px',
-          borderTop: '1px solid #e5e7eb'
-        }}>
-          {/* Search Inputs */}
-          <div style={{
-            position: 'relative',
-            flex: '1',
-            minWidth: windowWidth <= 768 ? '100%' : '200px',
-            maxWidth: windowWidth <= 768 ? '100%' : '300px'
-          }}>
-            <FaSearch style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#94a3b8',
-              fontSize: '14px',
-              zIndex: 1
-            }} />
-            <input
-              type="text"
-              placeholder="Search Used Tags..."
-              value={usedSearch}
-              onChange={(e) => {
-                setUsedSearch(e.target.value);
-                setUsedCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '8px 12px 8px 36px',
-                fontSize: '11px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                outline: 'none',
-                transition: 'all 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-          <div style={{
-            position: 'relative',
-            flex: '1',
-            minWidth: windowWidth <= 768 ? '100%' : '200px',
-            maxWidth: windowWidth <= 768 ? '100%' : '300px'
-          }}>
-            <FaSearch style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#94a3b8',
-              fontSize: '14px',
-              zIndex: 1
-            }} />
-            <input
-              type="text"
-              placeholder="Search Unused Tags..."
-              value={unusedSearch}
-              onChange={(e) => {
-                setUnusedSearch(e.target.value);
-                setUnusedCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '8px 12px 8px 36px',
-                fontSize: '11px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                outline: 'none',
-                transition: 'all 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#10b981'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-          {/* Action Buttons */}
-          <button
-            onClick={fetchTags}
-            style={{
-              padding: '6px 12px',
-              fontSize: '11px',
-              fontWeight: 700,
-              borderRadius: '8px',
-              border: '1px solid #d4d4d8',
-              background: '#fafafa',
-              color: '#262626',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#f5f5f5';
-              e.target.style.color = '#262626';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = '#fafafa';
-              e.target.style.color = '#262626';
-            }}
-          >
-            <IoRefreshOutline /> Refresh
-          </button>
-          <button
-            onClick={() => setExportModalOpen(true)}
-            style={{
-              padding: '6px 14px',
-              fontSize: '11px',
-              fontWeight: 700,
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-              color: '#0f172a',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#f1f5f9';
-              e.target.style.color = '#0f172a';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)';
-              e.target.style.color = '#0f172a';
-            }}
-          >
-            <FaFileExcel /> Export
-          </button>
         </div>
       </div>
 
@@ -612,37 +754,12 @@ const TagUsage = () => {
         </div>
       )}
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: windowWidth <= 768 ? '1fr' : '1fr 1fr',
-        gap: '16px'
-      }}>
-        {/* Used Tags Table */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          border: '1px solid #e5e7eb',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid #e5e7eb',
-            background: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <FaTag style={{ color: '#3b82f6', fontSize: '14px' }} />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Used Tags</span>
-            <span style={{
-              fontSize: '10px',
-              color: '#64748b',
-              background: '#e0e7ff',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              marginLeft: 'auto'
-            }}>{usedTotalRecords} items</span>
+      <div className="tu-grid">
+        <div className="tu-panel tu-panel--used">
+          <div className="tu-panel-head">
+            <FaTag />
+            <span>Used Tags</span>
+            <span className="tu-count">{usedTotalRecords.toLocaleString()} items</span>
           </div>
           <div style={{ overflowX: 'auto', overflowY: 'visible', width: '100%', maxWidth: '100%' }}>
             <table style={{ 
@@ -777,7 +894,7 @@ const TagUsage = () => {
 
           {/* Pagination */}
           {usedTotalPages > 1 && (
-            <div style={{
+            <div className="tu-pager" style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -872,6 +989,7 @@ const TagUsage = () => {
                   return (
                     <button
                       key={page}
+                      className={usedCurrentPage === page ? 'tu-page is-on' : 'tu-page'}
                       onClick={() => setUsedCurrentPage(page)}
                       style={{
                         padding: '6px 12px',
@@ -999,31 +1117,11 @@ const TagUsage = () => {
         </div>
 
         {/* Unused Tags Table */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          border: '1px solid #e5e7eb',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid #e5e7eb',
-            background: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <FaTags style={{ color: '#10b981', fontSize: '14px' }} />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Unused Tags</span>
-            <span style={{
-              fontSize: '10px',
-              color: '#64748b',
-              background: '#d1fae5',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              marginLeft: 'auto'
-            }}>{unusedTotalRecords} items</span>
+        <div className="tu-panel tu-panel--unused">
+          <div className="tu-panel-head">
+            <FaTags />
+            <span>Unused Tags</span>
+            <span className="tu-count">{unusedTotalRecords.toLocaleString()} items</span>
           </div>
           <div style={{ overflowX: 'auto', overflowY: 'visible', width: '100%', maxWidth: '100%' }}>
             <table style={{ 
@@ -1158,7 +1256,7 @@ const TagUsage = () => {
 
           {/* Pagination */}
           {unusedTotalPages > 1 && (
-            <div style={{
+            <div className="tu-pager" style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -1253,6 +1351,7 @@ const TagUsage = () => {
                   return (
                     <button
                       key={page}
+                      className={unusedCurrentPage === page ? 'tu-page is-on' : 'tu-page'}
                       onClick={() => setUnusedCurrentPage(page)}
                       style={{
                         padding: '6px 12px',
@@ -1713,7 +1812,7 @@ const TagUsage = () => {
         .export-modal-backdrop {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.18);
+          background: rgba(17,17,17,0.46);
           z-index: 1000;
           display: flex;
           align-items: center;
@@ -1722,7 +1821,8 @@ const TagUsage = () => {
         .export-modal {
           background: #fff;
           border-radius: 14px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+          border-top: 3px solid #C59D5F;
+          box-shadow: 0 16px 40px rgba(17,17,17,0.22);
           width: 560px;
           max-width: 98vw;
           padding: 0 0 18px 0;
@@ -1740,7 +1840,7 @@ const TagUsage = () => {
         .export-modal-title {
           font-size: 19px;
           font-weight: 700;
-          color: #22223b;
+          color: #111111;
         }
         .export-modal-close {
           background: none;
@@ -1779,8 +1879,8 @@ const TagUsage = () => {
           justify-content: center;
         }
         .export-option:active, .export-option:focus, .export-option:hover {
-          border: 1.5px solid #6366f1;
-          box-shadow: 0 2px 8px rgba(99,102,241,0.08);
+          border: 1.5px solid #C59D5F;
+          box-shadow: 0 2px 8px rgba(197,157,95,0.16);
         }
         .export-option.email {
           cursor: default;
@@ -1804,8 +1904,8 @@ const TagUsage = () => {
           padding: 4px;
         }
         .export-option.email .option-icon {
-          color: #6366f1;
-          background: #eef2ff;
+          color: #8a6a2f;
+          background: #faf6ee;
           border-radius: 8px;
           padding: 4px;
         }
@@ -1837,8 +1937,8 @@ const TagUsage = () => {
           font-size: 14px;
         }
         .send-email-btn {
-          background: linear-gradient(90deg,#a78bfa,#6366f1);
-          color: #fff;
+          background: #111111;
+          color: #F3E6C4;
           border: none;
           border-radius: 6px;
           padding: 0 22px;

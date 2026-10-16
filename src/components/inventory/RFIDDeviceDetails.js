@@ -11,6 +11,7 @@ import { useLoading } from '../../App';
 import { getApiMode, getRrgoldApiBaseUrl, toRrgoldApiUrl } from '../../services/apiBaseConfig';
 import GridItemImage from '../common/GridItemImage';
 import { getItemImageLookupKeys, warmupLocalItemImageIndex } from '../../services/localItemImageService';
+import NetworkErrorState from '../common/NetworkErrorState';
 
 const ITEMS_PER_PAGE = 15;
 const GRID_ITEMS_PER_PAGE = 6;
@@ -870,9 +871,7 @@ const RFIDDeviceDetails = () => {
       </div>
 
       {error && (
-        <div className="alert alert-danger" role="alert">
-          {error}
-        </div>
+        <NetworkErrorState error={error} onRetry={fetchDeviceDetails} variant="inline" />
       )}
 
       {viewMode === 'table' ? (

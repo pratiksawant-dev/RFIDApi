@@ -682,13 +682,65 @@ internal static class Program
             throw new InvalidOperationException("Not connected.");
         }
 
-        if (!_inventoryRunning)
+        StopInventory();
+        Thread.Sleep(80);
+    }
+
+    /// <summary>
+    /// The native writer reads past a short filter buffer on some builds and returns -1.
+    /// Keep the real bit length, and give the DLL a fixed buffer.
+    /// </summary>
+    private static int WriteFiltered(byte[] pwd, byte[] epc, int filterLenBits, byte bank, int wordPtr, byte wordCount, byte[] data)
+    {
+        var filter = epc ?? Array.Empty<byte>();
+        if (filterLenBits > 0 && filter.Length < 16)
         {
-            return;
+            var padded = new byte[16];
+            Buffer.BlockCopy(filter, 0, padded, 0, filter.Length);
+            filter = padded;
         }
 
-        StopInventory();
-        Thread.Sleep(30);
+        if (filter.Length == 0)
+        {
+            filter = new byte[2];
+        }
+
+        lock (Sync)
+        {
+            return NativeMethods.UHFWriteData(
+                pwd,
+                1,
+                32,
+                filterLenBits,
+                filter,
+                bank,
+                wordPtr,
+                wordCount,
+                data);
+        }
+    }
+
+    private static byte[] TrimTrailingZeroBytes(byte[] epc)
+    {
+        var end = epc.Length;
+        while (end > 2 && epc[end - 1] == 0)
+        {
+            end--;
+        }
+
+        if ((end % 2) != 0)
+        {
+            end++;
+        }
+
+        if (end >= epc.Length)
+        {
+            return epc;
+        }
+
+        var trimmed = new byte[end];
+        Buffer.BlockCopy(epc, 0, trimmed, 0, end);
+        return trimmed;
     }
 
     private static void ReadTagMemory(string[] args)
@@ -783,42 +835,42 @@ internal static class Program
             }
 
             var wordCount = (byte)(data.Length / 2);
-            int code;
-            lock (Sync)
+            var filters = new List<byte[]> { epc };
+            var trimmed = TrimTrailingZeroBytes(epc);
+            if (trimmed.Length >= 2 && trimmed.Length != epc.Length)
             {
-                code = NativeMethods.UHFWriteData(
-                    pwd,
-                    1,
-                    32,
-                    epc.Length * 8,
-                    epc,
-                    bank,
-                    wordPtr,
-                    wordCount,
-                    data);
+                filters.Add(trimmed);
+            }
+
+            var code = -1;
+            var used = epc;
+            foreach (var candidate in filters)
+            {
+                used = candidate;
+                code = WriteFiltered(pwd, candidate, candidate.Length * 8, bank, wordPtr, wordCount, data);
+                if (code == 0)
+                {
+                    break;
+                }
+
+                Thread.Sleep(90);
+                code = WriteFiltered(pwd, candidate, candidate.Length * 8, bank, wordPtr, wordCount, data);
+                if (code == 0)
+                {
+                    break;
+                }
             }
 
             if (code != 0)
             {
-                Thread.Sleep(40);
-                lock (Sync)
-                {
-                    code = NativeMethods.UHFWriteData(
-                        pwd,
-                        1,
-                        32,
-                        epc.Length * 8,
-                        epc,
-                        bank,
-                        wordPtr,
-                        wordCount,
-                        data);
-                }
+                Thread.Sleep(90);
+                used = Array.Empty<byte>();
+                code = WriteFiltered(pwd, used, 0, bank, wordPtr, wordCount, data);
             }
 
             var ok = code == 0;
             Console.WriteLine(
-                $"MEM token={token} action=write ok={(ok ? 1 : 0)} code={code} bank={args[3].ToLowerInvariant()} epc={ToHex(epc)} words={wordCount} ptr={wordPtr} data={ToHex(data)}");
+                $"MEM token={token} action=write ok={(ok ? 1 : 0)} code={code} bank={args[3].ToLowerInvariant()} epc={(used.Length == 0 ? "ANY" : ToHex(used))} words={wordCount} ptr={wordPtr} data={ToHex(data)}");
         }
         catch (Exception ex)
         {

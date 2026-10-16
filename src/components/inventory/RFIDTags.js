@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
+import NetworkErrorState from '../common/NetworkErrorState';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -391,10 +392,7 @@ const RFIDTags = () => {
 
   if (error) {
     return (
-      <div className="alert alert-danger m-3" role="alert">
-        <i className="fas fa-exclamation-triangle me-2"></i>
-        {error}
-          </div>
+      <NetworkErrorState error={error} onRetry={fetchRFIDData} />
     );
   }
 

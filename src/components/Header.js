@@ -33,6 +33,7 @@ import axios from 'axios';
 import RFIDAppDownload from './RFIDAppDownload';
 import apkService from '../services/apkService';
 import BrandLogo from './common/BrandLogo';
+import { getUserErrorMessage, isNetworkError } from '../utils/userErrorMessage';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -317,11 +318,12 @@ const Header = () => {
         type: 'success',
       });
     } catch (err) {
-      if (err.message && err.message.includes('Network Error')) {
-        setBackupError('Network error: Unable to reach the backup server. Please check your connection or CORS policy.');
+      if (isNetworkError(err)) {
+        const networkMessage = getUserErrorMessage(err);
+        setBackupError(networkMessage);
         addNotification({
-          title: 'Backup Failed',
-          description: 'Network error: Unable to reach the backup server. Please check your connection or CORS policy.',
+          title: 'Connection problem',
+          description: networkMessage,
           type: 'error',
         });
       } else if (err.response?.data?.error) {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { toRrgoldApiUrl, toSoniApiUrl } from './apiBaseConfig';
 import { handleAxios401 } from '../utils/authRedirect';
+import { applyUserErrorMessage } from '../utils/userErrorMessage';
 
 const soniProductMasterBase = () => toSoniApiUrl('api/ProductMaster');
 const rrgoldProductMasterBase = () => toRrgoldApiUrl('api/ProductMaster');
@@ -26,7 +27,7 @@ axios.interceptors.request.use(
 // Response interceptor for API calls
 axios.interceptors.response.use(
   (response) => response,
-  (error) => handleAxios401(error)
+  (error) => handleAxios401(applyUserErrorMessage(error))
 );
 
 export const rfidService = {

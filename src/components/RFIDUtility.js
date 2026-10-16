@@ -1,6 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowRight, FaCheck, FaClipboardList, FaCogs, FaImages, FaInfoCircle, FaLayerGroup, FaMicrochip, FaPen, FaProjectDiagram, FaSyncAlt, FaWaveSquare } from 'react-icons/fa';
+import { FaArrowRight, FaCheck, FaLayerGroup } from 'react-icons/fa';
+import {
+  RiBarcodeLine,
+  RiCpuLine,
+  RiEdit2Line,
+  RiFileList3Line,
+  RiImageLine,
+  RiInformationLine,
+  RiNodeTree,
+  RiPulseLine,
+  RiRefreshLine,
+  RiSettings3Line,
+  RiWifiLine,
+} from 'react-icons/ri';
 import '../styles/RFIDUtility.css';
 import { isInventoryTrayEnabled, setInventoryTrayEnabled } from '../services/trayModeService';
 import ExeApiModeBanner from './common/ExeApiModeBanner';
@@ -9,98 +22,87 @@ const utilityMenus = [
   {
     id: 'auto-push-stock',
     title: 'Auto Push Stock',
-    subtitle: 'Smart Sync',
     description: 'Automatically push inventory updates to your connected endpoints.',
-    icon: FaSyncAlt,
+    icon: RiRefreshLine,
     theme: 'rfid-card-orange',
     route: '/rfid-utility/auto-push-stock',
   },
   {
     id: 'check-rfid',
     title: 'RFID Tray Connect',
-    subtitle: 'Reader Bridge',
     description: 'Connect tray readers, start scan, and stream tag reads in real time.',
-    icon: FaWaveSquare,
+    icon: RiWifiLine,
     theme: 'rfid-card-blue',
     route: '/rfid-utility/tray-connect',
   },
   {
     id: 'write-tag',
     title: 'Write Tag',
-    subtitle: 'Read and encode',
     description: 'Read tray EPCs, type a barcode, and write it into USER memory or the EPC.',
-    icon: FaPen,
+    icon: RiEdit2Line,
     theme: 'rfid-card-green',
     route: '/rfid-utility/write-tag',
   },
   {
     id: 'device-settings',
     title: 'Device Settings',
-    subtitle: 'Configuration',
     description: 'Manage scanner connectivity, speed, and read preferences.',
-    icon: FaCogs,
+    icon: RiSettings3Line,
     theme: 'rfid-card-teal',
   },
   {
     id: 'about',
     title: 'About',
-    subtitle: 'System Info',
     description: 'Check utility version, compatibility, and support information.',
-    icon: FaInfoCircle,
+    icon: RiInformationLine,
     theme: 'rfid-card-indigo',
     route: '/rfid-utility/about-sparkle',
   },
   {
     id: 'map-fields',
     title: 'Map Fields',
-    subtitle: 'Template Mapping',
     description: 'Review template fields and source-column mapping for auto push workflows.',
-    icon: FaProjectDiagram,
+    icon: RiNodeTree,
     theme: 'rfid-card-purple',
     route: '/rfid-utility/map-fields',
   },
   {
     id: 'template',
     title: 'Templates',
-    subtitle: 'Create Mapping',
     description: 'Select Excel columns and save reusable mapping templates.',
-    icon: FaClipboardList,
+    icon: RiFileList3Line,
     theme: 'rfid-card-rose',
     route: '/rfid-utility/template',
   },
   {
     id: 'item-image-folder',
     title: 'Item Image Folder',
-    subtitle: 'Image Mapping',
     description: 'Select local folder and map item-code image files for grid card previews.',
-    icon: FaImages,
-    theme: 'rfid-card-blue',
+    icon: RiImageLine,
+    theme: 'rfid-card-sky',
     route: '/rfid-utility/item-images',
   },
   {
     id: 'sync-labelled-tid',
     title: 'Sync Labelled Stock TID',
-    subtitle: 'Live ProductMaster',
     description: 'Copy EPC values from RFID tables into labelled stock TIDNumber.',
-    icon: FaSyncAlt,
-    theme: 'rfid-card-purple',
+    icon: RiBarcodeLine,
+    theme: 'rfid-card-blue',
     route: '/sync-labelled-stock-tid',
   },
   {
     id: 'firmware-tools',
     title: 'Firmware Tools',
-    subtitle: 'Maintenance',
     description: 'Check scanner firmware status and prepare maintenance actions.',
-    icon: FaCogs,
+    icon: RiCpuLine,
     theme: 'rfid-card-green',
   },
   {
     id: 'system-status',
     title: 'System Status',
-    subtitle: 'Live Monitor',
     description: 'View utility service health, queue load, and connectivity.',
-    icon: FaMicrochip,
-    theme: 'rfid-card-coral',
+    icon: RiPulseLine,
+    theme: 'rfid-card-teal',
   },
 ];
 
@@ -160,29 +162,24 @@ const RFIDUtility = () => {
             <button
               key={menu.id}
               type="button"
-              className={`rfid-utility-card ${menu.theme}`}
+              className={`rfid-utility-card ${menu.theme}${menu.route ? '' : ' is-static'}`}
               onClick={() => {
                 if (menu.route) {
                   navigate(menu.route);
                 }
               }}
             >
-              <div className="rfid-card-content">
+              <span className="rfid-card-bar" />
+              <div className="rfid-card-top">
                 <span className="rfid-card-icon">
                   <Icon />
                 </span>
-                <span className="rfid-card-kicker">{menu.subtitle}</span>
                 <h3>{menu.title}</h3>
-                <p>{menu.description}</p>
-                <div className="rfid-card-footer">
-                  <span className="rfid-card-action">
-                    Explore <FaArrowRight />
-                  </span>
-                  <span className="rfid-card-go" aria-hidden="true">
-                    <FaArrowRight />
-                  </span>
-                </div>
               </div>
+              <p>{menu.description}</p>
+              <span className="rfid-card-action">
+                Explore <FaArrowRight />
+              </span>
             </button>
           );
         })}

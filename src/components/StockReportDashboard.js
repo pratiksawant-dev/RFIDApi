@@ -22,6 +22,7 @@ import {
   FaWeightHanging,
 } from 'react-icons/fa';
 import { useNotifications } from '../context/NotificationContext';
+import NetworkErrorState from './common/NetworkErrorState';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend, ArcElement);
 
@@ -493,10 +494,7 @@ useEffect(() => {
       </motion.div>
 
       {error && (
-        <div style={{ marginBottom: 12, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px', color: '#b91c1c', display: 'flex', gap: 10, alignItems: 'center', fontWeight: 700 }}>
-          <FaExclamationTriangle />
-          <span>{error}</span>
-        </div>
+        <NetworkErrorState error={error} onRetry={fetchReportDataWithFilters} variant="inline" />
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 12 }}>

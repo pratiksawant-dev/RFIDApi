@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { applyUserErrorMessage } from '../utils/userErrorMessage';
 
 let show = () => {};
 let hide = () => {};
@@ -88,7 +89,7 @@ export const attachGlobalLoader = (client) => {
     },
     (error) => {
       endGlobalLoader(error?.config?.__sparkleLoader);
-      return Promise.reject(error);
+      return Promise.reject(applyUserErrorMessage(error));
     }
   );
 
@@ -99,7 +100,7 @@ export const attachGlobalLoader = (client) => {
     },
     (error) => {
       endGlobalLoader(error?.config?.__sparkleLoader);
-      return Promise.reject(error);
+      return Promise.reject(applyUserErrorMessage(error));
     }
   );
 };

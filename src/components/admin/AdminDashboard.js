@@ -9,6 +9,7 @@ import AdminUserActivity from './AdminUserActivity';
 import AdminUserPlans from './AdminUserPlans';
 import AdminRequestDemo from './AdminRequestDemo';
 import AdminUserContactList from './AdminUserContactList';
+import NetworkErrorState from '../common/NetworkErrorState';
 
 const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState('home');
@@ -210,15 +211,8 @@ const AdminDashboard = () => {
         overflowY: 'auto'
       }}>
         {error && (
-          <div style={{
-            padding: '16px',
-            margin: '16px',
-            background: '#fef2f2',
-            color: '#dc2626',
-            borderRadius: '8px',
-            border: '1px solid #fecaca'
-          }}>
-            Error: {error}
+          <div style={{ margin: '16px' }}>
+            <NetworkErrorState error={error} onRetry={fetchUsers} variant="inline" />
           </div>
         )}
         {renderCurrentSection()}
