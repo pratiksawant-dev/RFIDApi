@@ -25,7 +25,7 @@ const Footer = () => {
             <span style={{
               fontSize: '13px',
               color: '#71717A'
-            }}>© 2025 Loyalstring Pvt Ltd. All rights reserved.</span>
+            }}>© {new Date().getFullYear()} Loyalstring Pvt Ltd. All rights reserved.</span>
           </div>
         </div>
       </div>

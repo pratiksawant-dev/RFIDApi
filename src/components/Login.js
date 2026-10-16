@@ -1591,7 +1591,7 @@ const Login = () => {
             </div>
 
             <div className="login-left-foot">
-              <span>© 2025, LoyalString International Pvt Ltd.</span>
+              <span>© {new Date().getFullYear()}, LoyalString International Pvt Ltd.</span>
               <span>All Rights Reserved.</span>
             </div>
           </div>
