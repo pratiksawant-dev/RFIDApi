@@ -9,13 +9,13 @@ import {
   FaFilePdf,
   FaThLarge,
   FaThList,
-  FaClipboardList,
   FaDownload,
   FaEnvelope,
   FaTimes,
   FaChartBar,
 } from 'react-icons/fa';
 import OrderListReport from './OrderListReport';
+import PageHeader from '../common/PageHeader';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -781,77 +781,72 @@ const OrderList = () => {
 
   const isSmallScreen = windowWidth <= 768;
   const labelStyle = {
-    fontSize: 11,
-    color: '#737373',
+    fontSize: 10,
+    color: '#8a8175',
     fontWeight: 700,
     display: 'block',
-    marginBottom: 3,
+    marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.08em',
   };
   const inputBase = {
     width: '100%',
-    padding: '0 8px',
-    fontSize: 11,
-    border: '1px solid #e5e5e5',
-    borderRadius: 8,
-    height: 30,
+    padding: '0 10px',
+    fontSize: 12,
+    border: '1px solid #e8e2d8',
+    borderRadius: 10,
+    height: 34,
     boxSizing: 'border-box',
-    color: '#404040',
+    color: '#1c1917',
     background: '#fff',
+    outline: 'none',
   };
   const thL = {
-    padding: isSmallScreen ? '6px 6px' : '7px 8px',
+    padding: isSmallScreen ? '10px 8px' : '11px 12px',
     textAlign: 'left',
     fontWeight: 700,
-    fontSize: isSmallScreen ? 10 : 11,
-    color: '#18181b',
-    borderRight: '1px solid #e4e4e7',
-    borderBottom: '2px solid #d4d4d8',
+    fontSize: 10,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: '#6b6256',
+    borderRight: 'none',
+    borderBottom: '1px solid #efe8dc',
     whiteSpace: 'nowrap',
+    background: '#fbfaf7',
   };
   const tdL = {
-    padding: isSmallScreen ? '5px 6px' : '6px 8px',
-    color: '#404040',
-    fontSize: isSmallScreen ? 10 : 11,
+    padding: isSmallScreen ? '10px 8px' : '12px 12px',
+    color: '#3f3a34',
+    fontSize: isSmallScreen ? 11 : 12,
     lineHeight: 1.35,
-    borderRight: '1px solid #ececec',
-    borderBottom: '1px solid #e5e5e5',
+    borderRight: 'none',
+    borderBottom: '1px solid #f3efe8',
   };
   const orderPageBtnStyle = (disabled) => ({
-    padding: '5px 11px',
+    padding: '6px 12px',
     fontSize: 12,
-    fontWeight: 600,
-    borderRadius: 8,
-    border: '1px solid #e5e5e5',
+    fontWeight: 650,
+    borderRadius: 999,
+    border: '1px solid #e8e2d8',
     background: '#ffffff',
-    color: disabled ? '#a3a3a3' : '#525252',
+    color: disabled ? '#c4bdb2' : '#3f3a34',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.5 : 1,
+    opacity: disabled ? 0.7 : 1,
   });
   const orderPageNumStyle = (active) => ({
-    padding: '5px 10px',
-    fontSize: 11,
+    padding: '6px 10px',
+    fontSize: 12,
     fontWeight: 700,
-    borderRadius: 8,
-    border: `1px solid ${active ? '#6d28d9' : '#e5e5e5'}`,
-    background: active ? '#6d28d9' : '#ffffff',
-    color: active ? '#ffffff' : '#525252',
+    borderRadius: 999,
+    border: `1px solid ${active ? '#e4d3b0' : '#e8e2d8'}`,
+    background: active ? '#f8f1e4' : '#ffffff',
+    color: active ? '#6b5428' : '#57534e',
     cursor: 'pointer',
     minWidth: 32,
   });
 
   return (
-    <div
-      className="order-list-page"
-      style={{
-        fontFamily: 'var(--font-family)',
-        padding: '12px',
-        fontSize: '11px',
-        minHeight: '100%',
-        background: '#ffffff',
-      }}
-    >
+    <div className={`order-list-page ol-page${showReport ? ' is-report' : ''}`} style={{ fontFamily: 'var(--font-family)' }}>
       {showReport ? (
         <OrderListReport
           orders={reportOrders}
@@ -860,296 +855,56 @@ const OrderList = () => {
         />
       ) : (
       <>
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          marginBottom: '12px',
-          boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <div
-          style={{
-            height: '3px',
-            background: 'linear-gradient(90deg, #5b21b6 0%, #6d28d9 50%, #7c3aed 100%)',
-          }}
-        />
-        <div style={{ padding: '12px 14px 12px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              flexWrap: 'wrap',
-              paddingBottom: '12px',
-              borderBottom: '1px solid #f1f5f9',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: '1 1 auto' }}>
-              <div
-                style={{
-                  width: isSmallScreen ? 34 : 38,
-                  height: isSmallScreen ? 34 : 38,
-                  borderRadius: 10,
-                  background: 'linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%)',
-                  boxShadow: '0 2px 8px rgba(109, 40, 217, 0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  flexShrink: 0,
-                }}
-              >
-                <FaClipboardList style={{ fontSize: isSmallScreen ? 14 : 16 }} />
+      <header className="ol-top">
+        <div className="ol-top-inner">
+          <PageHeader
+            title="Order list"
+            subtitle={`${effectiveTotalRecords.toLocaleString()} order${effectiveTotalRecords === 1 ? '' : 's'} · customer names, weights, balances, and delivery dates`}
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <div className="ol-seg" role="tablist" aria-label="Order view">
+                <button type="button" role="tab" aria-selected={viewMode === 'table'} className={viewMode === 'table' ? 'is-on' : ''} onClick={() => setViewMode('table')}>
+                  <FaThList /> Table
+                </button>
+                <button type="button" role="tab" aria-selected={viewMode === 'card'} className={viewMode === 'card' ? 'is-on' : ''} onClick={() => setViewMode('card')}>
+                  <FaThLarge /> Cards
+                </button>
               </div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: isSmallScreen ? '1.05rem' : '1.2rem',
-                  fontWeight: 800,
-                  color: '#0f172a',
-                  fontFamily: 'var(--font-family)',
-                  lineHeight: 1.2,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+            )}
+          />
+          <div className="ol-toolbar">
+            <label className="ol-search">
+              <FaSearch />
+              <input
+                type="text"
+                placeholder="Search customer, order, product"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </label>
+            <div className="ol-actions">
+              <span className="ol-count">{effectiveTotalRecords.toLocaleString()} orders</span>
+              <button type="button" className="ol-btn" onClick={handleRefresh} disabled={loading}>
+                {loading ? <FaSpinner className="ol-spin" /> : <FaSync />} Refresh
+              </button>
+              <button
+                type="button"
+                className="ol-btn"
+                disabled={orders.length === 0}
+                onClick={() => {
+                  setExportErrors({ excel: '', pdf: '', email: '' });
+                  setShowExportModal(true);
                 }}
               >
-                Order list
-              </h1>
-            </div>
-            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              {effectiveTotalRecords} order{effectiveTotalRecords !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          <div
-            style={{
-              marginTop: 12,
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: '#ffffff',
-              border: '1px solid #e5e5e5',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
-                gap: '10px',
-                rowGap: '10px',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'flex-end',
-                  gap: '8px',
-                  flex: '1 1 auto',
-                  minWidth: 0,
-                }}
-              >
-                <div style={{ flexShrink: 0 }}>
-                  <label style={labelStyle}>View</label>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 4,
-                      border: '1px solid #e5e5e5',
-                      borderRadius: 8,
-                      padding: 2,
-                      background: '#fafafa',
-                      height: 30,
-                      boxSizing: 'border-box',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('table')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '0 10px',
-                        height: 26,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        borderRadius: 6,
-                        border: 'none',
-                        background: viewMode === 'table' ? '#ffffff' : 'transparent',
-                        color: viewMode === 'table' ? '#6d28d9' : '#737373',
-                        cursor: 'pointer',
-                        boxShadow: viewMode === 'table' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                      }}
-                    >
-                      <FaThList style={{ fontSize: 12 }} />
-                      Table
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('card')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '0 10px',
-                        height: 26,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        borderRadius: 6,
-                        border: 'none',
-                        background: viewMode === 'card' ? '#ffffff' : 'transparent',
-                        color: viewMode === 'card' ? '#6d28d9' : '#737373',
-                        cursor: 'pointer',
-                        boxShadow: viewMode === 'card' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                      }}
-                    >
-                      <FaThLarge style={{ fontSize: 12 }} />
-                      Card
-                    </button>
-                  </div>
-                </div>
-                <div style={{ flexShrink: 0 }}>
-                  <label style={labelStyle}>&nbsp;</label>
-                  <button
-                    type="button"
-                    onClick={handleRefresh}
-                    disabled={loading}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      height: 30,
-                      padding: '0 12px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderRadius: 8,
-                      border: '1px solid #d4d4d8',
-                      background: '#fafafa',
-                      color: '#262626',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      opacity: loading ? 0.55 : 1,
-                      boxSizing: 'border-box',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {loading ? (
-                      <FaSpinner style={{ animation: 'orderListSpin 1s linear infinite', fontSize: 11 }} />
-                    ) : (
-                      <FaSync style={{ fontSize: 11 }} />
-                    )}
-                    Refresh
-                  </button>
-                </div>
-                <div style={{ flexShrink: 0 }}>
-                  <label style={labelStyle}>&nbsp;</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExportErrors({ excel: '', pdf: '', email: '' });
-                      setShowExportModal(true);
-                    }}
-                    disabled={orders.length === 0}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      height: 30,
-                      padding: '0 12px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderRadius: 8,
-                      border: '1px solid #c4b5fd',
-                      background: 'linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%)',
-                      color: '#5b21b6',
-                      cursor: orders.length === 0 ? 'not-allowed' : 'pointer',
-                      opacity: orders.length === 0 ? 0.45 : 1,
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    <FaDownload style={{ fontSize: 12 }} />
-                    Export
-                  </button>
-                </div>
-                <div style={{ flexShrink: 0 }}>
-                  <label style={labelStyle}>&nbsp;</label>
-                  <button
-                    type="button"
-                    onClick={handleOpenReport}
-                    disabled={reportLoading}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      height: 30,
-                      padding: '0 12px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderRadius: 8,
-                      border: '1px solid #93c5fd',
-                      background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                      color: '#1d4ed8',
-                      cursor: reportLoading ? 'wait' : 'pointer',
-                      opacity: reportLoading ? 0.65 : 1,
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    {reportLoading ? (
-                      <FaSpinner style={{ animation: 'orderListSpin 1s linear infinite', fontSize: 11 }} />
-                    ) : (
-                      <FaChartBar style={{ fontSize: 12 }} />
-                    )}
-                    Report
-                  </button>
-                </div>
-              </div>
-              <div
-                style={{
-                  flex: isSmallScreen ? '1 1 100%' : '0 1 280px',
-                  minWidth: isSmallScreen ? '100%' : '200px',
-                  maxWidth: '380px',
-                  marginLeft: isSmallScreen ? 0 : 'auto',
-                }}
-              >
-                <label style={{ ...labelStyle, textAlign: isSmallScreen ? 'left' : 'right' }}>Search</label>
-                <div style={{ position: 'relative' }}>
-                  <FaSearch
-                    style={{
-                      position: 'absolute',
-                      left: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94a3b8',
-                      fontSize: '11px',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Customer, order, product…"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    style={{
-                      ...inputBase,
-                      width: '100%',
-                      paddingLeft: '30px',
-                    }}
-                  />
-                </div>
-              </div>
+                <FaDownload /> Export
+              </button>
+              <button type="button" className="ol-btn" onClick={handleOpenReport} disabled={reportLoading}>
+                {reportLoading ? <FaSpinner className="ol-spin" /> : <FaChartBar />} Report
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {error && (
         <div
@@ -1171,30 +926,10 @@ const OrderList = () => {
         </div>
       )}
 
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 12,
-          border: '1px solid #d4d4d8',
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-        }}
-      >
+      <div className="ol-board">
         {viewMode === 'card' ? (
           /* Card Grid View - vertical scroll */
-          <div style={{
-            padding: '16px',
-            display: 'grid',
-            gridTemplateColumns: windowWidth <= 768 
-              ? '1fr' 
-              : windowWidth <= 1024 
-              ? 'repeat(2, 1fr)' 
-              : 'repeat(5, 1fr)',
-            gap: '12px',
-            maxHeight: 'calc(100vh - 280px)',
-            overflowY: 'auto',
-            overflowX: 'hidden'
-          }}>
+          <div className="ol-cards">
             {currentItems.length === 0 ? (
               <div style={{
                 gridColumn: '1 / -1',
@@ -1217,27 +952,9 @@ const OrderList = () => {
               currentItems.map((order, index) => {
                 const imageUrl = getOrderImage(order);
                 return (
-                  <div
+                  <article
                     key={order.Id || order.id || index}
-                    style={{
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      border: '1px solid #e5e7eb',
-                      overflow: 'hidden',
-                      transition: 'all 0.2s',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      height: '100%'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
+                    className="ol-card"
                   >
                     {/* Image Section - Reduced height */}
                     <div style={{
@@ -1300,14 +1017,7 @@ const OrderList = () => {
                         }}>
                           Order #{getOrderValue(order, 'OrderNo')}
                         </span>
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 600,
-                          padding: '3px 6px',
-                          borderRadius: '4px',
-                          background: getOrderValue(order, 'OrderStatus') === 'CustomerReceived' ? '#d1fae5' : '#fef3c7',
-                          color: getOrderValue(order, 'OrderStatus') === 'CustomerReceived' ? '#065f46' : '#92400e'
-                        }}>
+                        <span className={`ol-status${getOrderValue(order, 'OrderStatus') === 'CustomerReceived' ? ' is-done' : ''}`}>
                           {getOrderValue(order, 'OrderStatus')}
                         </span>
                       </div>
@@ -1414,20 +1124,14 @@ const OrderList = () => {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </article>
                 );
               })
             )}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', width: '100%', background: '#fafafa' }}>
-            <div
-              style={{
-                overflowY: 'auto',
-                maxHeight: 'calc(100vh - 280px)',
-                minHeight: 200,
-              }}
-            >
+          <div className="ol-scroll">
+            <div className="ol-scroll-y">
               <table
                 style={{
                   width: '100%',
@@ -1438,8 +1142,8 @@ const OrderList = () => {
                   tableLayout: 'auto',
                 }}
               >
-                <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-                  <tr style={{ background: '#f4f4f5', boxShadow: '0 1px 0 #e4e4e7' }}>
+                <thead>
+                  <tr>
                     <th
                       style={{
                         ...thL,
@@ -1494,9 +1198,7 @@ const OrderList = () => {
                       return (
                         <tr
                           key={order.Id || order.id || index}
-                          style={{
-                            background: stripe ? '#fafafa' : '#ffffff',
-                          }}
+                          className={stripe ? 'is-stripe' : ''}
                         >
                           <td
                             style={{
@@ -1535,7 +1237,11 @@ const OrderList = () => {
                                   borderRight: colIdx === columns.length - 1 ? 'none' : tdL.borderRight,
                                 }}
                               >
-                                {displayValue || '-'}
+                                {column.key === 'OrderStatus' ? (
+                                  <span className={`ol-status${String(displayValue).toLowerCase().includes('received') ? ' is-done' : ''}`}>
+                                    {displayValue || '-'}
+                                  </span>
+                                ) : (displayValue || '-')}
                               </td>
                             );
                           })}
@@ -1546,7 +1252,7 @@ const OrderList = () => {
                 </tbody>
                 {currentItems.length > 0 && (
                   <tfoot>
-                    <tr style={{ background: '#f4f4f5', boxShadow: 'inset 0 1px 0 #e4e4e7' }}>
+                    <tr className="ol-total">
                       <td
                         style={{
                           ...tdL,
@@ -1591,18 +1297,7 @@ const OrderList = () => {
           </div>
         )}
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '12px 16px',
-            borderTop: '1px solid #f5f5f5',
-            flexWrap: 'wrap',
-            gap: 10,
-            background: '#fafafa',
-          }}
-        >
+        <div className="ol-pager">
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 14px', fontSize: 11, color: '#525252', fontWeight: 600 }}>
             <span style={{ fontVariantNumeric: 'tabular-nums' }}>
               {effectiveTotalRecords} record{effectiveTotalRecords === 1 ? '' : 's'}
@@ -1714,14 +1409,14 @@ const OrderList = () => {
               overflowY: 'auto',
               borderRadius: 16,
               background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
-              border: '1px solid #e9d5ff',
-              boxShadow: '0 25px 50px -12px rgba(91, 33, 182, 0.25), 0 0 0 1px rgba(255,255,255,0.8) inset',
+              border: '1px solid #ece7df',
+              boxShadow: '0 18px 40px rgba(28, 25, 23, 0.12)',
             }}
           >
             <div
               style={{
                 height: 4,
-                background: 'linear-gradient(90deg, #5b21b6 0%, #7c3aed 50%, #a78bfa 100%)',
+                background: 'linear-gradient(90deg, #f3efe8 0%, #e4d3b0 50%, #f3efe8 100%)',
                 borderRadius: '16px 16px 0 0',
               }}
             />
@@ -1732,7 +1427,7 @@ const OrderList = () => {
                     Export order list
                   </h2>
                   <p style={{ margin: '6px 0 0', fontSize: 11, color: '#64748b', fontWeight: 600, lineHeight: 1.45 }}>
-                    Same as inventory list: download Excel or PDF, or email the Excel file. Uses <strong style={{ color: '#5b21b6' }}>current page</strong> rows ({orders.length}).
+                    Same as inventory list: download Excel or PDF, or email the Excel file. Uses the current page rows ({orders.length}).
                   </p>
                 </div>
                 <button
@@ -1843,7 +1538,7 @@ const OrderList = () => {
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: '#991b1b' }}>Export as PDF</span>
                     <span style={{ display: 'block', fontSize: 11, color: '#b91c1c', fontWeight: 600, marginTop: 2, opacity: 0.95 }}>
-                      Landscape table, purple header
+                      Landscape table with a totals row
                     </span>
                   </span>
                 </button>
@@ -1854,10 +1549,10 @@ const OrderList = () => {
                 <div
                   style={{
                     borderRadius: 12,
-                    border: '1px solid #ddd6fe',
-                    background: 'linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%)',
+                    border: '1px solid #efe6d6',
+                    background: '#fbfaf7',
                     padding: '14px 16px',
-                    boxShadow: '0 1px 2px rgba(109, 40, 217, 0.06)',
+                    boxShadow: '0 1px 2px rgba(28, 25, 23, 0.04)',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -1867,19 +1562,19 @@ const OrderList = () => {
                         height: 44,
                         borderRadius: 12,
                         background: '#fff',
-                        border: '1px solid #e9d5ff',
+                        border: '1px solid #efe6d6',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#6d28d9',
+                        color: '#8a7350',
                         flexShrink: 0,
                       }}
                     >
                       <FaEnvelope size={20} />
                     </span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: '#4c1d95' }}>Send to email</div>
-                      <div style={{ fontSize: 11, color: '#6d28d9', fontWeight: 600, marginTop: 2, opacity: 0.95 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1c1917' }}>Send to email</div>
+                      <div style={{ fontSize: 11, color: '#8a8175', fontWeight: 600, marginTop: 2 }}>
                         Excel attachment via server (same flow as inventory list)
                       </div>
                     </div>
@@ -1899,7 +1594,7 @@ const OrderList = () => {
                         padding: '10px 12px',
                         fontSize: 13,
                         borderRadius: 10,
-                        border: '1px solid #e9d5ff',
+                        border: '1px solid #efe6d6',
                         outline: 'none',
                         boxSizing: 'border-box',
                         background: '#fff',
@@ -1922,14 +1617,13 @@ const OrderList = () => {
                         fontSize: 13,
                         fontWeight: 800,
                         borderRadius: 10,
-                        border: 'none',
+                        border: '1px solid #e8e2d8',
                         background:
                           exportLoading || !emailAddress.trim() || !orders.length
-                            ? '#c4b5fd'
-                            : 'linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%)',
-                        color: '#fff',
+                            ? '#f3efe8'
+                            : '#1c1917',
+                        color: exportLoading || !emailAddress.trim() || !orders.length ? '#a89880' : '#f8f1e4',
                         cursor: exportLoading || !emailAddress.trim() || !orders.length ? 'not-allowed' : 'pointer',
-                        boxShadow: '0 4px 14px rgba(109, 40, 217, 0.35)',
                       }}
                     >
                       {exportLoading ? (
@@ -1956,6 +1650,202 @@ const OrderList = () => {
         @keyframes orderListSpin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        .ol-spin { animation: orderListSpin 1s linear infinite; }
+        .ol-page {
+          width: 100%;
+          min-width: 0;
+          min-height: 0;
+          padding: 0;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          box-sizing: border-box;
+          color: #1c1917;
+        }
+        .ol-page * { box-sizing: border-box; }
+        .ol-top {
+          background: #fff;
+          border: var(--page-header-border, 1px solid #e2e8f0);
+          border-radius: var(--page-header-radius, 12px);
+          box-shadow: var(--page-header-shadow, 0 2px 8px rgba(15, 23, 42, 0.06));
+          overflow: visible;
+          position: sticky;
+          top: 0;
+          z-index: 40;
+        }
+        .ol-top-inner { padding: 12px 14px 10px; }
+        .ol-top .app-page-header { width: 100%; align-items: center; }
+        .ol-count {
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+          white-space: nowrap;
+        }
+        .ol-toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid #e5e7eb;
+        }
+        .ol-seg {
+          display: inline-flex;
+          flex-wrap: wrap;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          overflow: hidden;
+          background: #fff;
+          max-width: 100%;
+        }
+        .ol-seg button {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          height: 28px;
+          padding: 0 11px;
+          border: none;
+          border-right: 1px solid #e2e8f0;
+          background: #fff;
+          color: #334155;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .ol-seg button:last-child { border-right: none; }
+        .ol-seg button.is-on { background: #f0fdfa; color: #0f766e; }
+        .ol-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+        .ol-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          height: 28px;
+          padding: 0 11px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          background: #fff;
+          color: #334155;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .ol-btn svg { width: 11px; height: 11px; }
+        .ol-btn:hover { background: #f8fafc; }
+        .ol-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ol-search {
+          position: relative;
+          flex: 1 1 220px;
+          min-width: 0;
+        }
+        .ol-search svg {
+          position: absolute;
+          left: 9px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #94a3b8;
+          width: 11px;
+          height: 11px;
+          pointer-events: none;
+        }
+        .ol-search input {
+          width: 100%;
+          height: 28px;
+          padding: 0 10px 0 28px;
+          font-size: 11px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          outline: none;
+          background: #fff;
+          color: #0f172a;
+        }
+        .ol-search input:focus { border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12); }
+        .ol-board {
+          flex: 1 1 auto;
+          min-height: 280px;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          background: #fff;
+          border: 1px solid #ece7df;
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        .ol-cards {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: auto;
+          padding: 14px;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          gap: 12px;
+          align-content: start;
+        }
+        .ol-card {
+          background: #fff;
+          border: 1px solid #efe8dc;
+          border-radius: 14px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .ol-card:hover {
+          border-color: #e4d3b0;
+          box-shadow: 0 8px 20px rgba(28, 25, 23, 0.05);
+        }
+        .ol-card > div:first-child {
+          height: 148px !important;
+          background: #f7f5f2 !important;
+        }
+        .ol-scroll { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: #fff; }
+        .ol-scroll-y { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        .ol-page thead th { position: sticky; top: 0; z-index: 2; }
+        .ol-page tbody tr:hover td { background: #fbfaf7; }
+        .ol-page tbody tr.is-stripe td { background: #fcfcfb; }
+        .ol-page tfoot td { background: #faf7f2 !important; border-top: 1px solid #efe6d6; }
+        .ol-status {
+          display: inline-flex;
+          align-items: center;
+          max-width: 140px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          background: #f8f1e4;
+          color: #6b5428;
+          font-size: 10px;
+          font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ol-status.is-done { background: #eef6f1; color: #246348; }
+        .ol-pager {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 12px 14px;
+          border-top: 1px solid #f3efe8;
+          background: #fff;
+        }
+        @media (max-width: 860px) {
+          .ol-search { flex: 1 1 100%; }
+          .ol-actions { width: 100%; margin-left: 0; }
+          .ol-btn { flex: 1 1 auto; }
+        }
+        @media (max-width: 560px) {
+          .ol-top-inner { padding: 10px; }
+          .ol-seg { width: 100%; }
+          .ol-seg button { flex: 1; justify-content: center; }
+          .ol-actions { display: grid; grid-template-columns: 1fr 1fr; }
+          .ol-count { grid-column: 1 / -1; }
+          .ol-actions .ol-btn:last-child { grid-column: 1 / -1; }
+          .ol-pager { flex-direction: column; align-items: stretch; }
         }
       `}</style>
     </div>

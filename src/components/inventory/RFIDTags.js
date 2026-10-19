@@ -2,13 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { FaSearch, FaFileExcel, FaTrash, FaFilePdf, FaEnvelope, FaTimes, FaEdit, FaCheck } from 'react-icons/fa';
-import { BiTag } from 'react-icons/bi';
 import { HiOutlineArrowUpTray } from 'react-icons/hi2';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
 import NetworkErrorState from '../common/NetworkErrorState';
+import PageHeader from '../common/PageHeader';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -397,147 +397,42 @@ const RFIDTags = () => {
   }
 
   return (
-    <div style={{ fontFamily: 'var(--font-family)', padding: 12, fontSize: 11, minHeight: '100%', background: '#ffffff' }}>
-      {/* Unified Header & Action Section */}
-      <div style={{ background: '#ffffff', borderRadius: 12, overflow: 'hidden', marginBottom: 12, boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)', border: '1px solid #e2e8f0' }}>
-        <div style={{ height: 3, background: 'linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)' }} />
-        <div style={{ padding: '14px 16px' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-            <h2 style={{
-              margin: 0,
-              fontSize: windowWidth <= 768 ? '1.05rem' : '1.18rem',
-              fontWeight: 800,
-              color: '#0f172a',
-              lineHeight: '1.2'
-            }}>RFID Tags</h2>
-            <p style={{ margin: '6px 0 0', fontSize: 11, color: '#64748b', fontWeight: 600 }}>Sample Out style grid · <strong style={{ color: '#0f766e' }}>{ITEMS_PER_PAGE}</strong> rows per page</p>
+    <div className="rfid-tags-page" style={{ fontFamily: 'var(--font-family)', padding: 0, fontSize: 11, minHeight: '100%', background: '#ffffff' }}>
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="RFID Tags"
+            subtitle={`RFID code, EPC, and TID · ${ITEMS_PER_PAGE} rows per page`}
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <span className="page-lot">
+                Total
+                <strong>{Number(totalRecords || 0).toLocaleString()}</strong>
+              </span>
+            )}
+          />
+          <div className="page-toolbar">
+            <label className="page-search">
+              <FaSearch />
+              <input
+                type="text"
+                placeholder="Search RFID code, EPC, TID"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </label>
+            <div className="page-toolbar-actions">
+              <button type="button" className="page-chip is-danger" onClick={handleDelete} disabled={selectedTags.length === 0}>
+                <FaTrash /> Delete
+              </button>
+              <button type="button" className="page-chip is-on" onClick={() => setShowExportModal(true)}>
+                <HiOutlineArrowUpTray /> Export
+              </button>
+            </div>
           </div>
-          <div style={{
-            fontSize: '12px',
-            color: '#64748b',
-            fontWeight: 600
-          }}>
-            Total: {totalRecords} records
-          </div>
-        </div>
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-          paddingTop: 12,
-          borderTop: '1px solid #e5e7eb'
-        }}>
-          {/* Search Input */}
-          <div style={{
-            position: 'relative',
-            flex: '1',
-            minWidth: windowWidth <= 768 ? '100%' : '250px',
-            maxWidth: windowWidth <= 768 ? '100%' : '380px'
-          }}>
-            <FaSearch style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#94a3b8',
-              fontSize: '14px',
-              zIndex: 1
-            }} />
-            <input
-              type="text"
-              placeholder="Search by RFID Code, EPC Value, TID Value..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                height: 32,
-                padding: '0 10px 0 30px',
-                fontSize: '11px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                outline: 'none',
-                transition: 'all 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-          {/* Action Buttons */}
-          <button
-            onClick={handleDelete}
-            disabled={selectedTags.length === 0}
-            style={{
-              height: 32,
-              padding: '0 12px',
-              fontSize: '11px',
-              fontWeight: 700,
-              borderRadius: '8px',
-              border: '1px solid #ef4444',
-              background: selectedTags.length === 0 ? '#f1f5f9' : '#ffffff',
-              color: selectedTags.length === 0 ? '#94a3b8' : '#ef4444',
-              cursor: selectedTags.length === 0 ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (selectedTags.length > 0) {
-                e.target.style.background = '#ef4444';
-                e.target.style.color = '#ffffff';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedTags.length > 0) {
-                e.target.style.background = '#ffffff';
-                e.target.style.color = '#ef4444';
-              }
-            }}
-          >
-            <FaTrash /> Delete
-          </button>
-          <button
-            onClick={() => setShowExportModal(true)}
-            style={{
-              height: 32,
-              padding: '0 12px',
-              fontSize: '11px',
-              fontWeight: 700,
-              borderRadius: '8px',
-              border: '1px solid #0d9488',
-              background: '#ffffff',
-              color: '#0d9488',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#0d9488';
-              e.target.style.color = '#ffffff';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = '#ffffff';
-              e.target.style.color = '#0d9488';
-            }}
-          >
-            <HiOutlineArrowUpTray /> Export
-          </button>
-        </div>
         </div>
       </div>
 

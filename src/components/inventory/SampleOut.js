@@ -26,6 +26,7 @@ import { useLoading } from '../../App';
 import { useNotifications } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import CustomerSidebarForm from './CustomerSidebarForm';
+import PageHeader from '../common/PageHeader';
 import VendorSidebarForm from './VendorSidebarForm';
 import EmployeeSidebarForm from './EmployeeSidebarForm';
 import {
@@ -1689,267 +1690,65 @@ const SampleOut = () => {
           }
         }
       `}</style>
-      {/* Top Header - Compact */}
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '10px',
-        padding: isSmallScreen ? '8px 10px' : '10px 12px',
-        marginBottom: '10px',
-        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)',
-        border: '1px solid #e2e8f0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: isSmallScreen ? 'flex-start' : 'center',
-        flexWrap: 'wrap',
-        gap: isSmallScreen ? '8px' : '10px',
-        flexDirection: isSmallScreen ? 'column' : 'row'
-      }}>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            gap: 4,
-            flexShrink: 0,
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: isSmallScreen ? '8px' : '12px',
-            }}
-          >
-            <span
-              style={{
-                width: isSmallScreen ? 30 : 34,
-                height: isSmallScreen ? 30 : 34,
-                borderRadius: 10,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                color: '#fff',
-                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
-              }}
-            >
-              <FaFileInvoice style={{ fontSize: isSmallScreen ? 14 : 16 }} />
-            </span>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: isSmallScreen ? '15px' : '18px',
-                fontWeight: 800,
-                color: '#1e293b',
-                lineHeight: '1.2',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Sample Out
-            </h2>
-          </div>
+      {/* Top Header */}
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="Sample Out"
+            subtitle="Issue a sample lot to a customer, vendor, or employee."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <div className="page-top-actions">
+                <span
+                  className="page-lot"
+                  title={nextLotNoError || 'Next lot from GetSampleOutNextNumber. Refreshes after you save.'}
+                >
+                  Sample lot no.
+                  <strong style={{ color: nextLotNoError ? '#b91c1c' : undefined }}>
+                    {nextLotNoLoading ? 'Loading…' : (sampleOutNumber || '—')}
+                  </strong>
+                  {nextLotNoLoading ? <FaSpinner style={{ animation: 'spin 0.9s linear infinite' }} /> : null}
+                </span>
+                {!nextLotNoLoading && (nextLotNoError || !sampleOutNumber) ? (
+                  <button type="button" className="page-chip" onClick={() => fetchSampleOutNumber()}>
+                    Retry
+                  </button>
+                ) : null}
+                {sampleOutItems.length > 0 && (
+                  <div ref={exportDropdownRef} style={{ position: 'relative' }}>
+                    <button type="button" className="page-chip" onClick={() => setShowExportDropdown(!showExportDropdown)}>
+                      <FaFileExcel /> Export <FaChevronDown style={{ fontSize: 10 }} />
+                    </button>
+                    {showExportDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: 8,
+                        background: '#ffffff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 8,
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+                        zIndex: 1000,
+                        minWidth: 180,
+                        overflow: 'hidden',
+                      }}>
+                        <button type="button" onClick={handleExportToExcel} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, fontWeight: 600, border: 'none', background: '#fff', color: '#0f766e', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #f1f5f9' }}>
+                          <FaFileExcel /> Export to Excel
+                        </button>
+                        <button type="button" onClick={handleExportToPDF} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, fontWeight: 600, border: 'none', background: '#fff', color: '#b91c1c', cursor: 'pointer', textAlign: 'left' }}>
+                          <FaFilePdf /> Export to PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          />
           {process.env.REACT_APP_SHOW_SAMPLE_API_BASE === '1' && (
-            <div
-              style={{
-                fontSize: 10,
-                color: '#64748b',
-                lineHeight: 1.35,
-                maxWidth: 'min(100vw - 24px, 520px)',
-                wordBreak: 'break-all',
-              }}
-              title="Shown when REACT_APP_SHOW_SAMPLE_API_BASE=1 at build time"
-            >
-              API mode: {getApiMode()} · RFIDDashboard host: {getSampleApiBaseUrl()} · Party lists host:{' '}
-              {getRrgoldApiBaseUrl()}
-            </div>
-          )}
-        </div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: isSmallScreen ? 'stretch' : 'flex-end',
-          flexWrap: 'wrap',
-          gap: isSmallScreen ? '10px' : '12px',
-          marginLeft: isSmallScreen ? 0 : 'auto',
-          width: isSmallScreen ? '100%' : 'auto',
-          minWidth: 0
-        }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: isSmallScreen ? '8px 12px' : '8px 14px',
-              borderRadius: '12px',
-              background: 'linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%)',
-              border: '1px solid #e2e8f0',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(15, 23, 42, 0.06)',
-              flex: isSmallScreen ? 1 : 'none'
-            }}
-          >
-            <span style={{
-              fontSize: isSmallScreen ? '10px' : '11px',
-              color: '#64748b',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              Sample lot no.
-            </span>
-            <span
-              title={
-                nextLotNoError
-                  ? nextLotNoError
-                  : 'Next lot from GetSampleOutNextNumber. Refreshes after you save.'
-              }
-              style={{
-              fontSize: isSmallScreen ? '14px' : '15px',
-              color: nextLotNoError ? '#b91c1c' : '#0f172a',
-              fontWeight: 800,
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-0.03em',
-              lineHeight: 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-            >
-              {nextLotNoLoading ? (
-                <>
-                  <FaSpinner style={{ fontSize: '14px', animation: 'spin 0.9s linear infinite' }} />
-                  Loading…
-                </>
-              ) : sampleOutNumber ? (
-                sampleOutNumber
-              ) : (
-                <span style={{ fontWeight: 700, color: '#94a3b8' }}>—</span>
-              )}
-            </span>
-            {!nextLotNoLoading && (nextLotNoError || !sampleOutNumber) ? (
-              <button
-                type="button"
-                onClick={() => fetchSampleOutNumber()}
-                style={{
-                  marginLeft: '4px',
-                  padding: '4px 8px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#475569',
-                  cursor: 'pointer',
-                }}
-              >
-                Retry
-              </button>
-            ) : null}
-          </div>
-          {/* Export Button with Dropdown */}
-          {sampleOutItems.length > 0 && (
-            <div ref={exportDropdownRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowExportDropdown(!showExportDropdown)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  border: '1px solid #10b981',
-                  background: '#ffffff',
-                  color: '#10b981',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#10b981';
-                  e.target.style.color = '#ffffff';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#ffffff';
-                  e.target.style.color = '#10b981';
-                }}
-              >
-                <FaFileExcel />
-                <span>Export</span>
-                <FaChevronDown style={{ fontSize: '10px' }} />
-              </button>
-
-              {showExportDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '8px',
-                  background: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
-                  zIndex: 1000,
-                  minWidth: '180px',
-                  overflow: 'hidden'
-                }}>
-                  <button
-                    onClick={handleExportToExcel}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '12px 16px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      border: 'none',
-                      background: '#ffffff',
-                      color: '#10b981',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      textAlign: 'left',
-                      borderBottom: '1px solid #f1f5f9'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#f0fdf4';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#ffffff';
-                    }}
-                  >
-                    <FaFileExcel style={{ fontSize: '16px' }} />
-                    Export to Excel
-                  </button>
-                  <button
-                    onClick={handleExportToPDF}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '12px 16px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      border: 'none',
-                      background: '#ffffff',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      textAlign: 'left'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#fef2f2';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#ffffff';
-                    }}
-                  >
-                    <FaFilePdf style={{ fontSize: '16px' }} />
-                    Export to PDF
-                  </button>
-                </div>
-              )}
+            <div style={{ marginTop: 8, fontSize: 10, color: '#64748b', lineHeight: 1.35, wordBreak: 'break-all' }}>
+              API mode: {getApiMode()} · RFIDDashboard host: {getSampleApiBaseUrl()} · Party lists host: {getRrgoldApiBaseUrl()}
             </div>
           )}
         </div>

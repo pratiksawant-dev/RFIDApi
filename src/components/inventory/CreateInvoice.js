@@ -3177,371 +3177,90 @@ const CreateInvoice = () => {
 
       <div style={{ fontFamily: 'var(--font-family)' }}>
         {/* Unified Header & Action Section */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '10px 14px 14px',
-          marginBottom: '16px',
-          boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
-          border: '1px solid #d4d4d8'
-        }}>
-          <PageHeader
-            isSmallScreen={windowWidth <= 768}
-            title="Create Invoice"
-            subtitle={isTrayScanView ? (
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', fontFamily: 'var(--font-family)' }}>
-                Showing scanned tray products
-              </span>
-            ) : undefined}
-            icon={<FaFileInvoice style={{ fontSize: windowWidth <= 768 ? 14 : 16 }} />}
-            iconGradient="linear-gradient(135deg, #0d9488 0%, #0f766e 100%)"
-            barStyle={{ marginBottom: 0, boxShadow: 'none', border: 'none', padding: windowWidth <= 768 ? '0 0 7px 0' : '0 0 8px 0' }}
-            actions={
-              <div style={{
-                fontSize: '12px',
-                color: '#64748b',
-                fontWeight: 600,
-                fontFamily: 'var(--font-family)',
-              }}>
-                Total: {showAllData && allFilteredData.length > 0
-                  ? allFilteredData.length
-                  : totalRecords} records
-              </div>
-            }
-          />
-
-          {/* Action Buttons & Search Row */}
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px',
-            alignItems: 'center',
-            marginTop: '12px',
-            paddingTop: '12px',
-            borderTop: '1px solid #f1f5f9'
-          }}>
-            {/* Search Input */}
-            <div style={{
-              position: 'relative',
-              flex: '1',
-              minWidth: windowWidth <= 768 ? '100%' : '250px',
-              maxWidth: windowWidth <= 768 ? '100%' : '350px'
-            }}>
-              <FaSearch style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#94a3b8',
-                fontSize: '11px',
-                zIndex: 1
-              }} />
-              <input
-                type="text"
-                placeholder="Search by Product Name, Category, SKU..."
-                value={searchQuery}
-                onChange={e => handleSearchChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: 34,
-                  padding: '0 12px 0 30px',
-                  fontSize: '11px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '8px',
-                  outline: 'none',
-                  transition: 'all 0.2s',
-                  boxSizing: 'border-box',
-                  background: '#ffffff'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#94a3b8'}
-                onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
-              />
-            </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #dbe4f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-              <button
-                type="button"
-                onClick={() => setViewMode('card')}
-                style={{
-                  border: 'none',
-                  borderRight: '1px solid #dbe4f0',
-                  background: viewMode === 'card' ? '#eef2ff' : '#fff',
-                  color: viewMode === 'card' ? '#3730a3' : '#475569',
-                  height: 34,
-                  padding: '0 10px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  cursor: 'pointer',
-                }}
-              >
-                <FaThLarge style={{ fontSize: 11 }} />
-                Card
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                style={{
-                  border: 'none',
-                  background: viewMode === 'table' ? '#eef2ff' : '#fff',
-                  color: viewMode === 'table' ? '#3730a3' : '#475569',
-                  height: 34,
-                  padding: '0 10px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  cursor: 'pointer',
-                }}
-              >
-                <FaThList style={{ fontSize: 11 }} />
-                Table
-              </button>
-            </div>
-            {/* Filter Button */}
-            <button 
-              onClick={() => setShowFilterPanel(!showFilterPanel)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: 34,
-                padding: '0 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: showFilterPanel ? '#eef2ff' : '#ffffff',
-                color: showFilterPanel ? '#3730a3' : '#475569',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                if (!showFilterPanel) e.target.style.background = '#f8fafc';
-              }}
-              onMouseLeave={(e) => {
-                if (!showFilterPanel) e.target.style.background = '#ffffff';
-              }}
-            >
-              <FaFilter />
-              <span>Filter</span>
-            </button>
-            {/* Sold Items Button */}
-            <button 
-              onClick={handleMarkAsSold}
-              disabled={selectedRows.length === 0 || markSoldLoading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: 34,
-                padding: '0 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '8px',
-                border: '1px solid #fecaca',
-                background: selectedRows.length === 0 || markSoldLoading ? '#f8fafc' : '#fef2f2',
-                color: selectedRows.length === 0 || markSoldLoading ? '#9ca3af' : '#b91c1c',
-                cursor: selectedRows.length === 0 || markSoldLoading ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s',
-                opacity: selectedRows.length === 0 ? 0.6 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (selectedRows.length > 0 && !markSoldLoading) {
-                  e.target.style.background = '#fee2e2';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedRows.length > 0 && !markSoldLoading) {
-                  e.target.style.background = '#fef2f2';
-                }
-              }}
-            >
-              {markSoldLoading ? (
-                <>
-                  <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <FaShoppingCart />
-                  <span>Sold Items</span>
-                </>
+        <div className="page-top">
+          <div className="page-top-inner">
+            <PageHeader
+              title="Create Invoice"
+              subtitle={isTrayScanView
+                ? 'Showing scanned tray products'
+                : 'Labeled stock ready to invoice · search, filter, and mark items sold'}
+              barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+              actions={(
+                <div className="page-tabs" role="tablist" aria-label="Invoice view">
+                  <button type="button" className={`page-tab${viewMode === 'card' ? ' is-on' : ''}`} onClick={() => setViewMode('card')}>
+                    <FaThLarge /> Card
+                  </button>
+                  <button type="button" className={`page-tab${viewMode === 'table' ? ' is-on' : ''}`} onClick={() => setViewMode('table')}>
+                    <FaThList /> Table
+                  </button>
+                </div>
               )}
-            </button>
-            {trayEnabled && (
-              <button
-                onClick={openTrayScanModal}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  border: '1px solid #7c3aed',
-                  background: '#7c3aed',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <FaBroadcastTower />
-                <span>Scan With Tray</span>
-              </button>
-            )}
-            {isTrayScanView && (
-              <button
-                onClick={handleClearScannedTrayProducts}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  border: '1px solid #dc2626',
-                  background: '#ffffff',
-                  color: '#dc2626',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#fef2f2';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
-                }}
-              >
-                <FaTrash />
-                <span>Clear Scanned Data</span>
-              </button>
-            )}
-            {/* Active / Sold stock toggle + delete actions */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                border: '1px solid #cbd5e1',
-                borderRadius: 8,
-                overflow: 'hidden',
-                height: 34,
-                opacity: invoiceStockToggleDisabled ? 0.55 : 1,
-              }}
-              title={invoiceStockToggleDisabled ? 'Disable inventory tray in settings to switch list' : 'Switch between active and sold labeled stock'}
-            >
-              <button
-                type="button"
-                disabled={invoiceStockToggleDisabled}
-                onClick={() => setInvoiceStockModeAndFetch('active')}
-                style={{
-                  border: 'none',
-                  borderRight: '1px solid #cbd5e1',
-                  height: '100%',
-                  padding: '0 12px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: invoiceStockToggleDisabled ? 'not-allowed' : 'pointer',
-                  background: invoiceListStockMode === 'active' ? '#059669' : '#ffffff',
-                  color: invoiceListStockMode === 'active' ? '#ffffff' : '#475569',
-                }}
-              >
-                Active
-              </button>
-              <button
-                type="button"
-                disabled={invoiceStockToggleDisabled}
-                onClick={() => setInvoiceStockModeAndFetch('sold')}
-                style={{
-                  border: 'none',
-                  height: '100%',
-                  padding: '0 12px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: invoiceStockToggleDisabled ? 'not-allowed' : 'pointer',
-                  background: invoiceListStockMode === 'sold' ? '#b91c1c' : '#ffffff',
-                  color: invoiceListStockMode === 'sold' ? '#ffffff' : '#475569',
-                }}
-              >
-                Sold
-              </button>
-            </div>
-            {invoiceListStockMode === 'sold' && (
-              <button
-                type="button"
-                onClick={handleExportSoldItemsToExcel}
-                disabled={exportLoading}
-                title={selectedRows.length > 0 ? 'Export selected sold items to Excel' : 'Export all sold items to Excel'}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  height: 34,
-                  padding: '0 12px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  border: '1px solid #86efac',
-                  background: exportLoading ? '#f8fafc' : '#ecfdf5',
-                  color: exportLoading ? '#9ca3af' : '#15803d',
-                  cursor: exportLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {exportLoading ? (
-                  <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <FaFileExcel />
+            />
+            <div className="page-toolbar">
+              <label className="page-search">
+                <FaSearch />
+                <input
+                  type="text"
+                  placeholder="Search product, category, SKU"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+              </label>
+              <div className="page-toolbar-actions">
+                <span className="page-lot">
+                  Records
+                  <strong>
+                    {(showAllData && allFilteredData.length > 0 ? allFilteredData.length : totalRecords).toLocaleString()}
+                  </strong>
+                </span>
+                <button type="button" className={`page-chip${showFilterPanel ? ' is-on' : ''}`} onClick={() => setShowFilterPanel(!showFilterPanel)}>
+                  <FaFilter /> Filter
+                </button>
+                <button
+                  type="button"
+                  className="page-chip is-danger"
+                  onClick={handleMarkAsSold}
+                  disabled={selectedRows.length === 0 || markSoldLoading}
+                >
+                  {markSoldLoading ? <FaSpinner style={{ animation: 'spin 1s linear infinite' }} /> : <FaShoppingCart />}
+                  {markSoldLoading ? 'Processing' : 'Sold Items'}
+                </button>
+                {trayEnabled && (
+                  <button type="button" className="page-chip is-on" onClick={openTrayScanModal}>
+                    <FaBroadcastTower /> Scan With Tray
+                  </button>
                 )}
-                <span>{selectedRows.length > 0 ? `Export Selected (${selectedRows.length})` : 'Export Sold Excel'}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={selectedRows.length === 0}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: 34,
-                padding: '0 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '8px',
-                border: '1px solid #fecaca',
-                background: selectedRows.length === 0 ? '#f8fafc' : '#ffffff',
-                color: selectedRows.length === 0 ? '#9ca3af' : '#b91c1c',
-                cursor: selectedRows.length === 0 ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <FaTrash />
-              <span>Delete</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteAllStock}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: 34,
-                padding: '0 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                borderRadius: '8px',
-                border: '1px solid #dc2626',
-                background: '#ffffff',
-                color: '#dc2626',
-                cursor: 'pointer',
-              }}
-            >
-              <FaTrash />
-              <span>Delete All</span>
-            </button>
+                {isTrayScanView && (
+                  <button type="button" className="page-chip is-danger" onClick={handleClearScannedTrayProducts}>
+                    <FaTrash /> Clear Scanned Data
+                  </button>
+                )}
+                <div
+                  className="page-stock"
+                  style={{ opacity: invoiceStockToggleDisabled ? 0.55 : 1 }}
+                  title={invoiceStockToggleDisabled ? 'Disable inventory tray in settings to switch list' : 'Switch between active and sold labeled stock'}
+                >
+                  <button type="button" disabled={invoiceStockToggleDisabled} className={invoiceListStockMode === 'active' ? 'is-active' : ''} onClick={() => setInvoiceStockModeAndFetch('active')}>
+                    Active
+                  </button>
+                  <button type="button" disabled={invoiceStockToggleDisabled} className={invoiceListStockMode === 'sold' ? 'is-sold' : ''} onClick={() => setInvoiceStockModeAndFetch('sold')}>
+                    Sold
+                  </button>
+                </div>
+                {invoiceListStockMode === 'sold' && (
+                  <button type="button" className="page-chip" onClick={handleExportSoldItemsToExcel} disabled={exportLoading} title={selectedRows.length > 0 ? 'Export selected sold items to Excel' : 'Export all sold items to Excel'}>
+                    {exportLoading ? <FaSpinner style={{ animation: 'spin 1s linear infinite' }} /> : <FaFileExcel />}
+                    {selectedRows.length > 0 ? `Export Selected (${selectedRows.length})` : 'Export Sold Excel'}
+                  </button>
+                )}
+                <button type="button" className="page-chip is-danger" onClick={handleDelete} disabled={selectedRows.length === 0}>
+                  <FaTrash /> Delete
+                </button>
+                <button type="button" className="page-chip is-danger" onClick={handleDeleteAllStock}>
+                  <FaTrash /> Delete All
+                </button>
+              </div>
+            </div>
           </div>
         </div>
           

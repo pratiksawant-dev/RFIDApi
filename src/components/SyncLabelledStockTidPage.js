@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaSyncAlt, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
-import { RiBarcodeFill } from 'react-icons/ri';
+import { Link } from 'react-router-dom';
+import { FaSyncAlt, FaCheckCircle, FaInfoCircle, FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
-import BackToProfileMenu from './common/BackToProfileMenu';
+import PageHeader from './common/PageHeader';
 import NetworkErrorState from './common/NetworkErrorState';
 import {
   getSyncLabelledStockTidUrl,
@@ -103,112 +103,112 @@ const SyncLabelledStockTidPage = () => {
 
   const stats = result
     ? [
-        { label: 'Checked', value: result.totalChecked, tone: '#2563eb' },
-        { label: 'Updated', value: result.updated, tone: '#16a34a' },
+        { label: 'Checked', value: result.totalChecked, tone: '#334155' },
+        { label: 'Updated', value: result.updated, tone: '#0f766e' },
         { label: 'Already same', value: result.alreadySame, tone: '#0f766e' },
-        { label: 'Not in RFID table', value: result.notFoundInRfidTable, tone: '#b45309' },
-        { label: 'RFID mappings', value: result.rfidTableMappings, tone: '#7c3aed' },
+        { label: 'Not in RFID table', value: result.notFoundInRfidTable, tone: '#c2410c' },
+        { label: 'RFID mappings', value: result.rfidTableMappings, tone: '#334155' },
       ]
     : [];
 
   return (
-    <div className="sync-tid-page">
+    <div className="sync-tid-page" style={{ fontFamily: 'var(--font-family)', padding: 0, background: '#fff', minHeight: '100%' }}>
       <style>{pageStyles}</style>
-      <BackToProfileMenu />
 
-      <header className="sync-tid-hero">
-        <span className="sync-tid-icon"><RiBarcodeFill /></span>
-        <div>
-          <p className="sync-tid-kicker">Live ProductMaster</p>
-          <h1>Sync Labelled Stock TID</h1>
-          <p>
-            Copy EPC values from the RFID tables into labelled stock TID numbers for this client.
-          </p>
-        </div>
-      </header>
-
-      <section className="sync-tid-card">
-        <span className="sync-tid-card-bar" />
-        <div className="sync-tid-meta">
-          <div>
-            <span>Client code</span>
-            <strong>{clientCode || 'Not signed in'}</strong>
-          </div>
-          <div>
-            <span>Live API</span>
-            <strong className="sync-tid-url" title={liveUrl}>{liveUrl}</strong>
-          </div>
-        </div>
-
-        <div className="sync-tid-map">
-          <h3><FaInfoCircle /> What this updates</h3>
-          <ol>
-            <li>
-              <span>1</span>
-              <div>
-                <strong>Read labelled stock</strong>
-                <p>Every <em>RFIDCode</em> for this client is collected.</p>
-              </div>
-            </li>
-            <li>
-              <span>2</span>
-              <div>
-                <strong>Match barcode EPC</strong>
-                <p><em>tblRFID.BarcodeNumber</em> is matched to <em>TidValue</em>.</p>
-              </div>
-            </li>
-            <li>
-              <span>3</span>
-              <div>
-                <strong>Match RFID details</strong>
-                <p><em>tblRFIDdetails.RFIDCode</em> is matched to <em>TIDValue</em>.</p>
-              </div>
-            </li>
-            <li>
-              <span>4</span>
-              <div>
-                <strong>Write TID number</strong>
-                <p>The EPC is saved on <em>TIDNumber</em>. More than one EPC is joined with a comma.</p>
-              </div>
-            </li>
-          </ol>
-        </div>
-
-        {(loading || progress > 0) && (
-          <div className="sync-tid-progress" aria-live="polite">
-            <div className="sync-tid-progress-top">
-              <span>{progressLabel || 'Ready'}</span>
-              <strong>{Math.round(progress)}%</strong>
-            </div>
-            <div className="sync-tid-track">
-              <div className="sync-tid-fill" style={{ width: `${Math.max(progress, loading ? 4 : 0)}%` }} />
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="Sync Labelled Stock TID"
+            subtitle="Live ProductMaster · copy EPC values from the RFID tables onto labelled stock TID numbers."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <>
+                <span className="page-lot">
+                  Client
+                  <strong>{clientCode || '—'}</strong>
+                </span>
+                <Link to="/profile-menu" className="page-chip" style={{ textDecoration: 'none' }}>
+                  <FaArrowLeft /> Back
+                </Link>
+              </>
+            )}
+          />
+          <div className="page-toolbar">
+            <span className="sync-tid-api" title={liveUrl}>
+              <span>Live API</span>
+              <strong>{liveUrl}</strong>
+            </span>
+            <div className="page-toolbar-actions">
+              <button
+                type="button"
+                className="page-chip is-on"
+                disabled={loading || !clientCode}
+                onClick={() => setConfirmOpen(true)}
+              >
+                <FaSyncAlt className={loading ? 'is-spin' : ''} />
+                {loading ? 'Syncing…' : 'Sync TID from RFID table'}
+              </button>
             </div>
           </div>
-        )}
-
-        {error && (
-          <NetworkErrorState error={error} onRetry={() => setConfirmOpen(true)} variant="inline" />
-        )}
-
-        {result && !loading && (
-          <div className="sync-tid-alert sync-tid-alert--ok">
-            <FaCheckCircle />
-            <span>{result.message}</span>
-          </div>
-        )}
-
-        <div className="sync-tid-actions">
-          <button
-            type="button"
-            className="sync-tid-run"
-            disabled={loading || !clientCode}
-            onClick={() => setConfirmOpen(true)}
-          >
-            <FaSyncAlt className={loading ? 'is-spin' : ''} />
-            {loading ? 'Syncing labelled stock…' : 'Sync TID from RFID table'}
-          </button>
         </div>
+      </div>
+
+      <section className="sync-tid-map">
+        <h3><FaInfoCircle /> What this updates</h3>
+        <ol>
+          <li>
+            <span>1</span>
+            <div>
+              <strong>Read labelled stock</strong>
+              <p>Every <em>RFIDCode</em> for this client is collected.</p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <strong>Match barcode EPC</strong>
+              <p><em>tblRFID.BarcodeNumber</em> is matched to <em>TidValue</em>.</p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <strong>Match RFID details</strong>
+              <p><em>tblRFIDdetails.RFIDCode</em> is matched to <em>TIDValue</em>.</p>
+            </div>
+          </li>
+          <li>
+            <span>4</span>
+            <div>
+              <strong>Write TID number</strong>
+              <p>The EPC is saved on <em>TIDNumber</em>. More than one EPC is joined with a comma.</p>
+            </div>
+          </li>
+        </ol>
       </section>
+
+      {(loading || progress > 0) && (
+        <div className="sync-tid-progress" aria-live="polite">
+          <div className="sync-tid-progress-top">
+            <span>{progressLabel || 'Ready'}</span>
+            <strong>{Math.round(progress)}%</strong>
+          </div>
+          <div className="sync-tid-track">
+            <div className="sync-tid-fill" style={{ width: `${Math.max(progress, loading ? 4 : 0)}%` }} />
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <NetworkErrorState error={error} onRetry={() => setConfirmOpen(true)} variant="inline" />
+      )}
+
+      {result && !loading && (
+        <div className="sync-tid-alert sync-tid-alert--ok">
+          <FaCheckCircle />
+          <span>{result.message}</span>
+        </div>
+      )}
 
       {stats.length > 0 && (
         <section className="sync-tid-stats">
@@ -273,130 +273,57 @@ const SyncLabelledStockTidPage = () => {
 };
 
 const pageStyles = `
-  .sync-tid-page {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 4px 4px 40px;
-    color: #0f172a;
-    font-family: Inter, "Plus Jakarta Sans", system-ui, sans-serif;
-  }
-  .sync-tid-hero {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    margin: 4px 0 16px;
-  }
-  .sync-tid-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+  .sync-tid-page { color: #0f172a; }
+  .sync-tid-api {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    background: #ede9fe;
-    color: #6d28d9;
-    font-size: 22px;
-    flex-shrink: 0;
-    box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.08);
-  }
-  .sync-tid-kicker {
-    margin: 2px 0 4px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #7c3aed;
-  }
-  .sync-tid-hero h1 {
-    margin: 0;
-    font-size: clamp(22px, 2.4vw, 28px);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.15;
-  }
-  .sync-tid-hero p {
-    margin: 6px 0 0;
-    max-width: 640px;
-    color: #64748b;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  .sync-tid-card,
-  .sync-tid-table-wrap {
-    position: relative;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 18px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    overflow: hidden;
-  }
-  .sync-tid-card-bar {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #6d28d9, #93c5fd);
-  }
-  .sync-tid-meta {
-    display: grid;
-    grid-template-columns: 180px minmax(0, 1fr);
-    gap: 12px;
-    margin: 4px 0 16px;
-  }
-  .sync-tid-meta > div {
+    gap: 8px;
     min-width: 0;
-    padding: 12px 14px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #f8fafc;
+    flex: 1 1 240px;
+    height: 28px;
+    padding: 0 11px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
   }
-  .sync-tid-meta span {
-    display: block;
-    font-size: 10px;
-    font-weight: 700;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  .sync-tid-meta strong {
-    display: block;
-    margin-top: 6px;
-    font-size: 15px;
-    letter-spacing: -0.02em;
-  }
-  .sync-tid-url {
+  .sync-tid-api strong {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: #334155;
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 700;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
-  .sync-tid-map {
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 16px;
-    margin-bottom: 16px;
+  .sync-tid-page .page-chip .is-spin { animation: sync-tid-spin 0.8s linear infinite; }
+  .sync-tid-map,
+  .sync-tid-progress,
+  .sync-tid-table-wrap {
     background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
+  .sync-tid-map { padding: 14px; margin-bottom: 12px; }
   .sync-tid-map h3 {
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 0 0 12px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
     color: #0f172a;
   }
-  .sync-tid-map h3 svg { color: #6d28d9; }
+  .sync-tid-map h3 svg { color: #0f766e; }
   .sync-tid-map ol {
     list-style: none;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
     margin: 0;
     padding: 0;
   }
@@ -405,9 +332,10 @@ const pageStyles = `
     gap: 10px;
     align-items: flex-start;
     min-width: 0;
-    padding: 10px;
-    border-radius: 12px;
-    background: #f8fafc;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
   }
   .sync-tid-map li > span {
     width: 22px;
@@ -417,19 +345,19 @@ const pageStyles = `
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: #ede9fe;
-    color: #6d28d9;
+    background: #f0fdfa;
+    color: #0f766e;
     font-size: 11px;
     font-weight: 800;
   }
   .sync-tid-map li strong {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     color: #0f172a;
   }
   .sync-tid-map li p {
     margin: 3px 0 0;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.45;
     color: #64748b;
   }
@@ -438,24 +366,19 @@ const pageStyles = `
     font-weight: 700;
     color: #334155;
   }
-  .sync-tid-progress {
-    margin-bottom: 16px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-  }
+  .sync-tid-progress { margin-bottom: 12px; padding: 12px 14px; }
   .sync-tid-progress-top {
     display: flex;
     justify-content: space-between;
     gap: 12px;
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: 600;
     color: #475569;
     margin-bottom: 8px;
   }
-  .sync-tid-progress-top strong { color: #6d28d9; }
+  .sync-tid-progress-top strong { color: #0f766e; }
   .sync-tid-track {
-    height: 8px;
+    height: 6px;
     border-radius: 999px;
     background: #e2e8f0;
     overflow: hidden;
@@ -463,66 +386,38 @@ const pageStyles = `
   .sync-tid-fill {
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #6d28d9, #2563eb);
+    background: #0f766e;
     transition: width 0.35s ease;
   }
-  .sync-tid-card .app-net-error { margin-bottom: 16px; }
+  .sync-tid-page .app-net-error { margin-bottom: 12px; }
   .sync-tid-alert {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     border-radius: 12px;
     padding: 12px 14px;
-    font-size: 13px;
-    margin-bottom: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
   }
   .sync-tid-alert--ok {
-    background: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
-  }
-  .sync-tid-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding-top: 4px;
-  }
-  .sync-tid-run {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 40px;
-    border: none;
-    border-radius: 999px;
-    padding: 0 16px;
-    background: #6d28d9;
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.16s ease, transform 0.16s ease;
-  }
-  .sync-tid-run:hover:not(:disabled) { background: #5b21b6; }
-  .sync-tid-run:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .sync-tid-run .is-spin {
-    animation: sync-tid-spin 0.8s linear infinite;
+    background: #f0fdfa;
+    color: #0f766e;
+    border: 1px solid #99f6e4;
   }
   .sync-tid-stats {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 12px;
-    margin: 16px 0;
+    gap: 8px;
+    margin-bottom: 12px;
   }
   .sync-tid-stats article {
     position: relative;
     background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 14px 14px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     overflow: hidden;
   }
   .sync-tid-stats article::before {
@@ -531,35 +426,35 @@ const pageStyles = `
     left: 0;
     right: 0;
     top: 0;
-    height: 3px;
+    height: 2px;
     background: var(--tone);
   }
   .sync-tid-stats span {
     display: block;
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: #64748b;
   }
   .sync-tid-stats strong {
     display: block;
-    margin-top: 8px;
-    font-size: 26px;
+    margin-top: 6px;
+    font-size: 22px;
     letter-spacing: -0.03em;
     color: var(--tone);
+    font-variant-numeric: tabular-nums;
   }
-  .sync-tid-table-wrap { margin-top: 4px; }
+  .sync-tid-table-wrap { padding: 14px; }
   .sync-tid-table-wrap h3 {
     margin: 0 0 12px;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 800;
+    color: #0f172a;
   }
   .sync-tid-table-scroll { overflow-x: auto; }
   .sync-tid-table-wrap table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 12px;
   }
   .sync-tid-table-wrap th,
   .sync-tid-table-wrap td {
@@ -567,18 +462,19 @@ const pageStyles = `
     padding: 10px 8px;
     border-bottom: 1px solid #eef2f7;
     vertical-align: top;
+    white-space: nowrap;
   }
   .sync-tid-table-wrap th {
-    color: #64748b;
+    color: #475569;
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: 700;
     background: #f8fafc;
   }
-  .sync-tid-table-wrap tbody tr:hover td { background: #fafafa; }
+  .sync-tid-table-wrap tbody tr:hover td { background: #f8fafc; }
   .sync-tid-epc {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 12px;
+    font-size: 11px;
+    white-space: normal;
     word-break: break-all;
   }
   .sync-tid-modal {
@@ -594,39 +490,43 @@ const pageStyles = `
   .sync-tid-modal-card {
     width: min(440px, 100%);
     background: #fff;
-    border-radius: 16px;
-    padding: 22px;
-    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16);
   }
   .sync-tid-modal-card h3 {
     margin: 0 0 8px;
-    font-size: 18px;
-    letter-spacing: -0.02em;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
   }
   .sync-tid-modal-card p {
     margin: 0;
     color: #475569;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.5;
   }
   .sync-tid-modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 18px;
+    margin-top: 16px;
   }
   .sync-tid-modal-actions button {
-    height: 36px;
-    border: 1px solid #e5e7eb;
+    height: 32px;
+    border: 1px solid #e2e8f0;
     background: #fff;
-    border-radius: 999px;
+    color: #334155;
+    border-radius: 6px;
     padding: 0 14px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
   }
   .sync-tid-modal-actions .is-primary {
-    background: #6d28d9;
-    border-color: #6d28d9;
+    background: #0f766e;
+    border-color: #0f766e;
     color: #fff;
   }
   @keyframes sync-tid-spin {
@@ -636,14 +536,14 @@ const pageStyles = `
     .sync-tid-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .sync-tid-meta,
-    .sync-tid-map ol,
-    .sync-tid-stats { grid-template-columns: 1fr; }
-    .sync-tid-actions { align-items: stretch; }
-    .sync-tid-run { width: 100%; justify-content: center; }
-    .sync-tid-hero h1 { font-size: 22px; }
+    .sync-tid-api { flex: 1 1 100%; }
+    .sync-tid-map ol { grid-template-columns: 1fr; }
     .sync-tid-modal-actions { flex-wrap: wrap; }
     .sync-tid-modal-actions button { flex: 1; }
+  }
+  @media (max-width: 560px) {
+    .sync-tid-page .page-toolbar-actions .page-chip { flex: 1 1 100%; }
+    .sync-tid-stats { grid-template-columns: 1fr 1fr; }
   }
 `;
 

@@ -28,15 +28,19 @@ function bmp24(width, height, rgb) {
   return buf;
 }
 
-async function raster(width, height, layers) {
-  const { data, info } = await sharp({
-    create: { width, height, channels: 4, background: "#111111" },
+function compose(width, height, layers) {
+  return sharp({
+    create: { width, height, channels: 4, background: "#ffffff" },
   })
     .composite(layers)
-    .flatten({ background: "#111111" })
+    .flatten({ background: "#ffffff" })
     .removeAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+    .png();
+}
+
+async function raster(width, height, layers) {
+  const png = await compose(width, height, layers).toBuffer();
+  const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
   if (info.channels !== 3 || info.width !== width || info.height !== height) {
     throw new Error(`Unexpected installer bitmap ${info.width}x${info.height}x${info.channels}`);
   }
@@ -50,32 +54,32 @@ async function main() {
   await fs.mkdir(outDir, { recursive: true });
 
   const logo = await sharp(iconPng)
-    .resize(132, 132, { fit: "contain", background: "#111111" })
+    .resize(148, 148, { fit: "contain", background: "#ffffff" })
     .png()
     .toBuffer();
-  const sidebarCaption = Buffer.from(`<svg width="164" height="78" xmlns="http://www.w3.org/2000/svg">
-    <rect width="164" height="78" fill="#111111"/>
-    <rect x="46" y="4" width="72" height="2" fill="#C59D5F"/>
-    <text x="82" y="28" text-anchor="middle" fill="#F3E6C4" font-family="Segoe UI, Arial" font-size="13" font-weight="700">Sparkle RFID</text>
-    <text x="82" y="48" text-anchor="middle" fill="#C59D5F" font-family="Segoe UI, Arial" font-size="10">Tray · Tags · Stock</text>
-    <text x="82" y="68" text-anchor="middle" fill="#8A8172" font-family="Segoe UI, Arial" font-size="9">Dashboard setup</text>
+  const sidebarCaption = Buffer.from(`<svg width="164" height="110" xmlns="http://www.w3.org/2000/svg">
+    <rect width="164" height="110" fill="#ffffff"/>
+    <rect x="52" y="4" width="60" height="2" fill="#C59D5F"/>
+    <text x="82" y="32" text-anchor="middle" fill="#111111" font-family="Segoe UI, Arial" font-size="11" font-weight="700">Tray  ·  Tags  ·  Stock</text>
+    <text x="82" y="54" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="9">Read, write, and match stock</text>
   </svg>`);
-  const goldBar = Buffer.from(`<svg width="164" height="6" xmlns="http://www.w3.org/2000/svg"><rect width="164" height="6" fill="#C59D5F"/></svg>`);
+  const goldBar = Buffer.from(`<svg width="164" height="4" xmlns="http://www.w3.org/2000/svg"><rect width="164" height="4" fill="#C59D5F"/></svg>`);
 
   const sidebar = await raster(164, 314, [
     { input: goldBar, top: 0, left: 0 },
-    { input: logo, top: 28, left: 16 },
-    { input: sidebarCaption, top: 214, left: 0 },
+    { input: logo, top: 36, left: 8 },
+    { input: sidebarCaption, top: 188, left: 0 },
   ]);
 
-  const headerLogo = await sharp(iconPng)
-    .resize(118, 50, { fit: "contain", background: "#111111" })
+  const headerMark = await sharp(iconPng)
+    .extract({ left: 12, top: 0, width: 488, height: 330 })
+    .resize(72, 48, { fit: "contain", background: "#ffffff" })
     .png()
     .toBuffer();
-  const headerBar = Buffer.from(`<svg width="150" height="57" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="57" fill="#111111"/><rect width="4" height="57" fill="#C59D5F"/></svg>`);
+  const headerBar = Buffer.from(`<svg width="150" height="57" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="57" fill="#ffffff"/><rect width="4" height="57" fill="#C59D5F"/></svg>`);
   const header = await raster(150, 57, [
     { input: headerBar, top: 0, left: 0 },
-    { input: headerLogo, top: 3, left: 18 },
+    { input: headerMark, top: 4, left: 16 },
   ]);
 
   const sidebarPath = path.join(outDir, "installerSidebar.bmp");

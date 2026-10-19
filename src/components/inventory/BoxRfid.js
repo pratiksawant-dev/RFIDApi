@@ -13,6 +13,7 @@ import {
   FaTimes,
 } from 'react-icons/fa';
 import TrayScanModal from '../common/TrayScanModal';
+import PageHeader from '../common/PageHeader';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoading } from '../../App';
 import {
@@ -683,339 +684,74 @@ const BoxRfid = () => {
         flexDirection: 'column',
         overflowX: 'hidden',
         fontFamily: 'var(--font-family)',
-        padding: '12px',
+        padding: 0,
         fontSize: 11,
         background: '#ffffff',
       }}
     >
-      {/* Header card — same as Label Stock List */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 12,
-          overflow: 'hidden',
-          marginBottom: 12,
-          boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
-          border: '1px solid #e2e8f0',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div
-          style={{
-            height: 3,
-            background: 'linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #991b1b 100%)',
-          }}
-        />
-        <div style={{ padding: '12px 14px 12px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              flexWrap: 'wrap',
-              paddingBottom: 12,
-              borderBottom: '1px solid #f1f5f9',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '1 1 auto', minWidth: 0 }}>
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  background: '#fff',
-                  color: '#475569',
-                  cursor: 'pointer',
-                  height: 34,
-                  boxSizing: 'border-box',
-                  flexShrink: 0,
-                }}
-              >
-                <FaArrowLeft style={{ fontSize: 12 }} /> Back
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <div
-                  style={{
-                    width: isSmallScreen ? 34 : 38,
-                    height: isSmallScreen ? 34 : 38,
-                    borderRadius: 10,
-                    background: 'linear-gradient(135deg, #b91c1c 0%, #991b1b 100%)',
-                    boxShadow: '0 2px 8px rgba(185, 28, 28, 0.35)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    flexShrink: 0,
-                  }}
-                >
-                  <FaBox style={{ fontSize: isSmallScreen ? 14 : 16 }} />
-                </div>
-                <h1
-                  style={{
-                    margin: 0,
-                    fontSize: isSmallScreen ? '1.05rem' : '1.2rem',
-                    fontWeight: 800,
-                    color: '#0f172a',
-                    fontFamily: 'var(--font-family)',
-                    lineHeight: 1.2,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  Box RFID Pack
-                </h1>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                {totalRecords} record{totalRecords !== 1 ? 's' : ''}
-              </span>
-              {selectedRows.length > 0 ? (
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#b91c1c',
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    borderRadius: 999,
-                    padding: '3px 10px',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {selectedRows.length} selected
+      <div className="page-top" style={{ position: 'sticky', top: 0, zIndex: 40 }}>
+        <div className="page-top-inner">
+          <PageHeader
+            title="Box RFID Pack"
+            subtitle="Choose labelled items, then pack them into a box."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <div className="page-top-actions">
+                <span className="page-lot">
+                  Records
+                  <strong>{Number(totalRecords || 0).toLocaleString()}</strong>
                 </span>
-              ) : null}
-            </div>
-          </div>
-
-          {/* Search + refresh row */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginTop: 12,
-              paddingTop: 12,
-              borderTop: '1px solid #f1f5f9',
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                flex: '0 1 auto',
-                minWidth: isSmallScreen ? '100%' : '250px',
-                maxWidth: isSmallScreen ? '100%' : '350px',
-              }}
-            >
-              <FaSearch
-                style={{
-                  position: 'absolute',
-                  left: 10,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#94a3b8',
-                  fontSize: 11,
-                  pointerEvents: 'none',
-                }}
-              />
+                {selectedRows.length > 0 ? (
+                  <span className="page-lot">
+                    Selected
+                    <strong>{selectedRows.length}</strong>
+                  </span>
+                ) : null}
+                <button type="button" className="page-chip" onClick={() => navigate(-1)}>
+                  <FaArrowLeft /> Back
+                </button>
+              </div>
+            )}
+          />
+          <div className="page-toolbar">
+            <label className="page-search">
+              <FaSearch />
               <input
                 type="text"
-                placeholder="Search by Product Name, Category, SKU..."
+                placeholder="Search product, category, SKU"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0 8px 0 30px',
-                  fontSize: 11,
-                  border: '1px solid #e5e5e5',
-                  borderRadius: 8,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  height: 30,
-                  color: '#404040',
-                  background: '#fff',
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#cbd5e1';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#e5e5e5';
-                }}
               />
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 12px',
-                background: showActiveOnly ? '#059669' : '#f8fafc',
-                borderRadius: 8,
-                border: '1px solid',
-                borderColor: showActiveOnly ? '#059669' : '#e2e8f0',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                userSelect: 'none',
-              }}
-              onClick={() => setShowActiveOnly((prev) => !prev)}
-              title={showActiveOnly ? 'Showing Active — click for ApiActive' : 'Showing ApiActive — click for Active'}
-            >
+            </label>
+            <div className="page-toolbar-actions">
               <div
-                style={{
-                  width: 36,
-                  height: 20,
-                  background: showActiveOnly ? '#ffffff' : '#e2e8f0',
-                  borderRadius: 10,
-                  position: 'relative',
-                  transition: 'all 0.2s',
-                }}
+                className="page-stock"
+                title={showActiveOnly ? 'Showing Active' : 'Showing ApiActive'}
               >
-                <div
-                  style={{
-                    width: 16,
-                    height: 16,
-                    background: '#ffffff',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: 2,
-                    left: showActiveOnly ? 18 : 2,
-                    transition: 'all 0.2s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  }}
-                />
+                <button type="button" className={showActiveOnly ? 'is-active' : ''} onClick={() => setShowActiveOnly(true)}>
+                  Active
+                </button>
+                <button type="button" className={!showActiveOnly ? 'is-sold' : ''} onClick={() => setShowActiveOnly(false)}>
+                  ApiActive
+                </button>
               </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: showActiveOnly ? '#ffffff' : '#64748b',
-                }}
-              >
-                {showActiveOnly ? 'Active' : 'ApiActive'}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-                alignItems: 'center',
-                marginLeft: isSmallScreen ? 0 : 'auto',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => navigate('/box-rfid/box-list')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 14px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  border: '1px solid #0f766e',
-                  background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box',
-                  height: 30,
-                }}
-              >
-                <FaList style={{ fontSize: 11 }} />
-                <span>Box list</span>
+              <button type="button" className="page-chip is-on" onClick={() => navigate('/box-rfid/box-list')}>
+                <FaList /> Box list
+              </button>
+              <button type="button" className="page-chip" onClick={() => setShowTrayScanModal(true)}>
+                <FaSearch /> Scan tray
               </button>
               <button
                 type="button"
-                onClick={() => setShowTrayScanModal(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                  color: '#0f172a',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box',
-                  height: 30,
-                }}
-              >
-                <FaSearch style={{ fontSize: 11, color: '#475569' }} />
-                <span>Scan tray</span>
-              </button>
-              <button
-                type="button"
+                className="page-chip"
                 onClick={openPackModal}
                 disabled={selectedRows.length === 0}
-                title={
-                  selectedRows.length === 0
-                    ? 'Select products from the table first'
-                    : `Add ${selectedRows.length} item(s) to a box`
-                }
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 14px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  border: selectedRows.length > 0 ? '1px solid #991b1b' : '1px solid #e2e8f0',
-                  background:
-                    selectedRows.length > 0
-                      ? 'linear-gradient(135deg, #b91c1c 0%, #991b1b 100%)'
-                      : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                  color: selectedRows.length > 0 ? '#ffffff' : '#94a3b8',
-                  cursor: selectedRows.length === 0 ? 'not-allowed' : 'pointer',
-                  opacity: selectedRows.length === 0 ? 0.55 : 1,
-                  boxSizing: 'border-box',
-                  height: 30,
-                }}
+                title={selectedRows.length === 0 ? 'Select products from the table first' : `Add ${selectedRows.length} item(s) to a box`}
               >
-                <FaPlus style={{ fontSize: 11 }} />
-                <span>Add to box{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}</span>
+                <FaPlus /> Add to box{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}
               </button>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                  color: '#0f172a',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box',
-                  height: 30,
-                }}
-              >
-                <FaSync style={{ fontSize: 11, color: '#475569' }} />
-                <span>Refresh</span>
+              <button type="button" className="page-chip" onClick={handleRefresh}>
+                <FaSync /> Refresh
               </button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useNotifications } from '../../context/NotificationContext';
 import { toRrgoldApiUrl } from '../../services/apiBaseConfig';
+import PageHeader from '../common/PageHeader';
 
 const PAGE_SIZE = 20;
 
@@ -495,73 +496,61 @@ const RFIDSampleInOut = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, overflow: 'hidden', boxShadow: '0 10px 24px rgba(15,23,42,0.06)' }}>
-        <div style={{ background: 'linear-gradient(90deg, #4c1d95 0%, #6d28d9 55%, #7c3aed 100%)', height: 4 }} />
-        <div style={{ padding: '12px 14px', background: 'linear-gradient(180deg, #ffffff 0%, #fafcff 100%)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <h1 style={{ margin: 0, fontSize: 22, color: '#0f172a', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2 }}>RFID Sample In/Out</h1>
-            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
-              {partyType === 'customer'
+    <div className="rfid-sample-page" style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#fff' }}>
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="RFID Sample In/Out"
+            subtitle={
+              partyType === 'customer'
                 ? movementType === 'Sample In'
-                  ? 'Customer Sample In Dashboard'
-                  : 'Customer Sample Out Dashboard'
+                  ? `Customer sample in · ${displayRows.length.toLocaleString()} records`
+                  : `Customer sample out · ${displayRows.length.toLocaleString()} records`
                 : movementType === 'Sample In'
-                  ? 'Vendor Sample In Item Details'
-                  : 'Vendor Sample Issue Dashboard'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <div style={{ display: 'inline-flex', border: '1px solid #dbe4f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-              <button type="button" onClick={() => setViewMode('table')} style={viewToggleBtnStyle(viewMode === 'table', true)}>
-                <FaTable style={{ fontSize: 11 }} /> Table
-              </button>
-              <button type="button" onClick={() => setViewMode('grid')} style={viewToggleBtnStyle(viewMode === 'grid', false)}>
-                <FaThLarge style={{ fontSize: 11 }} /> Grid
-              </button>
-            </div>
-            <button type="button" onClick={fetchRows} disabled={loading} style={toolbarBtnStyle}>
-              <FaRedo /> Refresh
-            </button>
-            <button type="button" onClick={() => setShowExportModal(true)} disabled={!displayRows.length} style={toolbarBtnStyle}>
-              <FaDownload /> Export
-            </button>
-          </div>
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) 320px',
-            alignItems: 'start',
-            columnGap: 10,
-            rowGap: 6,
-            paddingTop: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-            <select value={partyType} onChange={(e) => setPartyType(e.target.value)} style={{ ...filterInputStyle, ...colorSelectStyle, width: 155 }}>
+                  ? `Vendor sample in · ${displayRows.length.toLocaleString()} records`
+                  : `Vendor sample out · ${displayRows.length.toLocaleString()} records`
+            }
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <div className="page-tabs" role="tablist" aria-label="Sample view">
+                <button type="button" className={`page-tab${viewMode === 'table' ? ' is-on' : ''}`} onClick={() => setViewMode('table')}>
+                  <FaTable /> Table
+                </button>
+                <button type="button" className={`page-tab${viewMode === 'grid' ? ' is-on' : ''}`} onClick={() => setViewMode('grid')}>
+                  <FaThLarge /> Grid
+                </button>
+              </div>
+            )}
+          />
+          <div className="page-toolbar">
+            <select className="page-field" value={partyType} onChange={(e) => setPartyType(e.target.value)} style={{ width: 140 }}>
               <option value="vendor">Vendor</option>
               <option value="customer">Customer</option>
             </select>
-            <select value={movementType} onChange={(e) => setMovementType(e.target.value)} style={{ ...filterInputStyle, ...colorSelectStyle, width: 155 }}>
+            <select className="page-field" value={movementType} onChange={(e) => setMovementType(e.target.value)} style={{ width: 140 }}>
               <option value="Sample Out">Sample Out</option>
               <option value="Sample In">Sample In</option>
             </select>
-            <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{ ...filterInputStyle, ...colorDateStyle, width: 160 }} />
-          </div>
-          <div style={{ position: 'relative', width: '100%', minWidth: 240, maxWidth: '100%', justifySelf: 'end', marginLeft: 'auto' }}>
-            <FaSearch style={{ position: 'absolute', left: 10, top: 9, color: '#94a3b8', fontSize: 11 }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search records..."
-              style={{ ...filterInputStyle, ...searchInputStyle, paddingLeft: 30 }}
-            />
+            <input className="page-field" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{ width: 150 }} />
+            <div className="page-toolbar-actions">
+              <button type="button" className="page-chip" onClick={fetchRows} disabled={loading}>
+                <FaRedo /> Refresh
+              </button>
+              <button type="button" className="page-chip" onClick={() => setShowExportModal(true)} disabled={!displayRows.length}>
+                <FaDownload /> Export
+              </button>
+            </div>
+            <label className="page-search">
+              <FaSearch />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search records"
+              />
+            </label>
           </div>
         </div>
-      </div>
       </div>
 
       {error ? <div style={{ color: '#b91c1c', padding: '10px 14px 0', fontSize: 12 }}>{error}</div> : null}
@@ -886,50 +875,6 @@ const btnStyle = {
   height: 32,
 };
 
-const toolbarBtnStyle = {
-  ...btnStyle,
-  border: '1px solid #e2e8f0',
-  background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-  boxShadow: '0 1px 1px rgba(15,23,42,0.04)',
-};
-
-const filterInputStyle = {
-  border: '1px solid #d6deeb',
-  borderRadius: 8,
-  fontSize: 11,
-  color: '#1f2937',
-  padding: '0 10px',
-  height: 30,
-  lineHeight: '30px',
-  boxSizing: 'border-box',
-  background: '#fff',
-  outline: 'none',
-  margin: 0,
-  verticalAlign: 'middle',
-};
-
-const colorSelectStyle = {
-  background: 'linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)',
-  borderColor: '#c7d7f2',
-  color: '#1e3a8a',
-  fontWeight: 600,
-  boxShadow: '0 1px 2px rgba(37,99,235,0.12)',
-};
-
-const colorDateStyle = {
-  background: 'linear-gradient(180deg, #fffdfa 0%, #fff7ed 100%)',
-  borderColor: '#fed7aa',
-  color: '#9a3412',
-  fontWeight: 600,
-  boxShadow: '0 1px 2px rgba(234,88,12,0.12)',
-};
-
-const searchInputStyle = {
-  background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-  borderColor: '#cbd5e1',
-  boxShadow: '0 1px 2px rgba(15,23,42,0.08)',
-};
-
 const thStyle = {
   textAlign: 'left',
   padding: '7px 8px',
@@ -1034,21 +979,6 @@ const exportOptionBtnStyle = (bg, borderColor, color) => ({
   fontWeight: 700,
   fontSize: 12,
   padding: '0 12px',
-  cursor: 'pointer',
-});
-
-const viewToggleBtnStyle = (active, isFirst) => ({
-  height: 30,
-  border: 'none',
-  borderRight: isFirst ? '1px solid #dbe4f0' : 'none',
-  background: active ? '#eef2ff' : '#fff',
-  color: active ? '#3730a3' : '#475569',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 5,
-  padding: '0 10px',
-  fontSize: 11,
-  fontWeight: 700,
   cursor: 'pointer',
 });
 

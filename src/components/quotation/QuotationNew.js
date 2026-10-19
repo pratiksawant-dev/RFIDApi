@@ -7,7 +7,6 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaUserPlus,
-  FaCalendarAlt,
   FaRedo,
   FaList,
   FaSearch,
@@ -24,6 +23,7 @@ import { toast } from 'react-toastify';
 import TrayScanModal from '../common/TrayScanModal';
 import GridItemImage from '../common/GridItemImage';
 import CustomerSidebarForm from '../inventory/CustomerSidebarForm';
+import PageHeader from '../common/PageHeader';
 import { isInventoryTrayEnabled } from '../../services/trayModeService';
 import {
   getAddCustomerUrl,
@@ -1679,10 +1679,10 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
 
   return (
     <div className="quotation-page" style={{ 
-      padding: isSmallScreen ? '12px' : '20px', 
-      fontFamily: 'Inter, system-ui, sans-serif', 
+      padding: 0, 
+      fontFamily: 'var(--font-family)', 
       background: '#ffffff', 
-      minHeight: '100vh' 
+      minHeight: '100%' 
     }}>
       <style>{`
         .quotation-main-table thead th {
@@ -1713,60 +1713,29 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         }
       `}</style>
       {/* Top Header - Compact */}
-      <div className="quotation-header" style={{
-        background: 'linear-gradient(120deg, #ecfeff 0%, #f0f9ff 48%, #f8fafc 100%)',
-        borderRadius: '10px',
-        padding: isSmallScreen ? '9px 12px' : '11px 16px',
-        marginBottom: '12px',
-        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
-        border: '1px solid #e2e8f0',
-        borderLeft: '4px solid #14b8a6',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h2 style={{ 
-            margin: 0, 
-            fontSize: isSmallScreen ? '14px' : '16px', 
-            fontWeight: 700, 
-            color: '#0f172a',
-            lineHeight: '1.2'
-          }}>
-            Quotation
-          </h2>
-        </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: isSmallScreen ? '11px' : '12px', color: '#64748b', fontWeight: 600 }}>Quotation No:</span>
-            <span style={{ fontSize: isSmallScreen ? '12px' : '13px', color: '#1e293b', fontWeight: 600 }}>
-              {quotationNumber || 'Auto-generated'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: isSmallScreen ? '11px' : '12px', color: '#64748b', fontWeight: 600 }}>Date:</span>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <FaCalendarAlt style={{
-                position: 'absolute',
-                left: '6px',
-                color: '#64748b',
-                fontSize: '11px',
-                pointerEvents: 'none',
-                zIndex: 1
-              }} />
-              <input
-                type="date"
-                value={quotationDate}
-                onChange={(e) => setQuotationDate(e.target.value)}
-                style={{
-                  padding: '4px 6px 4px 24px',
-                  fontSize: isSmallScreen ? '11px' : '12px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  outline: 'none',
-                  width: '130px',
-                  height: '28px'
-                }}
-              />
-            </div>
-          </div>
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="Quotation"
+            subtitle="Price a customer order before you turn it into an invoice."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <div className="page-top-actions">
+                <span className="page-lot">
+                  Quotation no.
+                  <strong>{quotationNumber || 'Auto'}</strong>
+                </span>
+                <input
+                  className="page-field"
+                  type="date"
+                  value={quotationDate}
+                  onChange={(e) => setQuotationDate(e.target.value)}
+                  aria-label="Quotation date"
+                  style={{ width: 148 }}
+                />
+              </div>
+            )}
+          />
         </div>
       </div>
 
@@ -3307,7 +3276,6 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
         .quotation-page *,
         .quotation-page *::before,
         .quotation-page *::after { box-sizing: border-box; }
-        .quotation-header,
         .quotation-item-head,
         .quotation-item-tools,
         .quotation-pager,
@@ -3320,7 +3288,6 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
           min-width: 0;
           max-width: 100%;
         }
-        .quotation-header,
         .quotation-item-head,
         .quotation-pager {
           justify-content: space-between;
@@ -3431,8 +3398,9 @@ const QuotationNew = ({ editStatus, defaultValues }) => {
           .quotation-search-results { left: 0; right: 0; width: 100%; }
         }
         @media (max-width: 640px) {
-          .quotation-header { align-items: stretch; }
-          .quotation-header > div { width: 100%; }
+          .quotation-page .page-top-actions { width: 100%; }
+          .quotation-page .page-lot,
+          .quotation-page .page-field { flex: 1 1 100%; width: 100% !important; }
           .quotation-customer-grid,
           .quotation-item-grid,
           .quotation-edit-grid { grid-template-columns: minmax(0, 1fr); }

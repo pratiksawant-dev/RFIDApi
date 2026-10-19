@@ -6,26 +6,62 @@
       (function () {
         if (typeof location === 'undefined' || location.protocol === 'file:') return;
         var path = location.pathname || '/';
-        var href = '/';
-        var indexMatch = path.match(/^(.*\/)index\.html$/i);
-        if (indexMatch) {
-          href = indexMatch[1] || '/';
-        } else if (path === '/build' || path.indexOf('/build/') === 0) {
-          href = '/build/';
+        if (path.charAt(0) !== '/') path = '/' + path;
+
+        function directoryOf(value) {
+          var indexMatch = value.match(/^(.*\/)index\.html$/i);
+          if (indexMatch) return indexMatch[1] || '/';
+          if (value.charAt(value.length - 1) === '/') return value;
+          return value.replace(/[^/]*$/, '') || '/';
         }
+
+        function isAppManifest(url) {
+          try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, false);
+            xhr.send(null);
+            if (xhr.status < 200 || xhr.status >= 300) return false;
+            var type = String(xhr.getResponseHeader('Content-Type') || '').toLowerCase();
+            if (type.indexOf('text/html') !== -1) return false;
+            var body = String(xhr.responseText || '').replace(/^\uFEFF/, '').trim();
+            return body.charAt(0) === '{';
+          } catch (err) {
+            return false;
+          }
+        }
+
+        var dir = directoryOf(path);
+        var href = '';
+        var guard = 0;
+        while (dir && guard < 8) {
+          if (isAppManifest(dir + 'manifest.json')) {
+            href = dir;
+            break;
+          }
+          if (dir === '/') break;
+          var parent = dir.replace(/[^/]+\/$/, '');
+          if (!parent || parent === dir) break;
+          dir = parent;
+          guard += 1;
+        }
+        if (!href) return;
+
         var base = document.createElement('base');
         base.href = href;
         document.head.insertBefore(base, document.head.firstChild);
 
         var last = path.split('/').pop() || '';
         if (last && /\.[a-zA-Z0-9]+$/.test(last) && !/^index\.html$/i.test(last)) return;
+        if (location.hash && location.hash.length > 1) return;
 
-        var isAppRoot = path === '/' || path === '' || /\/index\.html$/i.test(path) || path === '/build' || path === '/build/';
-        if (!isAppRoot && !(location.hash && location.hash.length > 1)) {
-          var hashPath = path + (location.search || '');
-          if (hashPath.charAt(0) !== '/') hashPath = '/' + hashPath;
-          location.replace(href.replace(/\/?$/, '/') + '#' + hashPath);
-        }
+        var root = href.charAt(href.length - 1) === '/' ? href : href + '/';
+        var atRoot = path === root || path === root.slice(0, -1) || path.toLowerCase() === (root + 'index.html').toLowerCase();
+        if (atRoot) return;
+
+        var route = path.indexOf(root) === 0 ? path.slice(root.length) : path.replace(/^\//, '');
+        if (!route || /^index\.html$/i.test(route)) return;
+        if (route.charAt(0) !== '/') route = '/' + route;
+        location.replace(root + '#' + route + (location.search || ''));
       })();
     </script>
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />

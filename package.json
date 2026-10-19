@@ -2,7 +2,7 @@
   "name": "sparkle-rfid-dashboard",
   "homepage": ".",
   "main": "electron/main.js",
-  "version": "0.1.99",
+  "version": "0.1.100",
   "description": "Sparkle RFID dashboard for tray reading, tag writing, and stock.",
   "private": true,
   "proxy": "http://3.109.131.101:816",

@@ -12,6 +12,7 @@ import { getApiMode, getRrgoldApiBaseUrl, toRrgoldApiUrl } from '../../services/
 import GridItemImage from '../common/GridItemImage';
 import { getItemImageLookupKeys, warmupLocalItemImageIndex } from '../../services/localItemImageService';
 import NetworkErrorState from '../common/NetworkErrorState';
+import PageHeader from '../common/PageHeader';
 
 const ITEMS_PER_PAGE = 15;
 const GRID_ITEMS_PER_PAGE = 6;
@@ -712,100 +713,187 @@ const RFIDDeviceDetails = () => {
   };
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', padding: '16px' }}>
+    <div className="rdd-page" style={{ fontFamily: 'var(--font-family)' }}>
       <style>
         {`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideInRight {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes rfidLoadBar {
-          0% { transform: translateX(-120%); }
-          100% { transform: translateX(320%); }
-        }
-        * {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-        *::-webkit-scrollbar {
-          display: none;
-        }
-        body, html {
-          overflow-x: hidden;
+        .rdd-page {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          min-height: 0;
+          padding: 0;
+          background: #ffffff;
           box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
         }
-        @media (max-width: 768px) {
-          .table-responsive {
-            font-size: 10px;
-          }
+        .rdd-page * { box-sizing: border-box; }
+        .rdd-top {
+          background: #fff;
+          border: 1px solid #e7dfd2;
+          border-top: 3px solid #C59D5F;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(17, 17, 17, 0.05);
+          margin-bottom: 12px;
         }
-        @media (max-width: 480px) {
-          .table-responsive {
-            font-size: 10px;
-          }
+        .rdd-top-inner { padding: 12px 14px 10px; }
+        .rdd-page .app-page-title { color: #111111; }
+        .rdd-page .app-page-subtitle { color: #8a8172; font-size: 11px; font-weight: 600; }
+        .rdd-count {
+          display: inline-flex;
+          align-items: center;
+          height: 28px;
+          padding: 0 11px;
+          border-radius: 6px;
+          background: #111111;
+          color: #F3E6C4;
+          border: 1px solid #C59D5F;
+          font-size: 11px;
+          font-weight: 700;
+          white-space: nowrap;
         }
+        .rdd-toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid #efe6d6;
+        }
+        .rdd-search {
+          position: relative;
+          flex: 1 1 220px;
+          min-width: 0;
+        }
+        .rdd-search svg {
+          position: absolute;
+          left: 9px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #a89878;
+          width: 12px;
+          height: 12px;
+          pointer-events: none;
+        }
+        .rdd-search input {
+          width: 100%;
+          height: 32px;
+          padding: 0 10px 0 28px;
+          font-size: 12px;
+          border: 1px solid #e6dcc8;
+          border-radius: 8px;
+          outline: none;
+          background: #fff;
+          color: #111;
+        }
+        .rdd-search input:focus {
+          border-color: #C59D5F;
+          box-shadow: 0 0 0 3px rgba(197, 157, 95, 0.18);
+        }
+        .rdd-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-left: auto;
+        }
+        .rdd-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 8px;
+          border: 1px solid #e6dcc8;
+          background: #fff;
+          color: #111;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .rdd-btn:hover { border-color: #C59D5F; }
+        .rdd-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .rdd-btn--gold { background: #111; color: #F3E6C4; border-color: #111; }
+        .rdd-btn--gold:hover { border-color: #C59D5F; color: #F3E6C4; }
+        .rdd-btn--danger { color: #991b1b; border-color: #fecaca; }
+        .rdd-table {
+          background: #fff;
+          border: 1px solid #e7dfd2;
+          border-bottom: none;
+          border-radius: 12px 12px 0 0;
+          overflow: hidden;
+          min-width: 0;
+          flex: 1 1 auto;
+          min-height: 240px;
+          display: flex;
+          flex-direction: column;
+        }
+        .rdd-scroll { width: 100%; flex: 1 1 auto; min-height: 0; overflow: auto; }
+        .rdd-page > .rdd-pager {
+          border: 1px solid #e7dfd2;
+          border-radius: 0 0 12px 12px;
+          margin-top: 0;
+        }
+        .rdd-page thead th {
+          background: #111111 !important;
+          color: #E8D5B0 !important;
+          border-bottom: 1px solid #C59D5F !important;
+          font-size: 10px !important;
+          font-weight: 700 !important;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .rdd-page tbody td { background: #ffffff !important; border-bottom: 1px solid #f3efe6 !important; }
+        .rdd-page tbody tr:hover td { background: #fafafa !important; }
+        .rdd-page tbody tr.is-selected td { background: #faf6ee !important; }
+        .rdd-page tbody td:nth-child(4) { font-weight: 700 !important; }
+        .rdd-page tbody td:last-child button.is-active {
+          background: #111111 !important;
+          color: #F3E6C4 !important;
+          border: 1px solid #C59D5F !important;
+          border-radius: 999px !important;
+        }
+        .rdd-page tbody td:last-child button.is-inactive {
+          background: #fff !important;
+          color: #8a8172 !important;
+          border: 1px solid #e6dcc8 !important;
+          border-radius: 999px !important;
+        }
+        .rdd-pager {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          background: #fff !important;
+          border-top: 1px solid #efe6d6 !important;
+        }
+        .rdd-page .rdd-pager button[style*="7c3aed"],
+        .rdd-page .rdd-pager button[style*="124, 58, 237"] {
+          background: #111111 !important;
+          color: #F3E6C4 !important;
+          border-color: #111111 !important;
+        }
+        @media (max-width: 900px) {
+          .rdd-actions { margin-left: 0; width: 100%; }
+          .rdd-btn { flex: 1 1 calc(50% - 8px); justify-content: center; }
+        }
+        @media (max-width: 560px) {
+          .rdd-top-inner { padding: 10px; }
+          .rdd-count { width: 100%; justify-content: center; }
+          .rdd-btn { flex: 1 1 100%; }
+          .rdd-pager { flex-direction: column !important; align-items: stretch !important; }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes rfidLoadBar { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
         `}
       </style>
-      <style>
-        {`
-          .table-responsive {
-            position: relative;
-          }
-          .table-responsive table {
-            position: relative;
-            font-size: 12px;
-          }
-          .table-responsive th {
-            font-size: 12px;
-            font-weight: 500;
-          }
-          .table-responsive td {
-            font-size: 12px;
-          }
-          .table-responsive th:last-child,
-          .table-responsive td:last-child {
-            position: sticky;
-            right: 0;
-            background: white;
-            z-index: 10;
-            border-left: 2px solid #dee2e6;
-          }
-          .table-responsive th:last-child {
-            background: #f8f9fa;
-          }
-          .table-responsive td:last-child {
-            background: white;
-          }
-          .table-responsive tr:hover td:last-child {
-            background: #f8f9fa;
-          }
-          .table-responsive tr.table-primary td:last-child {
-            background: #cfe2ff;
-          }
-          .table-responsive .btn-sm {
-            font-size: 11px;
-            padding: 0.25rem 0.5rem;
-          }
-        `}
-      </style>
-      <div style={{ background: '#ffffff', borderRadius: 12, overflow: 'hidden', marginBottom: 12, boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)', border: '1px solid #e2e8f0' }}>
-        <div style={{ height: 3, background: 'linear-gradient(90deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)' }} />
-        <div style={{ padding: '14px 16px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-              <h1 style={{ margin: 0, fontSize: windowWidth <= 768 ? '1.05rem' : '1.18rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>RFID device details</h1>
-              <p style={{ margin: '6px 0 0', fontSize: 11, color: '#64748b', fontWeight: 600, lineHeight: 1.45 }}>
-                Scan to desktop sync list · <strong style={{ color: '#7c3aed' }}>{ITEMS_PER_PAGE} rows</strong> per page
-              </p>
-            </div>
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>
-              Total: <span style={{ color: '#0f172a' }}>{totalRecords}</span>
-            </div>
-          </div>
+      <div className="rdd-top">
+        <div className="rdd-top-inner">
+          <PageHeader
+            title="RFID Device Details"
+            subtitle={`Scan to desktop sync list · ${ITEMS_PER_PAGE} rows per page`}
+            barStyle={{ padding: 0, margin: 0, borderBottom: 'none' }}
+            actions={<span className="rdd-count">Total {totalRecords.toLocaleString()}</span>}
+          />
           {(isOfflineMode && viewMode === 'grid') ? (
             <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: '#334155', fontWeight: 700 }}>Total Products: <span style={{ color: '#0f172a', fontWeight: 800 }}>{gridSummary.totalProducts}</span></span>
@@ -813,59 +901,40 @@ const RFIDDeviceDetails = () => {
               <span style={{ fontSize: 12, color: '#334155', fontWeight: 700 }}>Total Qty Scanned: <span style={{ color: '#0f172a', fontWeight: 800 }}>{gridSummary.totalQtyScanned}</span></span>
             </div>
           ) : null}
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-            <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 220 }}>
-              <FaSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: 12 }} />
+          <div className="rdd-toolbar">
+            <label className="rdd-search">
+              <FaSearch />
               <input
                 type="text"
-                placeholder={
-                  viewMode === 'grid'
-                    ? 'Search Item Code / RFID / Design...'
-                    : 'Search RFID code...'
-                }
+                placeholder={viewMode === 'grid' ? 'Search item code, RFID, or design' : 'Search RFID code'}
                 value={searchRfid}
                 onChange={(e) => {
                   setSearchRfid(e.target.value);
                   setCurrentPage(1);
                   setGridPage(1);
                 }}
-                style={{ width: '100%', height: 32, padding: '0 10px 0 30px', fontSize: 11, border: '1px solid #e2e8f0', borderRadius: 8, outline: 'none' }}
               />
-            </div>
-            <button onClick={handleDelete} disabled={selectedRows.length === 0} style={{ height: 32, padding: '0 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: '1px solid #ef4444', background: selectedRows.length === 0 ? '#f5f5f5' : '#fff', color: selectedRows.length === 0 ? '#a3a3a3' : '#ef4444', cursor: selectedRows.length === 0 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <FaTrash /> Delete
-            </button>
-            <button onClick={() => setShowExportModal(true)} style={{ height: 32, padding: '0 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: '1px solid #7c3aed', background: '#fff', color: '#7c3aed', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <FaFileExport /> Export
-            </button>
-            <button onClick={() => setShowFilterPanel(true)} style={{ height: 32, padding: '0 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: '1px solid #9333ea', background: '#faf5ff', color: '#7e22ce', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <FaFilter /> Filter
-            </button>
-            <button onClick={handleRefresh} style={{ height: 32, padding: '0 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: '1px solid #d4d4d8', background: '#fafafa', color: '#262626', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <FaSync className={isRefreshing ? 'fa-spin' : ''} /> Refresh
-            </button>
-            {isOfflineMode ? (
-              <button
-                onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
-                style={{
-                  height: 32,
-                  padding: '0 12px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                {viewMode === 'table' ? <FaThLarge /> : <FaThList />}
-                {viewMode === 'table' ? 'Grid' : 'Table'}
+            </label>
+            <div className="rdd-actions">
+              <button type="button" className="rdd-btn rdd-btn--danger" onClick={handleDelete} disabled={selectedRows.length === 0}>
+                <FaTrash /> Delete
               </button>
-            ) : null}
+              <button type="button" className="rdd-btn rdd-btn--gold" onClick={() => setShowExportModal(true)}>
+                <FaFileExport /> Export
+              </button>
+              <button type="button" className="rdd-btn" onClick={() => setShowFilterPanel(true)}>
+                <FaFilter /> Filter
+              </button>
+              <button type="button" className="rdd-btn" onClick={handleRefresh}>
+                <FaSync className={isRefreshing ? 'fa-spin' : ''} /> Refresh
+              </button>
+              {isOfflineMode ? (
+                <button type="button" className="rdd-btn" onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}>
+                  {viewMode === 'table' ? <FaThLarge /> : <FaThList />}
+                  {viewMode === 'table' ? 'Grid' : 'Table'}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -875,15 +944,8 @@ const RFIDDeviceDetails = () => {
       )}
 
       {viewMode === 'table' ? (
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '12px',
-        marginTop: '16px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        border: '1px solid #e5e7eb',
-        overflow: 'hidden'
-      }}>
-        <div style={{ overflowX: 'auto', overflowY: 'visible', width: '100%', maxWidth: '100%' }}>
+      <div className="rdd-table">
+        <div className="rdd-scroll">
           <table style={{ 
             width: '100%',
             minWidth: '1400px',
@@ -1014,6 +1076,7 @@ const RFIDDeviceDetails = () => {
                   return (
                     <tr
                       key={item.Id}
+                      className={isSelected ? 'is-selected' : ''}
                       onClick={() => handleRowSelection(item.Id)}
                       style={{
                         cursor: 'pointer',
@@ -1119,6 +1182,7 @@ const RFIDDeviceDetails = () => {
                         borderLeft: '2px solid #e5e7eb'
                       }}>
                         <button
+                          className={item.StatusType ? 'is-active' : 'is-inactive'}
                           onClick={(e) => {
                             e.stopPropagation();
                           }}
@@ -1190,7 +1254,7 @@ const RFIDDeviceDetails = () => {
                   <button
                     key={`grid-page-top-${page}`}
                     onClick={() => handleGridPageChange(page)}
-                    style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: '1px solid #e2e8f0', background: gridPage === page ? '#7c3aed' : '#fff', color: gridPage === page ? '#fff' : '#475569', cursor: 'pointer' }}
+                    style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: '1px solid #e6dcc8', background: gridPage === page ? '#111111' : '#fff', color: gridPage === page ? '#F3E6C4' : '#475569', cursor: 'pointer' }}
                   >
                     {page}
                   </button>
@@ -1209,13 +1273,13 @@ const RFIDDeviceDetails = () => {
             <div style={{ padding: 22 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <div style={{ color: '#334155', fontSize: 12, fontWeight: 700 }}>
-                  <FaSync className="fa-spin" style={{ marginRight: 8, color: '#7c3aed' }} />
+                  <FaSync className="fa-spin" style={{ marginRight: 8, color: '#C59D5F' }} />
                   Loading matching products...
                 </div>
-                <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>Processing</div>
+                <div style={{ fontSize: 10, color: '#8a6a32', fontWeight: 700 }}>Processing</div>
               </div>
               <div style={{ width: '100%', height: 9, borderRadius: 999, background: '#e2e8f0', overflow: 'hidden', boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.12)' }}>
-                <div style={{ width: '35%', height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, #7c3aed 0%, #22c55e 50%, #38bdf8 100%)', animation: 'rfidLoadBar 1.2s ease-in-out infinite' }} />
+                <div style={{ width: '35%', height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, #111111 0%, #C59D5F 100%)', animation: 'rfidLoadBar 1.2s ease-in-out infinite' }} />
               </div>
             </div>
           ) : gridError ? (
@@ -1321,12 +1385,12 @@ const RFIDDeviceDetails = () => {
 
       {/* Pagination */}
       {viewMode === 'table' ? (
-      <div style={{
+      <div className="rdd-pager" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '16px 20px',
-          borderTop: '1px solid #e5e7eb',
+          padding: '12px 14px',
+          borderTop: '1px solid #efe6d6',
           background: '#ffffff',
           borderRadius: '0 0 12px 12px',
           flexWrap: 'wrap',
@@ -1542,7 +1606,8 @@ const RFIDDeviceDetails = () => {
             overflowY: 'auto'
           }}>
             <div style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: '#111111',
+              borderBottom: '3px solid #C59D5F',
               padding: '20px',
               display: 'flex',
               justifyContent: 'space-between',
@@ -1552,12 +1617,12 @@ const RFIDDeviceDetails = () => {
               zIndex: 10
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FaFilter style={{ color: '#ffffff', fontSize: '16px' }} />
+                <FaFilter style={{ color: '#C59D5F', fontSize: '16px' }} />
                 <h6 style={{
                   margin: 0,
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#ffffff'
+                  color: '#F3E6C4'
                 }}>
                   Filter Devices
                 </h6>
@@ -1613,7 +1678,7 @@ const RFIDDeviceDetails = () => {
                       transition: 'all 0.2s',
                       boxSizing: 'border-box'
                     }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                    onFocus={(e) => e.target.style.borderColor = '#C59D5F'}
                     onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                   />
                 </div>
@@ -1644,7 +1709,7 @@ const RFIDDeviceDetails = () => {
                       background: '#ffffff',
                       cursor: 'pointer'
                     }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                    onFocus={(e) => e.target.style.borderColor = '#C59D5F'}
                     onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                   >
                     <option value="">Select Device</option>
@@ -1699,9 +1764,9 @@ const RFIDDeviceDetails = () => {
                     style={{
                       flex: 1,
                       padding: '8px 16px',
-                      background: '#ffffff',
-                      color: '#10b981',
-                      border: '1px solid #10b981',
+                      background: '#111111',
+                      color: '#F3E6C4',
+                      border: '1px solid #C59D5F',
                       borderRadius: '8px',
                       cursor: 'pointer',
                       fontWeight: 600,
@@ -1713,12 +1778,12 @@ const RFIDDeviceDetails = () => {
                       transition: 'all 0.2s'
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.background = '#10b981';
-                      e.target.style.color = '#ffffff';
+                      e.target.style.background = '#000000';
+                      e.target.style.color = '#F3E6C4';
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.background = '#ffffff';
-                      e.target.style.color = '#10b981';
+                      e.target.style.background = '#111111';
+                      e.target.style.color = '#F3E6C4';
                     }}
                   >
                     <FaSearch /> Get Details
@@ -2124,10 +2189,11 @@ const RFIDDeviceDetails = () => {
 
         .export-modal {
           background: white;
-          border-radius: 8px;
+          border-radius: 12px;
           width: 500px;
           max-width: 90vw;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border-top: 3px solid #C59D5F;
+          box-shadow: 0 8px 28px rgba(17, 17, 17, 0.12);
         }
 
         .export-modal-header {
@@ -2173,8 +2239,8 @@ const RFIDDeviceDetails = () => {
         }
 
         .export-option:hover {
-          border-color: #3182ce;
-          background: #f7fafc;
+          border-color: #C59D5F;
+          background: #fafafa;
           transform: translateY(-1px);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
@@ -2232,18 +2298,18 @@ const RFIDDeviceDetails = () => {
         }
 
         .send-email-btn {
-          background-color: #3182ce;
-          color: white;
-          border: none;
+          background-color: #111111;
+          color: #F3E6C4;
+          border: 1px solid #C59D5F;
           padding: 8px 16px;
-          border-radius: 4px;
+          border-radius: 8px;
           cursor: pointer;
           font-size: 14px;
           transition: all 0.2s;
         }
 
         .send-email-btn:hover:not(:disabled) {
-          background-color: #2c5282;
+          background-color: #000000;
         }
 
         .send-email-btn:disabled {

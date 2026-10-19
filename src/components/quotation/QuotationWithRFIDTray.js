@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   FaUserPlus,
-  FaCalendarAlt,
   FaBox,
   FaSearch,
   FaRedo,
@@ -21,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import useMyScansFileWatcher from '../../hooks/useMyScansFileWatcher';
 import { BsUpcScan } from 'react-icons/bs';
 import { toast } from 'react-toastify';
+import PageHeader from '../common/PageHeader';
 
 const QuotationWithRFIDTray = ({ editStatus, defaultValues }) => {
   const { loading, setLoading } = useLoading();
@@ -1031,70 +1031,35 @@ const QuotationWithRFIDTray = ({ editStatus, defaultValues }) => {
         }
       `}</style>
     <div style={{ 
-      padding: isSmallScreen ? '12px' : '20px', 
-      fontFamily: 'Inter, system-ui, sans-serif', 
+      padding: 0, 
+      fontFamily: 'var(--font-family)', 
       background: '#ffffff', 
-      minHeight: '100vh' 
+      minHeight: '100%' 
     }}>
       {/* Top Header - Compact */}
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '8px',
-        padding: isSmallScreen ? '8px 12px' : '10px 16px',
-        marginBottom: '12px',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-        border: '1px solid #e2e8f0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '10px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h2 style={{ 
-            margin: 0, 
-            fontSize: isSmallScreen ? '14px' : '16px', 
-            fontWeight: 700, 
-            color: '#1e293b',
-            lineHeight: '1.2'
-          }}>
-            Quotation
-          </h2>
-        </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: isSmallScreen ? '11px' : '12px', color: '#64748b', fontWeight: 600 }}>Quotation No:</span>
-            <span style={{ fontSize: isSmallScreen ? '12px' : '13px', color: '#1e293b', fontWeight: 600 }}>
-              {quotationNumber || 'Auto-generated'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: isSmallScreen ? '11px' : '12px', color: '#64748b', fontWeight: 600 }}>Date:</span>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <FaCalendarAlt style={{
-                position: 'absolute',
-                left: '6px',
-                color: '#64748b',
-                fontSize: '11px',
-                pointerEvents: 'none',
-                zIndex: 1
-              }} />
-              <input
-                type="date"
-                value={quotationDate}
-                onChange={(e) => setQuotationDate(e.target.value)}
-                style={{
-                  padding: '4px 6px 4px 24px',
-                  fontSize: isSmallScreen ? '11px' : '12px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  outline: 'none',
-                  width: '130px',
-                  height: '28px'
-                }}
-              />
-            </div>
-          </div>
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="Quotation"
+            subtitle="Price a customer order from the RFID tray before you invoice."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <div className="page-top-actions">
+                <span className="page-lot">
+                  Quotation no.
+                  <strong>{quotationNumber || 'Auto'}</strong>
+                </span>
+                <input
+                  className="page-field"
+                  type="date"
+                  value={quotationDate}
+                  onChange={(e) => setQuotationDate(e.target.value)}
+                  aria-label="Quotation date"
+                  style={{ width: 148 }}
+                />
+              </div>
+            )}
+          />
         </div>
       </div>
 

@@ -14,8 +14,8 @@ Var SparkleTick
 !macroend
 
 !macro customWelcomePage
-  !define MUI_WELCOMEPAGE_TITLE "Install Sparkle RFID"
-  !define MUI_WELCOMEPAGE_TEXT "This setup copies the Sparkle RFID dashboard and the tray reader onto this laptop.$\r$\n$\r$\nIt usually finishes in about a minute. You can open the app as soon as the files are in place.$\r$\n$\r$\nNext: choose the folder, then a short RFID checklist."
+  !define MUI_WELCOMEPAGE_TITLE "Welcome to Sparkle RFID"
+  !define MUI_WELCOMEPAGE_TEXT "Sparkle RFID is the dashboard for your tray, tags, and stock.$\r$\n$\r$\nThis setup places the dashboard and the USB tray reader on this computer. It usually finishes in about a minute, and you can open the app as soon as it is ready.$\r$\n$\r$\nClick Next to choose a folder. A short checklist then shows how to connect the tray."
   !insertmacro MUI_PAGE_WELCOME
 !macroend
 

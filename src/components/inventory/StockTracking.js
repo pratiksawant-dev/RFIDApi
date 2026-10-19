@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { FaSearch, FaSync, FaTimes, FaBoxes, FaBox } from 'react-icons/fa';
+import { FaSearch, FaSync, FaTimes, FaBox } from 'react-icons/fa';
 import { useLoading } from '../../App';
 import { toRrgoldApiUrl, getRrgoldApiBaseUrl } from '../../services/apiBaseConfig';
 import GridItemImage from '../common/GridItemImage';
+import PageHeader from '../common/PageHeader';
 import TrayScanModal from '../common/TrayScanModal';
 import { getItemImageLookupKeys, warmupLocalItemImageIndex } from '../../services/localItemImageService';
 import { isInventoryTrayEnabled } from '../../services/trayModeService';
@@ -440,7 +441,7 @@ const StockTracking = () => {
   }, [currentPage, totalPages]);
 
   return (
-    <div style={{ fontFamily: 'Inter, Poppins, sans-serif', padding: '12px 14px', boxSizing: 'border-box' }}>
+    <div style={{ fontFamily: 'var(--font-family)', padding: 0, boxSizing: 'border-box', background: '#fff' }}>
       <style>
         {`
           @keyframes stockTrackLoadBar {
@@ -450,205 +451,63 @@ const StockTracking = () => {
         `}
       </style>
 
-      {/* Header */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: 12,
-          overflow: 'hidden',
-          marginBottom: 8,
-          boxShadow: '0 2px 12px rgba(15, 23, 42, 0.05)',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <div
-          style={{
-            height: 3,
-            background: 'linear-gradient(90deg, #059669 0%, #10b981 50%, #34d399 100%)',
-          }}
-        />
-        <div style={{ padding: '10px 12px' }}>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <h1
-              style={{
-                margin: 0,
-                fontSize: windowWidth <= 768 ? '1rem' : '1.15rem',
-                fontWeight: 800,
-                color: '#0f172a',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <FaBoxes style={{ color: '#059669', fontSize: 16 }} />
-              Stock Tracking
-            </h1>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              style={{
-                height: 28,
-                padding: '0 10px',
-                fontSize: 10,
-                fontWeight: 700,
-                borderRadius: 6,
-                border: '1px solid #d1d5db',
-                background: '#fafafa',
-                color: '#262626',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
-              <FaSync className={isRefreshing ? 'fa-spin' : ''} />
-              Refresh
-            </button>
-          </div>
-
-          {/* Compact totals — right-aligned text */}
-          <div
-            style={{
-              marginTop: 6,
-              paddingBottom: 8,
-              borderBottom: '1px solid #f1f5f9',
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: '4px 0',
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#64748b',
-              lineHeight: 1.5,
-            }}
-          >
-            <span>
-              Matched Products:{' '}
-              <strong style={{ color: '#059669', fontWeight: 800 }}>{summary.totalProducts}</strong>
-              {scanRowCount > 0 ? (
-                <span style={{ color: '#94a3b8', fontWeight: 600 }}> / {scanRowCount} scans</span>
-              ) : null}
-            </span>
-            <span style={{ margin: '0 8px', color: '#cbd5e1' }}>|</span>
-            <span>
-              Total Gross Wt:{' '}
-              <strong style={{ color: '#0f172a', fontWeight: 800 }}>
-                {summary.totalGrossWt.toFixed(3)}
-              </strong>
-            </span>
-            <span style={{ margin: '0 8px', color: '#cbd5e1' }}>|</span>
-            <span>
-              Total Qty Scanned:{' '}
-              <strong style={{ color: '#0f172a', fontWeight: 800 }}>{summary.totalQtyScanned}</strong>
-            </span>
-            {trayEnabled ? (
-              <>
-                <span style={{ margin: '0 8px', color: '#cbd5e1' }}>|</span>
-                <span>
-                  Desktop: <strong style={{ color: '#0f172a' }}>{desktopProductCount}</strong>
-                </span>
-                <span style={{ margin: '0 8px', color: '#cbd5e1' }}>|</span>
-                <span>
-                  Tray: <strong style={{ color: '#0284c7' }}>{trayProductCount}</strong>
-                </span>
-              </>
-            ) : null}
-          </div>
-
-          {/* Search + select all */}
-          <div
-            style={{
-              marginTop: 8,
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 200 }}>
-              <FaSearch
-                style={{
-                  position: 'absolute',
-                  left: 10,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#94a3b8',
-                  fontSize: 12,
-                }}
-              />
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="Stock Tracking"
+            subtitle="Matched products from desktop and tray scans, with weight and quantity."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <button type="button" className="page-chip" onClick={handleRefresh}>
+                <FaSync className={isRefreshing ? 'fa-spin' : ''} /> Refresh
+              </button>
+            )}
+          />
+          <div className="page-toolbar">
+            <label className="page-search">
+              <FaSearch />
               <input
                 type="text"
-                placeholder="Search RFID / Item Code / Design / Purity..."
+                placeholder="Search RFID, item code, design, purity"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setCurrentPage(1);
                 }}
-                style={{
-                  width: '100%',
-                  height: 30,
-                  padding: '0 10px 0 30px',
-                  fontSize: 11,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
               />
+            </label>
+            <div className="page-toolbar-actions">
+              <span className="page-lot">
+                Matched
+                <strong>{summary.totalProducts}</strong>
+                {scanRowCount > 0 ? <span style={{ color: '#94a3b8', fontWeight: 600 }}>/ {scanRowCount}</span> : null}
+              </span>
+              <span className="page-lot">
+                Gross wt
+                <strong>{summary.totalGrossWt.toFixed(3)}</strong>
+              </span>
+              <span className="page-lot">
+                Qty
+                <strong>{summary.totalQtyScanned}</strong>
+              </span>
+              {trayEnabled ? (
+                <>
+                  <span className="page-lot">Desktop <strong>{desktopProductCount}</strong></span>
+                  <span className="page-lot">Tray <strong>{trayProductCount}</strong></span>
+                  <button type="button" className="page-chip is-on" onClick={() => setShowRfidTrayModal(true)} title="Scan tags with RFID tray">
+                    <FaBox /> Tray Scan
+                  </button>
+                  <button
+                    type="button"
+                    className="page-chip is-danger"
+                    onClick={handleClearTrayScans}
+                    title={`Clear saved tray scans (${STOCK_TRACKING_TRAY_DEVICE_ID})`}
+                  >
+                    Clear Tray Scans
+                  </button>
+                </>
+              ) : null}
             </div>
-            {trayEnabled ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowRfidTrayModal(true)}
-                  title="Scan tags with RFID tray"
-                  style={{
-                    height: 30,
-                    padding: '0 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 6,
-                    border: '1px solid #0284c7',
-                    background: '#fff',
-                    color: '#0284c7',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <FaBox />
-                  Tray Scan
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClearTrayScans}
-                  title={`Clear saved tray scans (${STOCK_TRACKING_TRAY_DEVICE_ID})`}
-                  style={{
-                    height: 30,
-                    padding: '0 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 6,
-                    border: '1px solid #fecaca',
-                    background: '#fef2f2',
-                    color: '#b91c1c',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Clear Tray Scans
-                </button>
-              </>
-            ) : null}
           </div>
         </div>
       </div>

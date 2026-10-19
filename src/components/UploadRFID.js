@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { FaCloudUploadAlt, FaFileExcel, FaTimes, FaCheckCircle, FaDownload, FaSpinner, FaTrash } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { toRrgoldApiUrl } from '../services/apiBaseConfig';
+import PageHeader from './common/PageHeader';
 
 const API_URL = toRrgoldApiUrl('/api/Device/BulkUploadRFIDData');
 
@@ -303,429 +304,329 @@ const UploadRFID = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#ffffff',
-      fontFamily: '"Plus Jakarta Sans", Inter, sans-serif',
-      padding: '32px 40px',
-      boxSizing: 'border-box'
-    }}>
+    <div className="bulk-rfid-page" style={{ fontFamily: 'var(--font-family)', background: '#ffffff', padding: 0, minHeight: '100%' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        .bulk-rfid-page {
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-height: 0;
+        }
+        .bulk-rfid-page * { box-sizing: border-box; }
+        .bulk-stage {
+          flex: 1 1 auto;
+          min-height: 280px;
+          display: grid;
+          grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.75fr);
+          gap: 12px;
+          align-items: stretch;
+        }
+        .bulk-drop {
+          border: 1.5px dashed #b7ddd8;
+          border-radius: 16px;
+          background-color: #f7fbfb;
+          background-image: radial-gradient(#d5ebe7 1.1px, transparent 1.1px);
+          background-size: 18px 18px;
+          min-height: 280px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 28px 20px;
+          text-align: center;
+          cursor: pointer;
+          transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+        }
+        .bulk-drop:hover,
+        .bulk-drop.is-drag {
+          border-color: #0f766e;
+          background-color: #f0fdfa;
+        }
+        .bulk-drop h3 { margin: 0 0 6px; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em; }
+        .bulk-drop p { margin: 0; font-size: 12px; color: #64748b; font-weight: 600; line-height: 1.45; }
+        .bulk-icon {
+          width: 64px;
+          height: 64px;
+          margin: 0 auto 14px;
+          border-radius: 18px;
+          border: 1px solid #c7ebe4;
+          background: #fff;
+          color: #0f766e;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 26px;
+          box-shadow: 0 8px 20px rgba(15, 118, 110, 0.08);
+        }
+        .bulk-go {
+          height: 36px;
+          padding: 0 16px;
+          border: none;
+          border-radius: 8px;
+          background: #0f766e;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+        }
+        .bulk-go:hover { background: #115e59; }
+        .bulk-go:disabled { opacity: 0.5; cursor: not-allowed; }
+        .bulk-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+        .bulk-side {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-width: 0;
+        }
+        .bulk-sheet, .bulk-steps {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        .bulk-sheet { flex: 1 1 auto; }
+        .bulk-sheet-bar, .bulk-steps h4 {
+          margin: 0;
+          padding: 10px 12px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #0f766e;
+          background: #f0fdfa;
+          border-bottom: 1px solid #d5ebe7;
+        }
+        .bulk-sheet-row {
+          display: grid;
+          grid-template-columns: 0.7fr 1.3fr;
+          gap: 8px;
+          padding: 9px 12px;
+          font-size: 12px;
+          color: #334155;
+          border-bottom: 1px solid #f1f5f9;
+          font-variant-numeric: tabular-nums;
+        }
+        .bulk-sheet-row:last-child { border-bottom: none; }
+        .bulk-sheet-row.is-head {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: #64748b;
+          background: #f8fafc;
+        }
+        .bulk-sheet-row span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bulk-steps { padding-bottom: 4px; }
+        .bulk-steps ol { margin: 0; padding: 10px 12px 12px 32px; display: flex; flex-direction: column; gap: 8px; }
+        .bulk-steps li { font-size: 12px; font-weight: 650; color: #334155; }
+        .bulk-note {
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .bulk-note.is-error { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+        .bulk-note.is-ok { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+        .bulk-rfid-page .page-lot { max-width: 100%; }
+        .bulk-rfid-page .page-lot strong {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 220px;
+        }
+        .bulk-progress { margin-top: 14px; text-align: left; }
+        .bulk-progress-track { height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+        .bulk-progress-bar { height: 100%; background: #0f766e; }
+        @media (max-width: 860px) {
+          .bulk-stage { grid-template-columns: 1fr; }
+          .bulk-drop { min-height: 220px; }
+        }
+        @media (max-width: 560px) {
+          .bulk-drop { padding: 22px 14px; }
+          .bulk-drop h3 { font-size: 17px; }
+          .bulk-actions, .bulk-go { width: 100%; }
+        }
       `}</style>
-      
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        {/* Header Section */}
-        <div style={{
-          marginBottom: 40,
-          textAlign: 'left'
-        }}>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: 800,
-            color: '#0f172a',
-            margin: '0 0 12px 0',
-            letterSpacing: '-0.03em',
-            background: 'linear-gradient(to right, #0f172a, #334155)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Bulk RFID Upload
-          </h1>
-          <p style={{
-            fontSize: '16px',
-            color: '#64748b',
-            margin: 0,
-            maxWidth: '600px',
-            lineHeight: 1.6
-          }}>
-            Upload your Excel file to quickly add multiple RFID records to your inventory. 
-            All data will be processed efficiently in a single batch.
-          </p>
-        </div>
 
-        {/* Template & Upload Container */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-          
-          {/* Template Info Card */}
-          <div style={{
-            background: '#f8fafc',
-            borderRadius: '16px',
-            padding: '20px 24px',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: '#dcfce7',
-                color: '#16a34a',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px'
-              }}>
-                <FaFileExcel />
-              </div>
-              <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>Need a template?</h3>
-                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>Download our sample Excel file to get started correctly.</p>
+      <div className="page-top">
+        <div className="page-top-inner">
+          <PageHeader
+            title="Bulk RFID Upload"
+            subtitle="Upload an Excel sheet of barcode and TID values in one batch."
+            barStyle={{ padding: 0, margin: 0, gap: 10, borderBottom: 'none' }}
+            actions={(
+              <button type="button" className="page-chip" onClick={downloadTemplate}>
+                <FaDownload /> Download template
+              </button>
+            )}
+          />
+          {selectedFile ? (
+            <div className="page-toolbar">
+              <span className="page-lot">
+                File
+                <strong>{selectedFile.name}</strong>
+              </span>
+              <span className="page-lot">
+                Records
+                <strong>{totalRecords.toLocaleString()}</strong>
+              </span>
+              <div className="page-toolbar-actions">
+                <button type="button" className="bulk-go" onClick={uploadFile} disabled={uploading || !processedData}>
+                  {uploading ? <FaSpinner className="fa-spin" /> : <FaCloudUploadAlt />}
+                  {uploading ? 'Uploading' : 'Upload file'}
+                </button>
+                <button type="button" className="page-chip is-danger" onClick={handleRemoveFile} disabled={uploading}>
+                  <FaTrash /> Remove
+                </button>
               </div>
             </div>
-            
-            <button
-              onClick={downloadTemplate}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '10px',
-                color: '#475569',
-                fontWeight: 600,
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#16a34a';
-                e.currentTarget.style.color = '#16a34a';
-                e.currentTarget.style.background = '#f0fdf4';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#cbd5e1';
-                e.currentTarget.style.color = '#475569';
-                e.currentTarget.style.background = '#ffffff';
-              }}
-            >
-              <FaDownload size={14} /> Download Template
-            </button>
-          </div>
+          ) : null}
+        </div>
+      </div>
 
-          {/* File Uploader Area */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '24px',
-            padding: '40px',
-            border: `2px dashed ${dragActive ? '#3b82f6' : '#e2e8f0'}`,
-            transition: 'all 0.3s ease',
-            backgroundColor: dragActive ? '#eff6ff' : '#ffffff',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '300px',
-            position: 'relative'
-          }}
+      <div className="bulk-stage">
+        <div
+          className={`bulk-drop${dragActive ? ' is-drag' : ''}`}
+          onClick={() => { if (!uploading) handleBrowseClick(); }}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-          >
-            {selectedFile ? (
-              <div style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
-                <div style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '20px',
-                  background: '#dbeafe',
-                  color: '#2563eb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '32px',
-                  margin: '0 auto 24px'
-                }}>
-                  <FaFileExcel />
-                </div>
-                
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700, color: '#1e293b' }}>
-                  {selectedFile.name}
-                </h3>
-                <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748b' }}>
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {totalRecords} records found
-                </p>
-
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                  <button
-                    onClick={uploadFile}
-                    disabled={uploading || !processedData}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '12px 24px',
-                      background: uploading ? '#94a3b8' : '#2563eb',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontWeight: 600,
-                      fontSize: '14px',
-                      cursor: uploading ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
-                    }}
-                  >
-                    {uploading ? (
-                      <>
-                        <FaSpinner className="fa-spin" /> Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <FaCloudUploadAlt size={16} /> Upload File
-                      </>
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={handleRemoveFile}
-                    disabled={uploading}
-                    style={{
-                      padding: '12px',
-                      background: '#fee2e2',
-                      color: '#ef4444',
-                      border: 'none',
-                      borderRadius: '12px',
-                      cursor: uploading ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    title="Remove file"
-                  >
-                    <FaTrash size={16} />
-                  </button>
-                </div>
-
-                {uploading && (
-                  <div style={{ marginTop: '24px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', fontWeight: 600 }}>
-                      <span style={{ color: '#64748b' }}>Progress</span>
-                      <span style={{ color: '#2563eb' }}>{uploadProgress}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#2563eb', transition: 'width 0.3s ease' }} />
-                    </div>
+        >
+          {selectedFile ? (
+            <div style={{ width: '100%', maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+              <div className="bulk-icon"><FaFileExcel /></div>
+              <h3>{selectedFile.name}</h3>
+              <p>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB · {totalRecords.toLocaleString()} records ready</p>
+              {uploading ? (
+                <div className="bulk-progress">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, fontWeight: 700, color: '#64748b' }}>
+                    <span>Progress</span>
+                    <span>{uploadProgress}%</span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <div style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  background: '#f1f5f9',
-                  color: '#94a3b8',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '32px',
-                  marginBottom: '24px'
-                }}>
-                  <FaCloudUploadAlt />
+                  <div className="bulk-progress-track">
+                    <div className="bulk-progress-bar" style={{ width: `${uploadProgress}%` }} />
+                  </div>
                 </div>
-                
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: 700, color: '#1e293b' }}>
-                  Drag & Drop file here
-                </h3>
-                <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: '#64748b' }}>
-                  or click below to browse your files
-                </p>
-                
+              ) : (
+                <p style={{ marginTop: 10 }}>Drop another sheet on this card to replace it.</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="bulk-icon"><FaCloudUploadAlt /></div>
+              <h3>Drop the Excel file here</h3>
+              <p>Or click anywhere in this card. Barcode first, TID second.</p>
+              <div className="bulk-actions">
                 <button
-                  onClick={handleBrowseClick}
-                  style={{
-                    padding: '12px 32px',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '12px',
-                    color: '#334155',
-                    fontWeight: 600,
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#3b82f6';
-                    e.currentTarget.style.color = '#3b82f6';
-                    e.currentTarget.style.background = '#eff6ff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                    e.currentTarget.style.color = '#334155';
-                    e.currentTarget.style.background = '#ffffff';
+                  type="button"
+                  className="bulk-go"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBrowseClick();
                   }}
                 >
-                  Browse Files
+                  <FaCloudUploadAlt /> Browse files
                 </button>
-                
-                <p style={{ marginTop: '24px', fontSize: '13px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <FaFileExcel /> Supports .xlsx and .xls files
-                </p>
-              </>
-            )}
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-          </div>
-
-          {/* Messages Area */}
-          {error && (
-            <div style={{
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              color: '#ef4444'
-            }}>
-              <FaTimes size={18} />
-              <span style={{ fontSize: '14px', fontWeight: 500 }}>{error}</span>
+              </div>
             </div>
           )}
-
-          {success && !showSuccessModal && (
-            <div style={{
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              color: '#16a34a'
-            }}>
-              <FaCheckCircle size={18} />
-              <span style={{ fontSize: '14px', fontWeight: 500 }}>{success}</span>
-            </div>
-          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
         </div>
+
+        <aside className="bulk-side">
+          <div className="bulk-sheet">
+            <div className="bulk-sheet-bar">Sheet shape</div>
+            <div className="bulk-sheet-row is-head"><span>A · Barcode</span><span>B · TID</span></div>
+            <div className="bulk-sheet-row"><span>RJ0001</span><span>E2801191…032D</span></div>
+            <div className="bulk-sheet-row"><span>RJ0002</span><span>E2801191…032D</span></div>
+            <div className="bulk-sheet-row"><span>RJ0003</span><span>E2801191…032E</span></div>
+          </div>
+          <div className="bulk-steps">
+            <h4>Three steps</h4>
+            <ol>
+              <li>Download the template from the title bar.</li>
+              <li>Paste one barcode and one TID on each row.</li>
+              <li>Drop the file here, then upload the batch.</li>
+            </ol>
+          </div>
+        </aside>
       </div>
 
-      {/* Success Modal */}
+      {error ? (
+        <div className="bulk-note is-error" style={{ marginTop: 12 }}>
+          <FaTimes />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {success && !showSuccessModal ? (
+        <div className="bulk-note is-ok" style={{ marginTop: 12 }}>
+          <FaCheckCircle />
+          <span>{success}</span>
+        </div>
+      ) : null}
+
       {showSuccessModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: '"Plus Jakarta Sans", sans-serif'
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            padding: '40px',
-            width: '100%',
-            maxWidth: '420px',
-            textAlign: 'center',
-            animation: 'popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              background: '#dcfce7',
-              color: '#16a34a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '40px',
-              margin: '0 auto 24px'
-            }}>
-              <FaCheckCircle />
-            </div>
-            
-            <h2 style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: 800, color: '#0f172a' }}>
-              Upload Successful!
-            </h2>
-            
-            <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: '#64748b', lineHeight: 1.6 }}>
-              {uploadResult?.message || `Your Excel file has been processed successfully. ${totalRecords} records were handled.`}
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setShowSuccessModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              borderTop: '3px solid #0f766e',
+              boxShadow: '0 18px 40px rgba(15, 23, 42, 0.16)',
+              padding: 20,
+              width: '100%',
+              maxWidth: 420,
+            }}
+          >
+            <h2 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Upload successful</h2>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: '#64748b', fontWeight: 600, lineHeight: 1.45 }}>
+              {uploadResult?.message || `The sheet was processed. ${totalRecords} records were handled.`}
             </p>
-
-            {uploadResult?.statistics && (uploadResult.statistics.inserted > 0 || uploadResult.statistics.updated > 0) && (
-              <div style={{
-                background: '#f8fafc',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '24px',
-                textAlign: 'left'
-              }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
-                  Statistics
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {uploadResult.statistics.inserted > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                      <span style={{ color: '#334155' }}>New Records</span>
-                      <span style={{ fontWeight: 600, color: '#16a34a' }}>+{uploadResult.statistics.inserted}</span>
-                    </div>
-                  )}
-                  {uploadResult.statistics.updated > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                      <span style={{ color: '#334155' }}>Updated Records</span>
-                      <span style={{ fontWeight: 600, color: '#3b82f6' }}>{uploadResult.statistics.updated}</span>
-                    </div>
-                  )}
-                </div>
+            {uploadResult?.statistics && (uploadResult.statistics.inserted > 0 || uploadResult.statistics.updated > 0) ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                {uploadResult.statistics.inserted > 0 ? (
+                  <span className="page-lot">New <strong>+{uploadResult.statistics.inserted}</strong></span>
+                ) : null}
+                {uploadResult.statistics.updated > 0 ? (
+                  <span className="page-lot">Updated <strong>{uploadResult.statistics.updated}</strong></span>
+                ) : null}
               </div>
-            )}
-
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: '#0f172a',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontWeight: 600,
-                fontSize: '15px',
-                cursor: 'pointer',
-                transition: 'transform 0.1s ease'
-              }}
-              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
+            ) : null}
+            <button type="button" className="page-chip is-on" onClick={() => setShowSuccessModal(false)} style={{ width: '100%' }}>
               Done
             </button>
           </div>
-          <style>{`
-            @keyframes popIn {
-              from { opacity: 0; transform: scale(0.95) translateY(10px); }
-              to { opacity: 1; transform: scale(1) translateY(0); }
-            }
-          `}</style>
         </div>
       )}
     </div>
