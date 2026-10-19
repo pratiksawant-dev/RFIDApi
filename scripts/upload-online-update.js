@@ -3,6 +3,19 @@ const path = require("path");
 const https = require("https");
 const http = require("http");
 
+const envFile = path.resolve(__dirname, "../.env.online");
+if (fs.existsSync(envFile)) {
+  fs.readFileSync(envFile, "utf8").split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) return;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+    if (key && process.env[key] == null) process.env[key] = value;
+  });
+}
+
 const uploadUrl = (process.env.APP_UPDATE_URL || "https://qa-rfid-api.sparklerfid.net/api/AppUpdate/").replace(/\/?$/, "/upload");
 const uploadKey = process.env.APP_UPDATE_UPLOAD_KEY;
 const distDir = path.resolve(__dirname, "../release-online");

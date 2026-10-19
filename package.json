@@ -2,7 +2,8 @@
   "name": "sparkle-rfid-dashboard",
   "homepage": ".",
   "main": "electron/main.js",
-  "version": "0.1.95",
+  "version": "0.1.99",
+  "description": "Sparkle RFID dashboard for tray reading, tag writing, and stock.",
   "private": true,
   "proxy": "http://3.109.131.101:816",
   "dependencies": {
@@ -75,7 +76,7 @@
     "release:minor": "npm run version:minor && npm run build:electron:only",
     "release:major": "npm run version:major && npm run build:electron:only",
     "dist": "npm run build:electron",
-    "build:icon": "node scripts/generate-electron-icon.js",
+    "build:icon": "node scripts/generate-electron-icon.js && node scripts/generate-installer-art.js",
     "test": "craco test",
     "eject": "react-scripts eject"
   },
@@ -126,6 +127,7 @@
     "files": [
       "build/**/*",
       "electron/**/*",
+      "build-resources/icon.png",
       "package.json"
     ],
     "extraResources": [
@@ -147,7 +149,20 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sparkle RFID",
+      "menuCategory": "Sparkle RFID",
+      "runAfterFinish": true,
+      "unicode": true,
+      "displayLanguageSelector": false,
+      "warningsAsErrors": false,
+      "include": "build-resources/installer.nsh",
+      "installerSidebar": "build-resources/installerSidebar.bmp",
+      "uninstallerSidebar": "build-resources/installerSidebar.bmp",
+      "installerHeader": "build-resources/installerHeader.bmp",
       "installerIcon": "build-resources/icon.ico",
       "uninstallerIcon": "build-resources/icon.ico",
       "installerHeaderIcon": "build-resources/icon.ico"

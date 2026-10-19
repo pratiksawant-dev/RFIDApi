@@ -10,6 +10,7 @@
   "files": [
     "build/**/*",
     "electron/**/*",
+    "build-resources/icon.png",
     "package.json"
   ],
   "extraMetadata": {
@@ -22,7 +23,20 @@
   },
   "nsis": {
     "oneClick": false,
+    "perMachine": false,
     "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Sparkle RFID",
+    "menuCategory": "Sparkle RFID",
+    "runAfterFinish": true,
+    "unicode": true,
+    "displayLanguageSelector": false,
+    "warningsAsErrors": false,
+    "include": "build-resources/installer.nsh",
+    "installerSidebar": "build-resources/installerSidebar.bmp",
+    "uninstallerSidebar": "build-resources/installerSidebar.bmp",
+    "installerHeader": "build-resources/installerHeader.bmp",
     "installerIcon": "build-resources/icon.ico",
     "uninstallerIcon": "build-resources/icon.ico",
     "installerHeaderIcon": "build-resources/icon.ico"
