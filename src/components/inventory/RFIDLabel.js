@@ -33,6 +33,7 @@ import { rfidLabelService } from '../../services/rfidLabelService';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useNotifications } from '../../context/NotificationContext';
 import { generateClientPrn } from '../../utils/prnTemplates';
+import { parseJwtPayload, readClientCodeFromPayload } from '../../utils/jwtSession';
 import SuccessNotification from '../common/SuccessNotification';
 import PageHeader from '../common/PageHeader';
 import { saveBlobWithPreferredFolder } from '../../services/exportDownloadHelper';
@@ -133,7 +134,17 @@ const RFIDLabel = () => {
 
   // User Info
   const [userInfo, setUserInfo] = useState(null);
-  const clientCode = String(userInfo?.ClientCode || userInfo?.clientCode || userInfo?.clientcode || '').trim().toUpperCase();
+  const clientCode = useMemo(() => {
+    const saved = String(userInfo?.ClientCode || userInfo?.clientCode || userInfo?.clientcode || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    let fromToken = '';
+    try {
+      fromToken = readClientCodeFromPayload(parseJwtPayload(localStorage.getItem('token')));
+    } catch {
+      fromToken = '';
+    }
+    const candidates = [fromToken, saved].filter(Boolean);
+    return candidates.find((code) => PRN_ENABLED_CLIENT_CODES.includes(code)) || candidates[0] || '';
+  }, [userInfo]);
 
   // Responsive state
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -1213,7 +1224,7 @@ const RFIDLabel = () => {
   // Download Client Specific PRN
   const handleDownloadClientPrn = async () => {
     if (!PRN_ENABLED_CLIENT_CODES.includes(clientCode)) {
-      toast.error('Your PRN is not set yet. Please set PRN.');
+      toast.error(`Your PRN is not set yet for ${clientCode || 'this login'}. Please log out, log in again, then download the PRN.`);
       return;
     }
 
@@ -1277,7 +1288,7 @@ const RFIDLabel = () => {
     e.stopPropagation(); // Prevent row selection
 
     if (!PRN_ENABLED_CLIENT_CODES.includes(clientCode)) {
-      toast.error('Your PRN is not set yet. Please set PRN.');
+      toast.error(`Your PRN is not set yet for ${clientCode || 'this login'}. Please log out, log in again, then download the PRN.`);
       return;
     }
 

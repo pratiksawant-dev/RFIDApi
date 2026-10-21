@@ -6,7 +6,8 @@ export const parseJwtPayload = (token) => {
   try {
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(window.atob(base64));
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    return JSON.parse(window.atob(padded));
   } catch {
     return null;
   }
@@ -39,4 +40,37 @@ export const isTokenValid = (token) => {
   if (!payload.exp) return true;
   const currentTime = Math.floor(Date.now() / 1000);
   return Number(payload.exp) > currentTime;
+};
+
+const normalizeClientCode = (value) =>
+  String(value ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+const collectPayloadValues = (payload, depth = 0) => {
+  if (!payload || typeof payload !== 'object' || depth > 2) return [];
+  const values = [];
+  Object.values(payload).forEach((value) => {
+    if (value && typeof value === 'object') {
+      values.push(...collectPayloadValues(value, depth + 1));
+      return;
+    }
+    values.push(value);
+  });
+  return values;
+};
+
+/** Prefer an LS000000-style client code from a login token or stored user info. */
+export const readClientCodeFromPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') return '';
+  const ranked = [
+    payload.ClientCode,
+    payload.clientCode,
+    payload.clientcode,
+    payload.client_code,
+    payload.ClientId,
+    payload.clientId,
+    ...collectPayloadValues(payload),
+    payload.sub,
+  ];
+  const normalized = ranked.map(normalizeClientCode).filter(Boolean);
+  return normalized.find((code) => /^LS\d{3,}$/.test(code)) || '';
 };
