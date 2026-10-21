@@ -64,6 +64,7 @@ import FingerprintSettingsPage from './components/FingerprintSettingsPage';
 import PasskeySettingsPage from './components/PasskeySettingsPage';
 import FaceSettingsPage from './components/FaceSettingsPage';
 import RFIDUtility from './components/RFIDUtility';
+import DataMigration from './components/DataMigration';
 import RFIDTrayConnect from './components/RFIDTrayConnect';
 import WriteTagUtility from './components/WriteTagUtility';
 import AutoPushStockUtility from './components/AutoPushStockUtility';
@@ -989,6 +990,16 @@ const RoutesWrapper = () => {
               <AuthGuard>
                 <PageWrapper>
                   <RFIDUtility />
+                </PageWrapper>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/data-migration"
+            element={
+              <AuthGuard>
+                <PageWrapper>
+                  <DataMigration />
                 </PageWrapper>
               </AuthGuard>
             }

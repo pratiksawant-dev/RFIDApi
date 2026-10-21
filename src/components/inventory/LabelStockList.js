@@ -52,6 +52,22 @@ import {
   normalizeCounterMasterRows,
   pickCounterMasterName,
 } from '../../services/memberOnboardingApi';
+import { getDeleteStockForClientByBranchUrl, getDeleteAllStockForClientUrl } from '../../services/authApiConfig';
+import { runAutoPushFolderSyncOnce, extractAutoPushUsername } from '../../services/autoPushStockSyncService';
+import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import IconButton from '@mui/material/IconButton';
+import { useNotifications } from '../../context/NotificationContext';
+import { useLoading } from '../../App';
+import {
+  getItemImageLookupKeys,
+  subscribeItemImageIndexUpdates,
+  syncItemImageFolderNow,
+  warmupLocalItemImageIndex,
+} from '../../services/localItemImageService';
 
 const labeledStockApiUrl = (path) => toRrgoldApiUrl(path);
 
@@ -192,22 +208,6 @@ const buildGetAllLabeledStockPayload = ({
 
   return payload;
 };
-import { getDeleteStockForClientByBranchUrl, getDeleteAllStockForClientUrl } from '../../services/authApiConfig';
-import { runAutoPushFolderSyncOnce, extractAutoPushUsername } from '../../services/autoPushStockSyncService';
-import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import IconButton from '@mui/material/IconButton';
-import { useNotifications } from '../../context/NotificationContext';
-import { useLoading } from '../../App';
-import {
-  getItemImageLookupKeys,
-  subscribeItemImageIndexUpdates,
-  syncItemImageFolderNow,
-  warmupLocalItemImageIndex,
-} from '../../services/localItemImageService';
 
 // Separate axios instance for FormData uploads so global interceptor does not set Content-Type: application/json
 const formDataAxios = axios.create();

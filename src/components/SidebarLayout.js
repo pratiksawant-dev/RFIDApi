@@ -113,7 +113,8 @@ const SidebarLayout = ({ children }) => {
   // Section 0: Quick Access
   const navigationProfile = [
     { path: '/profile-menu', icon: FaThLarge, label: 'All Apps & Resources', color: '#6366f1' },
-    { path: '/rfid-utility', icon: FaTools, label: 'RFID Utility', color: '#6d28d9' }
+    { path: '/rfid-utility', icon: FaTools, label: 'RFID Utility', color: '#6d28d9' },
+    { path: '/data-migration', icon: FaDatabase, label: 'Data Migrations', color: '#b45309' },
   ];
 
   // Navigation items – icons matched to menu names, distinct colors
