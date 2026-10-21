@@ -1386,6 +1386,97 @@ END
 `;
 };
 
+const firstFilledText = (...values) => {
+  for (const value of values) {
+    const text = String(value ?? '').trim();
+    if (text) return text;
+  }
+  return '';
+};
+
+/** Sample PC for this file is *2400* = (wordCount << 11) | 0x0400. */
+const resolveLS000677EpcMemory = (itemCode) => {
+  const memory = calculateAsciiEpcMemory(itemCode);
+  const words = memory.epcBits / 16;
+  const pcWord = (words << 11) | 0x0400;
+  return {
+    ...memory,
+    pcValue: `*${pcWord.toString(16).toUpperCase().padStart(4, '0')}*`,
+  };
+};
+
+const resolveLS000677Purity = (item) => {
+  const purity = firstFilledText(item.PurityName, item.Purity, item.purity);
+  if (!purity) return '';
+  return purity.endsWith(':') ? purity : `${purity}:`;
+};
+
+const resolveLS000677SizeMark = (item) => {
+  const size = firstFilledText(item.Size, item.size);
+  if (!size) return '';
+  if (size.startsWith('(') && size.endsWith(')')) return size;
+  return `(${size})`;
+};
+
+const resolveLS000677DiamondWt = (item) =>
+  formatWeight3(
+    item.DiamondWt ?? item.DiamondWeight ?? item.diamondweight ?? item.TotalDiamondWeight ?? 0
+  );
+
+const resolveLS000677Td = (item) => {
+  const pcsRaw = item.TotalDiamondPieces ?? item.DiamondPcs ?? item.DiamondPieces ?? 0;
+  const pcsNum = parseInt(pcsRaw, 10);
+  const pcs = Number.isNaN(pcsNum) ? '0' : String(pcsNum);
+  const weight = formatWeight3(
+    item.TotalDiamondWeight ?? item.DiamondWt ?? item.DiamondWeight ?? item.diamondweight ?? 0
+  );
+  return `${pcs}/${weight}`;
+};
+
+const resolveLS000677Hallmark = (item) =>
+  firstFilledText(item.HallmarkAmount, item.hallmarkAmount, item.HallmarkAmt, item.hallmarkAmt);
+
+const replaceLS000677Field = (prn, point, sampleValue, nextValue) =>
+  prn.replace(
+    `INV;POINT;${point};7;7;"${sampleValue}"`,
+    `INV;POINT;${point};7;7;"${prnQuote(nextValue)}"`
+  );
+
+// Exact LS000677 baseline from public/Oswal_Jwellers.prn (logo bytes preserved).
+const LS000677_BASE_PRN_B64 = "PHhwbWw+PHBhZ2UgcXVhbnRpdHk9JzAnIHBpdGNoPScxOC4wIG1tJz48L3hwbWw+IVBUWF9TRVRVUA0KRU5HSU5FLVdJRFRIOzM5NDE6TEVOR1RIOzcxMDpNSVJST1I7MC4NClBUWF9FTkQNCn5QQVBFUjtST1RBVEUgMA0KfkNPTkZJRw0KVVBDIERFU0NFTkRFUlM7MA0KRU5EDQp+UEFQRVI7TEFCRUxTIDI7TUVESUEgMTtDQUxJQlJBVEUNCn5QQVBFUjtGRUVEIFNISUZUIDA7SU5URU5TSVRZIDE1O1NQRUVEIElQUyAyO1NMRVcgSVBTIDI7VFlQRSAwDQp+UEFQRVI7Q1VUIDA7UEFVU0UgMDtURUFSIDANCn5DT05GSUcNCkNIRUNLIERZTkFNSUMgQkNEOzANClNMQVNIIFpFUk87MA0KVVBQRVJDQVNFOzANCkFVVE8gV1JBUDswDQpIT1NUIEZPUk0gTEVOR1RIOzENCkVORA0KPHhwbWw+PC9wYWdlPjwveHBtbD48eHBtbD48cGFnZSBxdWFudGl0eT0nMScgcGl0Y2g9JzE4LjAgbW0nPjwveHBtbD5+TE9HTztMT0dPLTA7UENYDQoKBQEBAAAAAE4ANgAsASwBAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEKAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMHwyAA/weDIAB/B4MgAH8HAyAAPwcDIAA+fyP/B57/I/8H3f8j/wfvK/8HgwwDB/8H+wwAPgMMAf8H8wwAHxAA/wfjDAAPEAB/B8MMAA8QAD8HgwwABxAAHwcDDAAHEAAPEAAPJAAOAAB/E/8HgAAfBwAA/wf/B8D/B/8HwAAfB4AA/wf/BwA/B/8HwAA/B8AAfwf+AD8H/weAAH8H4AA/B/4AHwf/BwAA/wfwAB8H/AAfB/8HAAH/B/gAHwf8AA8H/gADB/8H/AAPB/wADwf8AAcH/wf8AAcH/AAfB/gADwf/B/4AAwf+AB8H8AAfB/8H/wcAAf4APwfgAD8H/wf/B4AB/wcAPwfAAH8H/wf/B8AA/wfA/weAAP8H/wf/B+AAfwv/B4AB/wf/B/8H8AA/C/8HAAML/wf/B/gAHwv+AAcL/wv8AA8L/AAPC/8L/gAHB/8H+AAPC/8L/wcAAwf/B/AAHwv/C/8HAAMH/wfgAD8L/wv/B4AB/wfAAH8L/wv/B8AA/wfAAP8L/wv/B+AAfweAAf8L/wv/B/AAPgADD/8L/wf7DAAHD/8P/wwADw//D/4DCAAfD/8P/wcDCAA/D/8P/weDCAB/D/8P/weDCAD/D/8P/wfDCAH/D/8P/wfjCAMT/w//B/AABxP/D/8H+AAHE/8T/AAPE/8T/gAfE/8T/wcAPxP/E/8HgP8T/flJBU1RFUkVORA0KRU5EDQp+Q1JFQVRFO0ZPUk0tMDs1MQ0KU0NBTEU7RE9UOzIwMzsyMDMNCklTRVQ7J1VURjgnDQpSRldUQUc7MTY7UEMNCjE2O0g7KjI0MDAqDQpTVE9QDQpSRldUQUc7NjQ7RVBDDQo2NDtIOyo0RDUwMkQzMDMwMzQzMTMzKg0KU1RPUA0KRk9OVDtGQUNFIDkyMjUwO0JPTEQgMDtTTEFOVCAwDQpBTFBIQQ0KSU5WO1BPSU5UOzkzOzczMTs3Ozc7IjEuMDEwIg0KSU5WO1BPSU5UOzkzOzc4NDs3Ozc7IkcuVyA6Ig0KSU5WO1BPSU5UOzY4Ozc4NDs3Ozc7Ik4uV3QgOiINCklOVjtQT0lOVDs5Mzs2NDc7Nzs3OyIxNEtUOiINCklOVjtQT0lOVDs2ODs3MzE7Nzs3OyIwLjk2MCINCklOVjtQT0lOVDsxMTs2NDQ7Nzs3OyJERVNJUkUiDQpJTlY7UE9JTlQ7MTE0OzQ3NTs3Ozc7IjQ2LzAuNjIwIg0KSU5WO1BPSU5UOzExNDs1MDU7Nzs3OyJURDoiDQpJTlY7UE9JTlQ7MzY7NjQ0Ozc7NzsiU1RLIg0KSU5WO1BPSU5UOzkzOzUwMjs3Ozc7IjIyODMyNCINCklOVjtQT0lOVDs5Mzs1OTQ7Nzs3OyJQIg0KSU5WO1BPSU5UOzExODs2NDQ7Nzs3OyIoQSkiDQpJTlY7UE9JTlQ7MTE0Ozc4NDs3Ozc7IjYxMzQ2NCINCklOVjtQT0lOVDs0MTs3ODQ7Nzs3OyJEaWEuV3QgOiINCklOVjtQT0lOVDsxODs3ODQ7Nzs3OyJTdC5XdCA6Ig0KSU5WO1BPSU5UOzQxOzcxNDs3Ozc7IjAuMDAxIg0KSU5WO1BPSU5UOzE3OzczMTs3Ozc7IjAuMDAxIg0KSU5WO1BPSU5UOzY4OzY0NDs3Ozc7Ik1QLTAwNDEzIg0KU1RPUA0KTE9HTw0KMTU7NDI2O0xPR08tMA0KU1RPUA0KRU5EDQp+RVhFQ1VURTtGT1JNLTA7MQ0KPHhwbWw+PC9wYWdlPjwveHBtbD4NCn5OT1JNQUwNCn5ERUxFVEUgRk9STTtGT1JNLTANCn5ERUxFVEUgTE9HTztMT0dPLTANCg==";
+
+// LS000677 (Oswal Jewellers) — logo label from public/Oswal_Jwellers.prn.
+// Only item fields and RFID memory change. The PCX logo stays byte-for-byte.
+const generateLS000677Prn = (item) => {
+  const itemCode = String(item.ItemCode || item.RFIDCode || '').trim();
+  const { epcBits, pcValue, epcHex } = resolveLS000677EpcMemory(itemCode);
+  const grossWt = formatWeight3(item.GrossWt ?? item.GrossWeight ?? item.grosswt);
+  const netWt = formatWeight3(item.NetWt ?? item.NetWeight ?? item.netwt);
+  const diamondWt = resolveLS000677DiamondWt(item);
+  const stoneWt = formatWeight3(
+    item.TotalStoneWeight ?? item.StoneWt ?? item.stonewt ?? item.StoneWeight ?? 0
+  );
+
+  let prn = decodeBase64Latin1(LS000677_BASE_PRN_B64);
+  prn = prn.replace('16;H;*2400*', `16;H;${pcValue}`);
+  prn = prn.replace('RFWTAG;64;EPC', `RFWTAG;${epcBits};EPC`);
+  prn = prn.replace('64;H;*4D502D3030343133*', `${epcBits};H;*${epcHex}*`);
+  prn = replaceLS000677Field(prn, '93;731', '1.010', grossWt);
+  prn = replaceLS000677Field(prn, '68;731', '0.960', netWt);
+  prn = replaceLS000677Field(prn, '41;714', '0.001', diamondWt);
+  prn = replaceLS000677Field(prn, '17;731', '0.001', stoneWt);
+  prn = replaceLS000677Field(prn, '93;647', '14KT:', resolveLS000677Purity(item));
+  prn = replaceLS000677Field(prn, '93;594', 'P', '');
+  prn = replaceLS000677Field(prn, '93;502', '228324', '');
+  prn = replaceLS000677Field(prn, '114;475', '46/0.620', resolveLS000677Td(item));
+  prn = replaceLS000677Field(prn, '11;644', 'DESIRE', firstFilledText(item.ProductName, item.CategoryName));
+  prn = replaceLS000677Field(prn, '36;644', 'STK', firstFilledText(item.CategoryName, item.Category));
+  prn = replaceLS000677Field(prn, '118;644', '(A)', resolveLS000677SizeMark(item));
+  prn = replaceLS000677Field(prn, '114;784', '613464', resolveLS000677Hallmark(item));
+  prn = replaceLS000677Field(prn, '68;644', 'MP-00413', itemCode);
+  return prn;
+};
+
 // Main function to generate client-specific PRN
 export const generateClientPrn = (item, clientCode) => {
   const rawCode = (clientCode || '').trim().toUpperCase();
@@ -1411,6 +1502,8 @@ export const generateClientPrn = (item, clientCode) => {
       return generateLS000606Prn(item);
     case 'LS000680':
       return generateLS000680Prn(item);
+    case 'LS000677':
+      return generateLS000677Prn(item);
     case 'LS000443':
       // Check category for LS000443 - Gold, Silver, or Diamond
       // Also check ProductId for category detection

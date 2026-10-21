@@ -162,6 +162,99 @@ describe('LS000533 PRN generation', () => {
   });
 });
 
+describe('LS000677 PRN generation', () => {
+  const sampleItem = {
+    ItemCode: 'MP-00413',
+    ProductName: 'DESIRE',
+    ProductCode: 'P',
+    CategoryName: 'STK',
+    DesignName: '228324',
+    PurityName: '14KT',
+    Size: 'A',
+    GrossWt: '1.010',
+    NetWt: '0.960',
+    DiamondWt: '0.001',
+    TotalDiamondWeight: '0.620',
+    TotalDiamondPieces: 46,
+    TotalStoneWeight: '0.001',
+    HallmarkAmount: '613464',
+    HUIDCode: 'SHOULD-NOT-PRINT',
+  };
+
+  it('reproduces the Oswal sample label and keeps the logo bytes', () => {
+    const prn = generateClientPrn(sampleItem, 'LS000677');
+    const file = require('fs').readFileSync('public/Oswal_Jwellers.prn');
+    const original = Array.from(file, (byte) => String.fromCharCode(byte)).join('');
+    const logoStart = original.indexOf('~LOGO;LOGO-0;PCX');
+    const logoEnd = original.indexOf('~RASTEREND') + '~RASTEREND'.length;
+
+    expect(prn.slice(logoStart, logoEnd)).toBe(original.slice(logoStart, logoEnd));
+    expect(prn).toContain('15;426;LOGO-0');
+    expect(prn).toContain('~DELETE LOGO;LOGO-0');
+    expect(prn).toContain('RFWTAG;64;EPC');
+    expect(prn).toContain('16;H;*2400*');
+    expect(prn).toContain('*4D502D3030343133*');
+    expect(prn).toContain('"1.010"');
+    expect(prn).toContain('"0.960"');
+    expect(prn).toContain('INV;POINT;93;647;7;7;"14KT:"');
+    expect(prn).toContain('INV;POINT;93;594;7;7;""');
+    expect(prn).toContain('INV;POINT;93;502;7;7;""');
+    expect(prn).toContain('"46/0.620"');
+    expect(prn).toContain('"DESIRE"');
+    expect(prn).toContain('"STK"');
+    expect(prn).toContain('"(A)"');
+    expect(prn).not.toContain('"P"');
+    expect(prn).not.toContain('"228324"');
+    expect(prn).toContain('"613464"');
+    expect(prn).toContain('"MP-00413"');
+    expect(prn).not.toContain('SHOULD-NOT-PRINT');
+    expect(prn.match(/"MP-00413"/g)).toHaveLength(1);
+  });
+
+  it('fills another item without leaving the sample values', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'MP-00999',
+        ProductName: 'CUBAN',
+        ProductCode: 'RG',
+        CategoryName: 'GOLD',
+        DesignName: '1001',
+        PurityName: '18KT',
+        Size: 'B',
+        GrossWt: '2.5',
+        NetWt: '2.1',
+        TotalDiamondWeight: '0.25',
+        TotalDiamondPieces: 12,
+        TotalStoneWeight: '0.05',
+        HallmarkAmount: '999111',
+      },
+      'LS000677'
+    );
+
+    expect(prn).toContain('"MP-00999"');
+    expect(prn).toContain('"CUBAN"');
+    expect(prn).toContain('"GOLD"');
+    expect(prn).toContain('INV;POINT;93;647;7;7;"18KT:"');
+    expect(prn).toContain('INV;POINT;93;594;7;7;""');
+    expect(prn).toContain('INV;POINT;93;502;7;7;""');
+    expect(prn).not.toContain('"RG"');
+    expect(prn).not.toContain('"1001"');
+    expect(prn).toContain('"18KT:"');
+    expect(prn).toContain('"(B)"');
+    expect(prn).toContain('"2.500"');
+    expect(prn).toContain('"2.100"');
+    expect(prn).toContain('"0.250"');
+    expect(prn).toContain('"0.050"');
+    expect(prn).toContain('"12/0.250"');
+    expect(prn).toContain('"999111"');
+    expect(prn).toContain('*4D502D3030393939*');
+    expect(prn).not.toContain('MP-00413');
+    expect(prn).not.toContain('613464');
+    expect(prn).not.toContain('DESIRE');
+    expect(prn.match(/"MP-00999"/g)).toHaveLength(1);
+  });
+});
+
 describe('LS000680 PRN generation', () => {
   it('matches the client diamond label for SFRI322', () => {
     const prn = generateClientPrn(
