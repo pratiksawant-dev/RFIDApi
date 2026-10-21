@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { getAuthForgotPasswordUrl, getAuthLoginUrl } from '../services/authApiConfig';
 import { shouldUseHashRouter } from '../utils/authRedirect';
+import { parseJwtPayload, readClientCodeFromPayload } from '../utils/jwtSession';
 import { getApiMode } from '../services/apiBaseConfig';
 import OfflineApiBaseSettingsForm from './OfflineApiBaseSettingsForm';
 import { useAuthSplitSwap } from '../hooks/useAuthSplitSwap';
@@ -418,16 +419,13 @@ const Login = () => {
   };
 
   const parseLoginToken = (token, resolvedUsername) => {
-    const parts = String(token || '').split('.');
-    if (parts.length < 2) {
+    const tokenPayload = parseJwtPayload(token);
+    if (!tokenPayload) {
       throw new Error('Invalid token format received from server');
     }
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const tokenPayload = JSON.parse(window.atob(base64));
     const userInfo = {
       Username: resolvedUsername || formData.LoginName,
-      ClientCode: tokenPayload.ClientCode || tokenPayload.clientcode || tokenPayload.sub,
+      ClientCode: readClientCodeFromPayload(tokenPayload) || String(tokenPayload.ClientCode || tokenPayload.clientCode || tokenPayload.clientcode || tokenPayload.sub || '').trim(),
     };
     if (!userInfo.ClientCode) {
       throw new Error('Client code not found in token');
