@@ -1477,6 +1477,30 @@ const generateLS000677Prn = (item) => {
   return prn;
 };
 
+export const prnBytesToString = (bytes) => {
+  const hasUtf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+  let content = '';
+  for (let i = hasUtf8Bom ? 3 : 0; i < bytes.length; i++) {
+    content += String.fromCharCode(bytes[i]);
+  }
+  return content;
+};
+
+export const applyLS000728DynamicTemplate = (template, item) => {
+  const itemCode = String(item?.ItemCode || item?.RFIDCode || '').trim();
+  const grossWeight = String(item?.GrossWt ?? item?.GrossWeight ?? item?.grosswt ?? item?.TWt ?? '0').trim();
+  const diamondWeight = String(item?.TotalDiamondWeight ?? item?.DiamondWt ?? item?.DiamondWeight ?? item?.diamondwt ?? '0').trim();
+  const itemCodeHex = Array.from(itemCode, (character) =>
+    character.charCodeAt(0).toString(16).padStart(2, '0')
+  ).join('');
+
+  return template
+    .replace(/SM001/g, itemCode)
+    .replace('^FD5.00^FS', `^FD${grossWeight}^FS`)
+    .replace('^FD0.002^FS', `^FD${diamondWeight}^FS`)
+    .replace('^FD534d303031^FS', `^FD${itemCodeHex}^FS`);
+};
+
 // Main function to generate client-specific PRN
 export const generateClientPrn = (item, clientCode) => {
   const rawCode = (clientCode || '').trim().toUpperCase();

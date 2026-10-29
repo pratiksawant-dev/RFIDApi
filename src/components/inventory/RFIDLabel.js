@@ -32,7 +32,11 @@ import 'jspdf-autotable';
 import { rfidLabelService } from '../../services/rfidLabelService';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useNotifications } from '../../context/NotificationContext';
-import { generateClientPrn } from '../../utils/prnTemplates';
+import {
+  applyLS000728DynamicTemplate,
+  generateClientPrn,
+  prnBytesToString,
+} from '../../utils/prnTemplates';
 import { parseJwtPayload, readClientCodeFromPayload } from '../../utils/jwtSession';
 import SuccessNotification from '../common/SuccessNotification';
 import PageHeader from '../common/PageHeader';
@@ -42,8 +46,9 @@ import { useLoading } from '../../App';
 
 const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
 const DEFAULT_PAGE_SIZE = 15;
-const PRN_ENABLED_CLIENT_CODES = ['LS000224', 'LS000428', 'LS000431', 'LS000443', 'LS000533', 'LS000544', 'LS000488','LS000551', 'LS000606', 'LS000680', 'LS000677'];
+const PRN_ENABLED_CLIENT_CODES = ['LS000224', 'LS000428', 'LS000431', 'LS000443', 'LS000533', 'LS000544', 'LS000488','LS000551', 'LS000606', 'LS000680', 'LS000677', 'LS000728'];
 const LS000431_PRN_FILE_PATH = `${process.env.PUBLIC_URL || ''}/DelhiOPNewFont.prn`;
+const LS000728_PRN_FILE_PATH = `${process.env.PUBLIC_URL || ''}/SMPUKLabel.prn`;
 
 const getUniqueOptions = (data, field) => {
   if (!data || !Array.isArray(data)) return ['All'];
@@ -1202,6 +1207,16 @@ const RFIDLabel = () => {
 
   const resolvePrnContent = async (item, activeClientCode) => {
     const normalizedClientCode = (activeClientCode || '').trim().toUpperCase();
+    if (normalizedClientCode === 'LS000728') {
+      const response = await fetch(LS000728_PRN_FILE_PATH, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to load PRN file for ${normalizedClientCode}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const templateContent = prnBytesToString(new Uint8Array(buffer));
+      return applyLS000728DynamicTemplate(templateContent, item);
+    }
     if (normalizedClientCode !== 'LS000431') {
       return generateClientPrn(item, activeClientCode);
     }
@@ -1212,11 +1227,7 @@ const RFIDLabel = () => {
     }
 
     const buffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let templateContent = '';
-    for (let i = 0; i < bytes.length; i++) {
-      templateContent += String.fromCharCode(bytes[i]);
-    }
+    const templateContent = prnBytesToString(new Uint8Array(buffer));
     ls000431TemplateRef.current = templateContent;
     return applyLS000431DynamicTemplate(templateContent, item);
   };

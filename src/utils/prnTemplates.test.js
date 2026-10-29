@@ -1,4 +1,29 @@
-import { generateClientPrn } from './prnTemplates';
+import {
+  applyLS000728DynamicTemplate,
+  generateClientPrn,
+  prnBytesToString,
+} from './prnTemplates';
+
+describe('LS000728 PRN template', () => {
+  it('removes the UTF-8 BOM and substitutes label and EPC values', () => {
+    const bytes = require('fs').readFileSync('public/SMPUKLabel.prn');
+    const template = prnBytesToString(new Uint8Array(bytes));
+    const prn = applyLS000728DynamicTemplate(template, {
+      ItemCode: 'AB1234',
+      GrossWt: '5.25',
+      TotalDiamondWeight: '0.125',
+    });
+
+    expect(prn.startsWith('^XA')).toBe(true);
+    expect(prn).toContain('^FDLA,AB1234^FS');
+    expect(prn).toContain('^FDAB1234^FS');
+    expect(prn).toContain('^FD5.25^FS');
+    expect(prn).toContain('^FD0.125^FS');
+    expect(prn).toContain('^FD414231323334^FS');
+    expect(prn).not.toContain('SM001');
+    expect(prn).not.toContain('^FD534d303031^FS');
+  });
+});
 
 describe('LS000606 PRN generation', () => {
   const baseItem = {
