@@ -206,9 +206,9 @@ describe('LS000677 PRN generation', () => {
     HUIDCode: 'SHOULD-NOT-PRINT',
   };
 
-  it('reproduces the Oswal sample label and keeps the logo bytes', () => {
+  it('reproduces the updated Oswal sample label and keeps the logo bytes', () => {
     const prn = generateClientPrn(sampleItem, 'LS000677');
-    const file = require('fs').readFileSync('public/Oswal_Jwellers.prn');
+    const file = require('fs').readFileSync('public/Oswal_changed_new.prn');
     const original = Array.from(file, (byte) => String.fromCharCode(byte)).join('');
     const logoStart = original.indexOf('~LOGO;LOGO-0;PCX');
     const logoEnd = original.indexOf('~RASTEREND') + '~RASTEREND'.length;
@@ -217,7 +217,7 @@ describe('LS000677 PRN generation', () => {
     expect(prn).toContain('15;426;LOGO-0');
     expect(prn).toContain('~DELETE LOGO;LOGO-0');
     expect(prn).toContain('RFWTAG;64;EPC');
-    expect(prn).toContain('16;H;*2400*');
+    expect(prn).toContain('16;H;*2000*');
     expect(prn).toContain('*4D502D3030343133*');
     expect(prn).toContain('"1.010"');
     expect(prn).toContain('"0.960"');
@@ -277,6 +277,14 @@ describe('LS000677 PRN generation', () => {
     expect(prn).not.toContain('613464');
     expect(prn).not.toContain('DESIRE');
     expect(prn.match(/"MP-00999"/g)).toHaveLength(1);
+  });
+
+  it('writes a short item code with the Pranav-compatible 32-bit EPC format', () => {
+    const prn = generateClientPrn({ ItemCode: 'CH27' }, 'LS000677');
+
+    expect(prn).toContain('16;H;*1000*');
+    expect(prn).toContain('RFWTAG;32;EPC');
+    expect(prn).toContain('32;H;*43483237*');
   });
 });
 
