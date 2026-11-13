@@ -331,3 +331,98 @@ describe('LS000680 PRN generation', () => {
     expect(prn).not.toContain("SFRI'322");
   });
 });
+
+describe('LS000736 PRN generation', () => {
+  it('matches the Amira sample label for NS-001A', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'NS-001A',
+        PurityName: '22KT',
+        GrossWt: '200',
+        NetWt: '200.00',
+        TotalDiamondWeight: '100',
+        FWT: '100',
+        ColourStoneWt: '100',
+        PotWt: '100',
+        MotiWt: '100',
+        Jadai: '500',
+        WaxWt: '100',
+        Extra: '999999',
+      },
+      'LS000736'
+    );
+
+    expect(prn).toContain('ENGINE-WIDTH;3941:LENGTH;710:MIRROR;0.');
+    expect(prn).toContain('~PAPER;LABELS 2;MEDIA 1');
+    expect(prn).toContain('~PAPER;FEED SHIFT 0;INTENSITY 15;SPEED IPS 2;SLEW IPS 2;TYPE 0');
+    expect(prn).toContain('RFWTAG;64;EPC');
+    expect(prn).toContain('16;H;*2400*');
+    expect(prn).toContain('*4E532D30303141*');
+    expect(prn).toContain('INV;POINT;124;789;7;7;"NS-001A"');
+    expect(prn).toContain('INV;POINT;124;697;7;7;"22KT"');
+    expect(prn).toContain('INV;POINT;97;789;7;7;"G.WT -"');
+    expect(prn).toContain('INV;POINT;98;702;7;7;"200.00"');
+    expect(prn).toContain('INV;POINT;75;702;7;7;"200.00"');
+    expect(prn).toContain('INV;POINT;53;789;7;7;"D.WT -"');
+    expect(prn).toContain('INV;POINT;53;704;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;31;789;7;7;"FWT -"');
+    expect(prn).toContain('INV;POINT;31;704;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;8;788;7;7;"C.ST.WT -"');
+    expect(prn).toContain('INV;POINT;9;704;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;110;518;7;7;"Pot WT -"');
+    expect(prn).toContain('INV;POINT;111;431;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;86;518;7;7;"Moti WT -"');
+    expect(prn).toContain('INV;POINT;87;431;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;65;520;7;7;"Jadai -"');
+    expect(prn).toContain('INV;POINT;65;409;7;7;"500"');
+    expect(prn).toContain('INV;POINT;41;520;7;7;"Wax WT -"');
+    expect(prn).toContain('INV;POINT;41;429;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;16;519;7;7;"Extra -"');
+    expect(prn).toContain('INV;POINT;16;433;7;7;"999999"');
+    expect(prn).toContain('"gms"');
+    expect(prn).toContain('"cts"');
+    expect(prn).toContain('"pcs"');
+    expect(prn).toContain('"Rs"');
+  });
+
+  it('fills another item from stock fields and stone names', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'AM12',
+        Purity: '18KT',
+        GrossWt: '12.5',
+        NetWt: '8.2',
+        DiamondWt: '1.25',
+        ExtraAmt: '1500',
+        Stones: [
+          { StoneName: 'Moti', StoneWeight: '2.5', StonePieces: 10 },
+          { StoneName: 'Pot', StoneWeight: '0.4' },
+          { StoneName: 'Wax', StoneWeight: '1.1' },
+          { StoneName: 'Ruby', StoneWeight: '3.2', StonePieces: 8 },
+          { StoneName: 'Polki', StoneWeight: '0.8' },
+          { StoneName: 'Jadai', StonePieces: 40 },
+        ],
+      },
+      'LS000736'
+    );
+
+    expect(prn).toContain('RFWTAG;48;EPC');
+    expect(prn).toContain('16;H;*1C00*');
+    expect(prn).toContain('*414D3132*');
+    expect(prn).toContain('"AM12"');
+    expect(prn).toContain('"18KT"');
+    expect(prn).toContain('"12.50"');
+    expect(prn).toContain('"8.20"');
+    expect(prn).toContain('"1.25"');
+    expect(prn).toContain('"0.80"');
+    expect(prn).toContain('"3.20"');
+    expect(prn).toContain('"2.50"');
+    expect(prn).toContain('"0.40"');
+    expect(prn).toContain('"1.10"');
+    expect(prn).toContain('"40"');
+    expect(prn).toContain('"1500"');
+    expect(prn).not.toContain('NS-001A');
+    expect(prn).not.toContain('22KT');
+    expect(prn).not.toContain('999999');
+  });
+});

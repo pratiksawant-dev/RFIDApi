@@ -1489,6 +1489,231 @@ const generateLS000677Prn = (item) => {
   return prn;
 };
 
+const pickNumber = (item, keys) => {
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    const n = parseFloat(value);
+    if (!Number.isNaN(n)) return n;
+  }
+  return null;
+};
+
+const amiraRowName = (row) =>
+  String(row?.StoneName ?? row?.Name ?? row?.stoneName ?? row?.Stone ?? '').trim();
+
+const amiraNameHas = (name, tokens) => {
+  const key = String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return tokens.some((token) => key.includes(token));
+};
+
+const amiraRowWeight = (row) => {
+  const n = parseFloat(row?.StoneWeight ?? row?.Weight ?? row?.StoneWt ?? row?.stonewt ?? row?.Wt);
+  return Number.isNaN(n) ? null : n;
+};
+
+const amiraRowPieces = (row) => {
+  const n = parseFloat(row?.StonePieces ?? row?.Pieces ?? row?.Pcs ?? row?.StonePcs ?? row?.stonePieces);
+  return Number.isNaN(n) ? null : n;
+};
+
+const collectAmiraStoneRows = (item) => {
+  const lists = [item?.Stones, item?.stones, item?.StoneDetails, item?.StoneList].filter(Array.isArray);
+  if (lists.length) return lists.flat();
+
+  const rows = [];
+  ['', '_2', '_3', '_4', '_5'].forEach((suffix) => {
+    const name = item?.[`StoneName${suffix}`];
+    if (name == null || String(name).trim() === '') return;
+    rows.push({
+      StoneName: name,
+      StoneWeight: item[`StoneWeight${suffix}`] ?? item[`StoneWt${suffix}`],
+      StonePieces: item[`StonePieces${suffix}`] ?? item[`StonePcs${suffix}`],
+    });
+  });
+  return rows;
+};
+
+const sumAmiraRows = (rows, tokens, kind) => {
+  let total = 0;
+  let found = false;
+  rows.forEach((row) => {
+    if (!amiraNameHas(amiraRowName(row), tokens)) return;
+    const n = kind === 'pcs' ? amiraRowPieces(row) : amiraRowWeight(row);
+    if (n == null) return;
+    total += n;
+    found = true;
+  });
+  return found ? total : null;
+};
+
+const AMIRA_COLOUR_STONE_EXCLUDE = ['moti', 'pearl', 'pot', 'wax', 'polki', 'pwt', 'fwt', 'jadai', 'diamond'];
+
+const sumAmiraColourStone = (rows) => {
+  let total = 0;
+  let found = false;
+  rows.forEach((row) => {
+    const name = amiraRowName(row);
+    if (!name || amiraNameHas(name, AMIRA_COLOUR_STONE_EXCLUDE)) return;
+    const n = amiraRowWeight(row);
+    if (n == null) return;
+    total += n;
+    found = true;
+  });
+  return found ? total : null;
+};
+
+const sumAmiraDiamondWeight = (item) => {
+  const lists = [item?.Diamonds, item?.diamonds, item?.DiamondDetails].filter(Array.isArray);
+  if (!lists.length) return null;
+  let total = 0;
+  let found = false;
+  lists.flat().forEach((row) => {
+    const n = parseFloat(row?.DiamondWeight ?? row?.Weight ?? row?.TotalDiamondWeight);
+    if (Number.isNaN(n)) return;
+    total += n;
+    found = true;
+  });
+  return found ? total : null;
+};
+
+const resolveAmiraNumber = (direct, fromStones, fallback) => {
+  if (direct != null) return direct;
+  if (fromStones != null) return fromStones;
+  return fallback == null ? 0 : fallback;
+};
+
+// LS000736 (Amira) — layout from public/AmiraNew01.prn.
+// Static labels and coordinates stay; only item values and RFID memory change.
+const generateLS000736Prn = (item) => {
+  const itemCode = firstFilledText(item?.ItemCode, item?.RFIDCode, item?.Itemcode);
+  const purity = firstFilledText(item?.PurityName, item?.Purity, item?.purity);
+  const stones = collectAmiraStoneRows(item);
+  const grossWt = formatWeight2(pickNumber(item, ['GrossWt', 'GrossWeight', 'grosswt']) ?? 0);
+  const netWt = formatWeight2(pickNumber(item, ['NetWt', 'NetWeight', 'netwt']) ?? 0);
+  const diamondWt = formatWeight2(
+    resolveAmiraNumber(
+      pickNumber(item, ['TotalDiamondWeight', 'DiamondWt', 'DiamondWeight', 'diamondweight', 'diamondWt']),
+      sumAmiraDiamondWeight(item),
+      0
+    )
+  );
+  const fineWt = formatWeight2(
+    resolveAmiraNumber(
+      pickNumber(item, ['FWT', 'FWt', 'fwt', 'PolkiWt', 'PolkiWeight', 'PWt', 'PWT']),
+      sumAmiraRows(stones, ['polki', 'pwt', 'fwt'], 'wt'),
+      0
+    )
+  );
+  const colourStoneWt = formatWeight2(
+    resolveAmiraNumber(
+      pickNumber(item, ['ColourStoneWt', 'ColorStoneWt', 'ColourStoneWeight', 'ColorStoneWeight', 'CSTWt', 'CStoneWt']),
+      sumAmiraColourStone(stones),
+      pickNumber(item, ['TotalStoneWeight', 'StoneWt', 'StoneWeight', 'stonewt'])
+    )
+  );
+  const potWt = formatWeight2(
+    resolveAmiraNumber(
+      pickNumber(item, ['PotWt', 'PotWeight', 'PotWT']),
+      sumAmiraRows(stones, ['pot'], 'wt'),
+      0
+    )
+  );
+  const motiWt = formatWeight2(
+    resolveAmiraNumber(
+      pickNumber(item, ['MotiWt', 'MotiWeight', 'MotiWT', 'PearlWt', 'PearlWeight']),
+      sumAmiraRows(stones, ['moti', 'pearl'], 'wt'),
+      0
+    )
+  );
+  const jadai = formatPlainAmount(
+    resolveAmiraNumber(
+      pickNumber(item, ['Jadai', 'JadaiPcs', 'JadaiPieces', 'JadaiCount']),
+      sumAmiraRows(stones, ['jadai'], 'pcs'),
+      pickNumber(item, ['TotalStonePieces', 'StonePcs', 'StonePieces'])
+    )
+  );
+  const waxWt = formatWeight2(
+    resolveAmiraNumber(
+      pickNumber(item, ['WaxWt', 'WaxWeight', 'WaxWT']),
+      sumAmiraRows(stones, ['wax'], 'wt'),
+      pickNumber(item, ['PackingWeight', 'PackingWt'])
+    )
+  );
+  const extra = formatPlainAmount(
+    pickNumber(item, ['Extra', 'ExtraAmt', 'ExtraAmount', 'ExtraCharges', 'OtherCharges']) ?? 0
+  );
+  const { epcBits, pcValue, epcHex } = resolveLS000680EpcMemory(itemCode);
+
+  return `<xpml><page quantity='0' pitch='18.0 mm'></xpml>!PTX_SETUP
+ENGINE-WIDTH;3941:LENGTH;710:MIRROR;0.
+PTX_END
+~PAPER;ROTATE 0
+~CONFIG
+UPC DESCENDERS;0
+END
+~PAPER;LABELS 2;MEDIA 1
+~PAPER;FEED SHIFT 0;INTENSITY 15;SPEED IPS 2;SLEW IPS 2;TYPE 0
+~PAPER;CUT 0;PAUSE 0;TEAR 0
+~CONFIG
+CHECK DYNAMIC BCD;0
+SLASH ZERO;0
+UPPERCASE;0
+AUTO WRAP;0
+HOST FORM LENGTH;1
+END
+<xpml></page></xpml><xpml><page quantity='1' pitch='18.0 mm'></xpml>~CREATE;FORM-0;51
+SCALE;DOT;203;203
+ISET;'UTF8'
+RFWTAG;16;PC
+16;H;${pcValue}
+STOP
+RFWTAG;${epcBits};EPC
+${epcBits};H;*${epcHex}*
+STOP
+FONT;FACE 92250;BOLD 0;SLANT 0
+ALPHA
+INV;POINT;124;789;7;7;"${prnQuote(itemCode)}"
+INV;POINT;97;789;7;7;"G.WT -"
+INV;POINT;98;702;7;7;"${grossWt}"
+INV;POINT;100;645;7;7;"gms"
+INV;POINT;75;789;7;7;"N.WT -"
+INV;POINT;75;702;7;7;"${netWt}"
+INV;POINT;77;645;7;7;"gms"
+INV;POINT;53;789;7;7;"D.WT -"
+INV;POINT;53;704;7;7;"${diamondWt}"
+INV;POINT;55;648;7;7;"cts"
+INV;POINT;31;789;7;7;"FWT -"
+INV;POINT;31;704;7;7;"${fineWt}"
+INV;POINT;31;647;7;7;"cts"
+INV;POINT;8;788;7;7;"C.ST.WT -"
+INV;POINT;9;704;7;7;"${colourStoneWt}"
+INV;POINT;8;642;7;7;"cts"
+INV;POINT;124;697;7;7;"${prnQuote(purity)}"
+INV;POINT;110;518;7;7;"Pot WT -"
+INV;POINT;86;518;7;7;"Moti WT -"
+INV;POINT;41;520;7;7;"Wax WT -"
+INV;POINT;16;519;7;7;"Extra -"
+INV;POINT;65;520;7;7;"Jadai -"
+INV;POINT;111;431;7;7;"${potWt}"
+INV;POINT;112;369;7;7;"cts"
+INV;POINT;87;431;7;7;"${motiWt}"
+INV;POINT;88;368;7;7;"cts"
+INV;POINT;65;409;7;7;"${jadai}"
+INV;POINT;66;368;7;7;"pcs"
+INV;POINT;41;429;7;7;"${waxWt}"
+INV;POINT;41;360;7;7;"gms"
+INV;POINT;16;433;7;7;"${extra}"
+INV;POINT;15;360;7;7;"Rs"
+STOP
+END
+~EXECUTE;FORM-0;1
+<xpml></page></xpml>
+~NORMAL
+~DELETE FORM;FORM-0
+`;
+};
+
 export const prnBytesToString = (bytes) => {
   const hasUtf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
   let content = '';
@@ -1540,6 +1765,8 @@ export const generateClientPrn = (item, clientCode) => {
       return generateLS000680Prn(item);
     case 'LS000677':
       return generateLS000677Prn(item);
+    case 'LS000736':
+      return generateLS000736Prn(item);
     case 'LS000443':
       // Check category for LS000443 - Gold, Silver, or Diamond
       // Also check ProductId for category detection
