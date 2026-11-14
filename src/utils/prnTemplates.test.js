@@ -425,4 +425,38 @@ describe('LS000736 PRN generation', () => {
     expect(prn).not.toContain('999999');
     expect(prn).not.toContain('"99.00"');
   });
+
+  it('uses the saved column when the list field is only a zero default', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'ER0157',
+        PurityName: '22KT',
+        GrossWt: '42.46',
+        NetWt: '31.76',
+        Description: '0',
+        ProductCode: '0',
+        ProductName: '0',
+        DesignName: '0',
+        HallmarkAmount: 0,
+        MRP: 0,
+        description: '1.20',
+        product_code: '2.50',
+        product_id: '999999',
+        design_id: '3.25',
+        hallmarkAmount: '40',
+        mrp: '100',
+      },
+      'LS000736'
+    );
+
+    expect(prn).toContain('"ER0157"');
+    expect(prn).toContain('"42.46"');
+    expect(prn).toContain('"31.76"');
+    expect(prn).toContain('INV;POINT;31;704;7;7;"1.20"');
+    expect(prn).toContain('INV;POINT;87;431;7;7;"2.50"');
+    expect(prn).toContain('INV;POINT;111;431;7;7;"100.00"');
+    expect(prn).toContain('INV;POINT;41;429;7;7;"3.25"');
+    expect(prn).toContain('INV;POINT;65;409;7;7;"40"');
+    expect(prn).toContain('INV;POINT;16;433;7;7;"999999"');
+  });
 });

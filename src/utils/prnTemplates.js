@@ -1489,7 +1489,26 @@ const generateLS000677Prn = (item) => {
   return prn;
 };
 
-const amiraField = (item, keys) => firstFilledText(...keys.map((key) => item?.[key]));
+const amiraSources = (item) =>
+  [item, item?.ProductDetails, item?.productDetails, item?.StockDetails].filter(Boolean);
+
+const amiraField = (item, keys) => {
+  let zero = '';
+  for (const source of amiraSources(item)) {
+    for (const key of keys) {
+      const value = source?.[key];
+      if (value === undefined || value === null) continue;
+      const text = String(value).trim();
+      if (!text) continue;
+      if (/^0+(\.0+)?$/.test(text)) {
+        if (!zero) zero = text;
+        continue;
+      }
+      return text;
+    }
+  }
+  return zero;
+};
 
 const amiraWeight = (item, keys) => {
   const text = amiraField(item, keys);
@@ -1518,10 +1537,10 @@ const generateLS000736Prn = (item) => {
   const colourStoneWt = amiraWeight(item, ['StoneWt', 'TotalStoneWeight', 'stonewt', 'StoneWeight']);
   const diamondWt = amiraWeight(item, ['DiamondWt', 'TotalDiamondWeight', 'diamondweight', 'DiamondWeight']);
   const fineWt = amiraWeight(item, ['Description', 'description']);
-  const motiWt = amiraWeight(item, ['ProductCode', 'product_code', 'Productcode']);
-  const potWt = amiraWeight(item, ['MRP', 'Mrp', 'mrp']);
+  const motiWt = amiraWeight(item, ['ProductCode', 'product_code', 'productCode', 'Productcode']);
+  const potWt = amiraWeight(item, ['MRP', 'Mrp', 'mrp', 'MRPAmount']);
   const waxWt = amiraWeight(item, ['DesignName', 'Design', 'design_id', 'DesignId']);
-  const jadai = amiraAmount(item, ['HallmarkAmount', 'HallmarkAmt', 'hallmarkAmount']);
+  const jadai = amiraAmount(item, ['HallmarkAmount', 'HallmarkAmt', 'hallmarkAmount', 'hallmarkAmt']);
   const extra = amiraAmount(item, ['ProductName', 'Product', 'product_id', 'ProductId']);
   const { epcBits, pcValue, epcHex } = resolveLS000680EpcMemory(itemCode);
 
