@@ -336,18 +336,18 @@ describe('LS000736 PRN generation', () => {
   it('matches the Amira sample label for NS-001A', () => {
     const prn = generateClientPrn(
       {
-        ItemCode: 'NS-001A',
+        Itemcode: 'NS-001A',
         PurityName: '22KT',
-        GrossWt: '200',
-        NetWt: '200.00',
-        TotalDiamondWeight: '100',
-        FWT: '100',
-        ColourStoneWt: '100',
-        PotWt: '100',
-        MotiWt: '100',
-        Jadai: '500',
-        WaxWt: '100',
-        Extra: '999999',
+        grosswt: '200',
+        netwt: '200.00',
+        stonewt: '100',
+        diamondweight: '100',
+        description: '100',
+        product_code: '100',
+        product_id: '999999',
+        HallmarkAmount: '500',
+        design_id: '100',
+        MRP: '100',
       },
       'LS000736'
     );
@@ -385,23 +385,22 @@ describe('LS000736 PRN generation', () => {
     expect(prn).toContain('"Rs"');
   });
 
-  it('fills another item from stock fields and stone names', () => {
+  it('reads the labelled-stock names for the mapped columns and ignores stone rows', () => {
     const prn = generateClientPrn(
       {
         ItemCode: 'AM12',
-        Purity: '18KT',
+        PurityName: '18KT',
         GrossWt: '12.5',
         NetWt: '8.2',
         DiamondWt: '1.25',
-        ExtraAmt: '1500',
-        Stones: [
-          { StoneName: 'Moti', StoneWeight: '2.5', StonePieces: 10 },
-          { StoneName: 'Pot', StoneWeight: '0.4' },
-          { StoneName: 'Wax', StoneWeight: '1.1' },
-          { StoneName: 'Ruby', StoneWeight: '3.2', StonePieces: 8 },
-          { StoneName: 'Polki', StoneWeight: '0.8' },
-          { StoneName: 'Jadai', StonePieces: 40 },
-        ],
+        StoneWt: '3.2',
+        Description: '0.8',
+        ProductCode: '2.5',
+        ProductName: '1500',
+        HallmarkAmount: '40',
+        DesignName: '1.1',
+        MRP: '0.4',
+        Stones: [{ StoneName: 'Ruby', StoneWeight: '99', StonePieces: 8 }],
       },
       'LS000736'
     );
@@ -424,5 +423,6 @@ describe('LS000736 PRN generation', () => {
     expect(prn).not.toContain('NS-001A');
     expect(prn).not.toContain('22KT');
     expect(prn).not.toContain('999999');
+    expect(prn).not.toContain('"99.00"');
   });
 });

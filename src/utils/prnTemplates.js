@@ -1489,160 +1489,40 @@ const generateLS000677Prn = (item) => {
   return prn;
 };
 
-const pickNumber = (item, keys) => {
-  for (const key of keys) {
-    const value = item?.[key];
-    if (value === undefined || value === null || String(value).trim() === '') continue;
-    const n = parseFloat(value);
-    if (!Number.isNaN(n)) return n;
-  }
-  return null;
+const amiraField = (item, keys) => firstFilledText(...keys.map((key) => item?.[key]));
+
+const amiraWeight = (item, keys) => {
+  const text = amiraField(item, keys);
+  if (!text) return '0.00';
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return text;
+  return Number(text).toFixed(2);
 };
 
-const amiraRowName = (row) =>
-  String(row?.StoneName ?? row?.Name ?? row?.stoneName ?? row?.Stone ?? '').trim();
-
-const amiraNameHas = (name, tokens) => {
-  const key = String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  return tokens.some((token) => key.includes(token));
-};
-
-const amiraRowWeight = (row) => {
-  const n = parseFloat(row?.StoneWeight ?? row?.Weight ?? row?.StoneWt ?? row?.stonewt ?? row?.Wt);
-  return Number.isNaN(n) ? null : n;
-};
-
-const amiraRowPieces = (row) => {
-  const n = parseFloat(row?.StonePieces ?? row?.Pieces ?? row?.Pcs ?? row?.StonePcs ?? row?.stonePieces);
-  return Number.isNaN(n) ? null : n;
-};
-
-const collectAmiraStoneRows = (item) => {
-  const lists = [item?.Stones, item?.stones, item?.StoneDetails, item?.StoneList].filter(Array.isArray);
-  if (lists.length) return lists.flat();
-
-  const rows = [];
-  ['', '_2', '_3', '_4', '_5'].forEach((suffix) => {
-    const name = item?.[`StoneName${suffix}`];
-    if (name == null || String(name).trim() === '') return;
-    rows.push({
-      StoneName: name,
-      StoneWeight: item[`StoneWeight${suffix}`] ?? item[`StoneWt${suffix}`],
-      StonePieces: item[`StonePieces${suffix}`] ?? item[`StonePcs${suffix}`],
-    });
-  });
-  return rows;
-};
-
-const sumAmiraRows = (rows, tokens, kind) => {
-  let total = 0;
-  let found = false;
-  rows.forEach((row) => {
-    if (!amiraNameHas(amiraRowName(row), tokens)) return;
-    const n = kind === 'pcs' ? amiraRowPieces(row) : amiraRowWeight(row);
-    if (n == null) return;
-    total += n;
-    found = true;
-  });
-  return found ? total : null;
-};
-
-const AMIRA_COLOUR_STONE_EXCLUDE = ['moti', 'pearl', 'pot', 'wax', 'polki', 'pwt', 'fwt', 'jadai', 'diamond'];
-
-const sumAmiraColourStone = (rows) => {
-  let total = 0;
-  let found = false;
-  rows.forEach((row) => {
-    const name = amiraRowName(row);
-    if (!name || amiraNameHas(name, AMIRA_COLOUR_STONE_EXCLUDE)) return;
-    const n = amiraRowWeight(row);
-    if (n == null) return;
-    total += n;
-    found = true;
-  });
-  return found ? total : null;
-};
-
-const sumAmiraDiamondWeight = (item) => {
-  const lists = [item?.Diamonds, item?.diamonds, item?.DiamondDetails].filter(Array.isArray);
-  if (!lists.length) return null;
-  let total = 0;
-  let found = false;
-  lists.flat().forEach((row) => {
-    const n = parseFloat(row?.DiamondWeight ?? row?.Weight ?? row?.TotalDiamondWeight);
-    if (Number.isNaN(n)) return;
-    total += n;
-    found = true;
-  });
-  return found ? total : null;
-};
-
-const resolveAmiraNumber = (direct, fromStones, fallback) => {
-  if (direct != null) return direct;
-  if (fromStones != null) return fromStones;
-  return fallback == null ? 0 : fallback;
+const amiraAmount = (item, keys) => {
+  const text = amiraField(item, keys);
+  if (!text) return '0';
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return text;
+  const n = Number(text);
+  return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
 };
 
 // LS000736 (Amira) — layout from public/AmiraNew01.prn.
-// Static labels and coordinates stay; only item values and RFID memory change.
+// Values come from the stock columns in the client's field map:
+// Itemcode, purity, grosswt, netwt, stonewt, diamondweight,
+// description, product_code, product_id, HallmarkAmount, design_id, MRP.
 const generateLS000736Prn = (item) => {
-  const itemCode = firstFilledText(item?.ItemCode, item?.RFIDCode, item?.Itemcode);
-  const purity = firstFilledText(item?.PurityName, item?.Purity, item?.purity);
-  const stones = collectAmiraStoneRows(item);
-  const grossWt = formatWeight2(pickNumber(item, ['GrossWt', 'GrossWeight', 'grosswt']) ?? 0);
-  const netWt = formatWeight2(pickNumber(item, ['NetWt', 'NetWeight', 'netwt']) ?? 0);
-  const diamondWt = formatWeight2(
-    resolveAmiraNumber(
-      pickNumber(item, ['TotalDiamondWeight', 'DiamondWt', 'DiamondWeight', 'diamondweight', 'diamondWt']),
-      sumAmiraDiamondWeight(item),
-      0
-    )
-  );
-  const fineWt = formatWeight2(
-    resolveAmiraNumber(
-      pickNumber(item, ['FWT', 'FWt', 'fwt', 'PolkiWt', 'PolkiWeight', 'PWt', 'PWT']),
-      sumAmiraRows(stones, ['polki', 'pwt', 'fwt'], 'wt'),
-      0
-    )
-  );
-  const colourStoneWt = formatWeight2(
-    resolveAmiraNumber(
-      pickNumber(item, ['ColourStoneWt', 'ColorStoneWt', 'ColourStoneWeight', 'ColorStoneWeight', 'CSTWt', 'CStoneWt']),
-      sumAmiraColourStone(stones),
-      pickNumber(item, ['TotalStoneWeight', 'StoneWt', 'StoneWeight', 'stonewt'])
-    )
-  );
-  const potWt = formatWeight2(
-    resolveAmiraNumber(
-      pickNumber(item, ['PotWt', 'PotWeight', 'PotWT']),
-      sumAmiraRows(stones, ['pot'], 'wt'),
-      0
-    )
-  );
-  const motiWt = formatWeight2(
-    resolveAmiraNumber(
-      pickNumber(item, ['MotiWt', 'MotiWeight', 'MotiWT', 'PearlWt', 'PearlWeight']),
-      sumAmiraRows(stones, ['moti', 'pearl'], 'wt'),
-      0
-    )
-  );
-  const jadai = formatPlainAmount(
-    resolveAmiraNumber(
-      pickNumber(item, ['Jadai', 'JadaiPcs', 'JadaiPieces', 'JadaiCount']),
-      sumAmiraRows(stones, ['jadai'], 'pcs'),
-      pickNumber(item, ['TotalStonePieces', 'StonePcs', 'StonePieces'])
-    )
-  );
-  const waxWt = formatWeight2(
-    resolveAmiraNumber(
-      pickNumber(item, ['WaxWt', 'WaxWeight', 'WaxWT']),
-      sumAmiraRows(stones, ['wax'], 'wt'),
-      pickNumber(item, ['PackingWeight', 'PackingWt'])
-    )
-  );
-  const extra = formatPlainAmount(
-    pickNumber(item, ['Extra', 'ExtraAmt', 'ExtraAmount', 'ExtraCharges', 'OtherCharges']) ?? 0
-  );
+  const itemCode = amiraField(item, ['ItemCode', 'Itemcode', 'RFIDCode']);
+  const purity = amiraField(item, ['PurityName', 'Purity', 'purity', 'purity_id']);
+  const grossWt = amiraWeight(item, ['GrossWt', 'GrossWeight', 'grosswt']);
+  const netWt = amiraWeight(item, ['NetWt', 'NetWeight', 'netwt']);
+  const colourStoneWt = amiraWeight(item, ['StoneWt', 'TotalStoneWeight', 'stonewt', 'StoneWeight']);
+  const diamondWt = amiraWeight(item, ['DiamondWt', 'TotalDiamondWeight', 'diamondweight', 'DiamondWeight']);
+  const fineWt = amiraWeight(item, ['Description', 'description']);
+  const motiWt = amiraWeight(item, ['ProductCode', 'product_code', 'Productcode']);
+  const potWt = amiraWeight(item, ['MRP', 'Mrp', 'mrp']);
+  const waxWt = amiraWeight(item, ['DesignName', 'Design', 'design_id', 'DesignId']);
+  const jadai = amiraAmount(item, ['HallmarkAmount', 'HallmarkAmt', 'hallmarkAmount']);
+  const extra = amiraAmount(item, ['ProductName', 'Product', 'product_id', 'ProductId']);
   const { epcBits, pcValue, epcHex } = resolveLS000680EpcMemory(itemCode);
 
   return `<xpml><page quantity='0' pitch='18.0 mm'></xpml>!PTX_SETUP
