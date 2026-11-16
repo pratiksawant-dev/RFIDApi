@@ -69,7 +69,7 @@ const mapGatiToUpdateExistingPayload = (row, clientCode) => ({
   status: String('ApiActive'),
 });
 
-const THIRD_PARTY_ALLOWED_CLIENT = 'LS000438';
+const THIRD_PARTY_ALLOWED_CLIENTS = ['LS000438', 'LS000734'];
 
 const STOCK_COLUMNS = [
   { key: 'RFIDCode', label: 'RFID Code', width: 90 },
@@ -144,7 +144,7 @@ const ThirdPartySoftwareIntegration = () => {
   useEffect(() => {
     const code = getClientCodeFromAuth();
     setClientCode(code);
-    setAllowed(code === THIRD_PARTY_ALLOWED_CLIENT);
+    setAllowed(THIRD_PARTY_ALLOWED_CLIENTS.includes(code));
   }, []);
 
   const checkConnection = useCallback(async () => {

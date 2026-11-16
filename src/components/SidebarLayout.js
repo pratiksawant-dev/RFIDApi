@@ -152,11 +152,11 @@ const SidebarLayout = ({ children }) => {
   ];
 
   const clientCode = userInfo.ClientCode || userInfo.clientcode || userInfo.clientCode || 'N/A';
-  const THIRD_PARTY_ALLOWED_CLIENT = 'LS000438';
+  const THIRD_PARTY_ALLOWED_CLIENTS = ['LS000438', 'LS000734'];
   const FERONIA_ALLOWED_CLIENT = 'LS000512';
   const KUMAR916_ALLOWED_CLIENT = 'LS000456';
   const VRAKRUPA_ALLOWED_CLIENT = 'LS000563';
-  const showThirdPartyMenu = (clientCode || '').trim().toUpperCase() === THIRD_PARTY_ALLOWED_CLIENT;
+  const showThirdPartyMenu = THIRD_PARTY_ALLOWED_CLIENTS.includes((clientCode || '').trim().toUpperCase());
   const showFeroniaMenu = (clientCode || '').trim().toUpperCase() === FERONIA_ALLOWED_CLIENT;
   const showKumar916Menu = (clientCode || '').trim().toUpperCase() === KUMAR916_ALLOWED_CLIENT;
   const showVarakrupaMenu = (clientCode || '').trim().toUpperCase() === VRAKRUPA_ALLOWED_CLIENT;
