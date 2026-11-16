@@ -23,10 +23,12 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaTimesCircle,
-  FaTimes
+  FaTimes,
+  FaHashtag
 } from 'react-icons/fa';
 import PageHeader from '../common/PageHeader';
 import { toRrgoldApiUrl } from '../../services/apiBaseConfig';
+import { normalizeCounterMasterRows, normalizeOnboardingList } from '../../services/memberOnboardingApi';
 
 // Dedicated standalone axios client
 const apiClient = axios.create({
@@ -74,7 +76,7 @@ const makeApiGet = async (path, config = {}) => {
 const LIST_VARIANTS = {
   matched: {
     title: 'Stock Taking Matched List',
-    subtitle: 'View all matched RFID inventory records for selected branch & date',
+    subtitle: 'View matched RFID inventory for the selected branch, counter, and date',
     tabLabel: 'Matched List',
     loadLabel: 'Load Matched List',
     loadingTitle: 'Loading Matched Records...',
@@ -142,6 +144,7 @@ const fetchStockTakingListResponse = async (paths, payload, headers) => {
     clientCode: payload.ClientCode,
     branchAddress: payload.BranchAddress,
     stockTakingDate: payload.StockTakingDate,
+    ...(payload.CounterNumber ? { counterNumber: payload.CounterNumber } : {}),
   }).toString();
   for (const path of paths) {
     try {
@@ -170,6 +173,11 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
   const [selectedBranchOption, setSelectedBranchOption] = useState('1007'); // Default
   const [customBranchInput, setCustomBranchInput] = useState('');
   const [isCustomBranch, setIsCustomBranch] = useState(false);
+  const [counters, setCounters] = useState([]);
+  const [loadingCounters, setLoadingCounters] = useState(false);
+  const [selectedCounterOption, setSelectedCounterOption] = useState('');
+  const [customCounterInput, setCustomCounterInput] = useState('');
+  const [isCustomCounter, setIsCustomCounter] = useState(false);
   
   // Date filter (defaults to today's date)
   const [stockTakingDate, setStockTakingDate] = useState(() => {
@@ -305,12 +313,41 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
     }
   }, [clientCode, token]);
 
-  // Load branches when clientCode is available
+  const fetchCounters = useCallback(async (code) => {
+    const activeCode = code || clientCode;
+    if (!activeCode) return;
+
+    setLoadingCounters(true);
+    const authToken = token || localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    };
+
+    try {
+      const res = await makeApiPost(
+        '/api/ClientOnboarding/GetAllCounters',
+        { ClientCode: activeCode },
+        { headers, timeout: 60000 }
+      );
+      setCounters(normalizeCounterMasterRows(normalizeOnboardingList(res.data)));
+    } catch (err) {
+      console.warn('GetAllCounters failed:', err.message);
+      setCounters([]);
+    } finally {
+      setLoadingCounters(false);
+    }
+  }, [clientCode, token]);
+
+  // Load branches and counters when clientCode is available
   useEffect(() => {
     if (clientCode) {
       fetchBranches(clientCode);
+      if (!isUnmatched) {
+        fetchCounters(clientCode);
+      }
     }
-  }, [clientCode, fetchBranches]);
+  }, [clientCode, fetchBranches, fetchCounters, isUnmatched]);
 
   // Current effective BranchAddress value to send to the API
   const effectiveBranchAddress = useMemo(() => {
@@ -330,6 +367,37 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
     );
   }, [branches, effectiveBranchAddress]);
 
+  const countersForBranch = useMemo(() => {
+    if (!counters.length) return [];
+    const branchId = currentBranchObj?.BranchId ?? currentBranchObj?.branchId ?? currentBranchObj?.Id ?? currentBranchObj?.id;
+    const branchName = String(currentBranchObj?.BranchName ?? currentBranchObj?.branchName ?? '').trim().toLowerCase();
+    const address = String(effectiveBranchAddress || '').trim().toLowerCase();
+    const filtered = counters.filter((counter) => {
+      const counterBranchId = counter.BranchId ?? counter.branchId;
+      const counterBranchName = String(counter.BranchName ?? counter.branchName ?? '').trim().toLowerCase();
+      const counterAddress = String(counter.BranchAddress ?? counter.branchAddress ?? '').trim().toLowerCase();
+      if (branchId != null && branchId !== '' && counterBranchId != null && String(counterBranchId) === String(branchId)) return true;
+      if (branchName && counterBranchName && counterBranchName === branchName) return true;
+      if (address && (counterAddress === address || counterBranchName === address || String(counterBranchId ?? '') === address)) return true;
+      return false;
+    });
+    return filtered.length > 0 ? filtered : counters;
+  }, [counters, currentBranchObj, effectiveBranchAddress]);
+
+  const effectiveCounterNumber = useMemo(() => {
+    if (isUnmatched) return '';
+    if (isCustomCounter) return customCounterInput.trim();
+    return selectedCounterOption ? String(selectedCounterOption).trim() : '';
+  }, [isUnmatched, isCustomCounter, customCounterInput, selectedCounterOption]);
+
+  useEffect(() => {
+    if (isUnmatched || isCustomCounter || !selectedCounterOption) return;
+    const stillThere = countersForBranch.some(
+      (counter) => String(counter.CounterNumber ?? counter.counterNumber ?? '').trim() === selectedCounterOption
+    );
+    if (!stillThere) setSelectedCounterOption('');
+  }, [countersForBranch, isCustomCounter, isUnmatched, selectedCounterOption]);
+
   const activeBranchName = currentBranchObj?.BranchName || currentBranchObj?.branchName || apiResponseMeta?.branchName || '';
   const activeBranchAddress = currentBranchObj?.BranchAddress || currentBranchObj?.branchAddress || apiResponseMeta?.branchAddress || effectiveBranchAddress || '';
 
@@ -345,11 +413,12 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
   const bannerMessage = useMemo(() => {
     if (!apiResponseMeta) return '';
     const count = apiResponseMeta.totalUniqueTags ?? matchedList.length;
+    const counterPart = effectiveCounterNumber ? ` counter '${effectiveCounterNumber}'` : '';
     if (count > 0) {
-      return `Found ${count} unique ${cfg.word} RFID tags for branch '${branchFormattedDisplay}' on ${stockTakingDate}.`;
+      return `Found ${count} unique ${cfg.word} RFID tags for branch '${branchFormattedDisplay}'${counterPart} on ${stockTakingDate}.`;
     }
-    return `No ${cfg.word} items found for branch '${branchFormattedDisplay}' on ${stockTakingDate}.`;
-  }, [apiResponseMeta, branchFormattedDisplay, stockTakingDate, matchedList.length, cfg.word]);
+    return `No ${cfg.word} items found for branch '${branchFormattedDisplay}'${counterPart} on ${stockTakingDate}.`;
+  }, [apiResponseMeta, branchFormattedDisplay, stockTakingDate, matchedList.length, cfg.word, effectiveCounterNumber]);
 
   const fetchMatchedList = useCallback(async () => {
     if (!clientCode) {
@@ -364,6 +433,10 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
       toast.warn('Please select a Stock Taking Date.');
       return;
     }
+    if (!isUnmatched && !effectiveCounterNumber) {
+      toast.warn('Please enter or select a Counter Number.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -372,6 +445,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
       ClientCode: clientCode,
       BranchAddress: effectiveBranchAddress,
       StockTakingDate: stockTakingDate,
+      ...(!isUnmatched ? { CounterNumber: effectiveCounterNumber } : {}),
     };
 
     const authToken = token || localStorage.getItem('token');
@@ -413,14 +487,14 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
     } finally {
       setLoading(false);
     }
-  }, [clientCode, effectiveBranchAddress, stockTakingDate, token, cfg]);
+  }, [clientCode, effectiveBranchAddress, stockTakingDate, effectiveCounterNumber, isUnmatched, token, cfg]);
 
-  // Auto-fetch data when effectiveBranchAddress and stockTakingDate are valid
+  // Auto-fetch data when branch, counter, and date are valid
   useEffect(() => {
-    if (clientCode && effectiveBranchAddress && stockTakingDate) {
+    if (clientCode && effectiveBranchAddress && stockTakingDate && (isUnmatched || effectiveCounterNumber)) {
       fetchMatchedList();
     }
-  }, [clientCode, effectiveBranchAddress, stockTakingDate, fetchMatchedList]);
+  }, [clientCode, effectiveBranchAddress, stockTakingDate, effectiveCounterNumber, isUnmatched, fetchMatchedList]);
 
   // Table sorting helper
   const handleSort = (key) => {
@@ -533,7 +607,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
       })));
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheetFromTemplateRows(rows), cfg.excelSheet);
-      const fileName = `${cfg.excelPrefix}_${effectiveBranchAddress || 'Branch'}_${stockTakingDate || 'Date'}.xlsx`;
+      const fileName = `${cfg.excelPrefix}_${effectiveBranchAddress || 'Branch'}${effectiveCounterNumber ? `_${effectiveCounterNumber}` : ''}_${stockTakingDate || 'Date'}.xlsx`;
       XLSX.writeFile(workbook, fileName);
       toast.success('Exported to Excel successfully!');
     } catch (error) {
@@ -678,6 +752,69 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
                   max={new Date().toISOString().split('T')[0]}
                 />
               </div>
+
+              {!isUnmatched && (
+                <div className="filter-field counter-field">
+                  <label className="filter-label">
+                    <FaHashtag className="filter-icon" /> Counter Number
+                    {loadingCounters && <FaSpinner className="fa-spin" style={{ marginLeft: 6, color: '#0f766e' }} />}
+                  </label>
+                  <div className="branch-input-wrapper">
+                    {!isCustomCounter ? (
+                      <select
+                        className="filter-select"
+                        value={selectedCounterOption}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '__custom__') {
+                            setIsCustomCounter(true);
+                            setCustomCounterInput('');
+                          } else {
+                            setSelectedCounterOption(val);
+                          }
+                        }}
+                        disabled={loadingCounters}
+                      >
+                        <option value="">Select counter</option>
+                        {countersForBranch.map((counter, idx) => {
+                          const number = String(counter.CounterNumber ?? counter.counterNumber ?? '').trim();
+                          if (!number) return null;
+                          const name = String(counter.CounterName ?? counter.counterName ?? counter.Name ?? '').trim();
+                          const id = counter.Id ?? counter.id ?? `${number}-${idx}`;
+                          return (
+                            <option key={id} value={number}>
+                              {name ? `${name} - ${number}` : number}
+                            </option>
+                          );
+                        })}
+                        <option value="__custom__">+ Enter Custom Counter Number...</option>
+                      </select>
+                    ) : (
+                      <div className="custom-input-group">
+                        <input
+                          type="text"
+                          className="filter-input"
+                          placeholder="e.g. D1"
+                          value={customCounterInput}
+                          onChange={(e) => setCustomCounterInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') fetchMatchedList();
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="branch-switch-btn"
+                          onClick={() => setIsCustomCounter(false)}
+                          title="Choose from counter dropdown"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="filter-load-actions">
@@ -1239,6 +1376,10 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
         .date-field {
           width: 175px;
           min-width: 150px;
+        }
+        .counter-field {
+          width: 220px;
+          min-width: 180px;
         }
         .filter-label {
           font-size: 12px;
@@ -1804,7 +1945,7 @@ const StockTakingMatchedList = ({ embedded = false, initialClientCode = '', vari
             flex-direction: column;
             align-items: stretch;
           }
-          .branch-field, .date-field {
+          .branch-field, .date-field, .counter-field {
             width: 100%;
           }
           .filter-load-actions {

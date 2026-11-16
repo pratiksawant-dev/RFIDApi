@@ -550,11 +550,12 @@ const APIDocumentation = () => {
       endpoint: 'GetStockTakingMatchedList',
       method: 'POST',
       baseUrl: 'https://rrgold.loyalstring.co.in/api/ProductMaster',
-      description: 'Get unique matched RFID tags for one client, branch, and stock-taking date. Same payload as the Stock Taking Matched List page. BranchAddress accepts branch id, name, or address. StockTakingDate is YYYY-MM-DD.',
+      description: 'Get unique matched RFID tags for one client, branch, counter, and stock-taking date. Same payload as the Stock Taking Matched List page. BranchAddress accepts branch id, name, or address. StockTakingDate is YYYY-MM-DD. CounterNumber is the counter code.',
       sampleBody: {
         ClientCode: 'LS000123',
         BranchAddress: '1007',
-        StockTakingDate: '2026-09-16'
+        StockTakingDate: '2026-09-16',
+        CounterNumber: 'D1'
       },
       responseFormat: {
         Message: 'Matched stock taking list loaded successfully.',

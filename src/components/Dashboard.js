@@ -210,7 +210,7 @@ const API_GROUPS = [
         name: 'Get Stock Taking Matched List',
         endpoint: 'GetStockTakingMatchedList',
         method: 'POST',
-        description: 'RRGold ProductMaster. Same payload as the Stock Taking Matched List page: ClientCode, BranchAddress (id/name/address), and StockTakingDate (YYYY-MM-DD). Returns unique matched RFID tags for that branch and date.',
+        description: 'RRGold ProductMaster. Same payload as the Stock Taking Matched List page: ClientCode, BranchAddress (id/name/address), StockTakingDate (YYYY-MM-DD), and CounterNumber. Returns unique matched RFID tags for that branch, counter, and date.',
         sampleBody: { ...PLAYGROUND_GET_STOCK_TAKING_MATCHED_LIST_BODY },
         responseFormat: {
           Message: 'Matched stock taking list loaded successfully.',
