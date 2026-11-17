@@ -279,12 +279,13 @@ describe('LS000677 PRN generation', () => {
     expect(prn.match(/"MP-00999"/g)).toHaveLength(1);
   });
 
-  it('writes a short item code with the Pranav-compatible 32-bit EPC format', () => {
-    const prn = generateClientPrn({ ItemCode: 'CH27' }, 'LS000677');
+  it('pads a 4-character item code to the 48-bit EPC minimum', () => {
+    const prn = generateClientPrn({ ItemCode: 'GL31' }, 'LS000677');
 
-    expect(prn).toContain('16;H;*1000*');
-    expect(prn).toContain('RFWTAG;32;EPC');
-    expect(prn).toContain('32;H;*43483237*');
+    expect(prn).toContain('16;H;*1800*');
+    expect(prn).toContain('RFWTAG;48;EPC');
+    expect(prn).toContain('48;H;*0000474C3331*');
+    expect(prn).not.toContain('RFWTAG;32;EPC');
   });
 });
 

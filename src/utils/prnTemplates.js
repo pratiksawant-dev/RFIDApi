@@ -1394,22 +1394,18 @@ const firstFilledText = (...values) => {
   return '';
 };
 
-// Match the working Pranav Jewels encoder exactly: write the actual number of
-// 16-bit EPC words, including short codes such as CH27 (32-bit EPC / PC *1000*).
+// ASCII EPC sized to the item code, with a 48-bit (3-word) minimum.
+// A 4-character code such as GL31 is only 32 bits; this printer does not inventory that.
 const resolveLS000677EpcMemory = (itemCode) => {
   let epcHex = stringToHex(String(itemCode || '').trim());
   if (!epcHex) {
-    return { epcBits: 32, pcValue: '*1000*', epcHex: '00000000' };
+    return { epcBits: 48, pcValue: '*1800*', epcHex: '000000000000' };
   }
 
-  const remainder = epcHex.length % 4;
-  if (remainder) {
-    epcHex = epcHex.padStart(epcHex.length + (4 - remainder), '0');
-  }
-
-  const epcBits = (epcHex.length / 2) * 8;
-  const epcWords = epcBits / 16;
-  const pcValue = `*${(epcWords << 11).toString(16).toUpperCase().padStart(4, '0')}*`;
+  const words = Math.max(3, Math.ceil(epcHex.length / 4));
+  const epcBits = words * 16;
+  epcHex = epcHex.padStart(words * 4, '0');
+  const pcValue = `*${(words << 11).toString(16).toUpperCase().padStart(4, '0')}*`;
   return { epcBits, pcValue, epcHex };
 };
 
