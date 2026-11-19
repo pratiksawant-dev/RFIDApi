@@ -208,13 +208,13 @@ describe('LS000677 PRN generation', () => {
 
   it('reproduces the updated Oswal sample label and keeps the logo bytes', () => {
     const prn = generateClientPrn(sampleItem, 'LS000677');
-    const file = require('fs').readFileSync('public/Oswal_changed_new.prn');
+    const file = require('fs').readFileSync('public/Oswal_Image_new01.prn');
     const original = Array.from(file, (byte) => String.fromCharCode(byte)).join('');
     const logoStart = original.indexOf('~LOGO;LOGO-0;PCX');
     const logoEnd = original.indexOf('~RASTEREND') + '~RASTEREND'.length;
 
     expect(prn.slice(logoStart, logoEnd)).toBe(original.slice(logoStart, logoEnd));
-    expect(prn).toContain('15;426;LOGO-0');
+    expect(prn).toContain('15;310;LOGO-0');
     expect(prn).toContain('~DELETE LOGO;LOGO-0');
     expect(prn).toContain('RFWTAG;64;EPC');
     expect(prn).toContain('16;H;*2000*');
