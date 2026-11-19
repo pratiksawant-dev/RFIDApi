@@ -1681,21 +1681,23 @@ const resolveDiamourCertificate = (item) => {
     || zplText(row?.DiamondCertificate || row?.CertificateNo);
 };
 
-// Zebra ^RFW hex. Tags whose EPC does not start with 00 are not inventoried:
-// DM01 is only 32 bits, and DM0002 is an exact 48-bit value with no leading 00.
-// DM002 and DM00004 scan because padding already produced that leading 00.
+// Zebra ^RFW — same rules as client encoder: ASCII hex, pad to 16-bit words, PC = words << 11.
 const resolveDiamourEpc = (itemCode) => {
-  const rawHex = stringToHex(zplText(itemCode)).toLowerCase();
-  if (!rawHex) {
+  let epcHex = stringToHex(zplText(itemCode)).replace(/[^0-9A-F]/gi, '');
+  if (!epcHex) {
     return { pcHex: '1800', byteCount: 6, epcHex: '000000000000' };
   }
-  const withLead = rawHex.startsWith('00') ? rawHex : `00${rawHex}`;
-  const words = Math.max(3, Math.ceil(withLead.length / 4));
-  const epcHex = withLead.padStart(words * 4, '0');
+  if (epcHex.length % 4 !== 0) {
+    const remainder = epcHex.length % 4;
+    const padLength = 4 - remainder;
+    epcHex = epcHex.padStart(epcHex.length + padLength, '0');
+  }
+  const epcWords = epcHex.length / 4;
+  const pcHex = (epcWords << 11).toString(16).padStart(4, '0');
   return {
-    pcHex: (words << 11).toString(16).padStart(4, '0'),
-    byteCount: words * 2,
-    epcHex,
+    pcHex,
+    byteCount: epcHex.length / 2,
+    epcHex: epcHex.toLowerCase(),
   };
 };
 

@@ -361,8 +361,8 @@ describe('LS000726 PRN generation', () => {
     expect(prn).toContain('^FT545,416^A0N,29,28^FH\\^CI28^FDS/D^FS^CI27');
     expect(prn).toContain('^FT597,416^A0N,29,28^FH\\^CI28^FD0.05 ct^FS^CI27');
     expect(prn).toContain(`^FT544,452^A0N,29,28^FH\\^CI28^FD${'\u00C2\u00A3'} 4000.00^FS^CI27`);
-    expect(prn).toContain('^RFW,H,1,2,1^FD2000^FS');
-    expect(prn).toContain('^RFW,H,2,8,1^FD0000444d30303031^FS');
+    expect(prn).toContain('^RFW,H,1,2,1^FD1800^FS');
+    expect(prn).toContain('^RFW,H,2,6,1^FD444d30303031^FS');
   });
 
   it('uses the centre diamond row and pads a short item code to 48 bits', () => {
@@ -397,17 +397,27 @@ describe('LS000726 PRN generation', () => {
     expect(prn).toContain('^RFW,H,2,6,1^FD00444d303031^FS');
   });
 
-  it('pads DM01 and DM0002 so the EPC starts with 00', () => {
-    const shortCode = generateClientPrn({ ItemCode: 'DM01' }, 'LS000726');
-    const exactCode = generateClientPrn({ ItemCode: 'DM0002' }, 'LS000726');
+  it('matches the client RFID encoder for short and long item codes', () => {
+    const dm = generateClientPrn({ ItemCode: 'DM' }, 'LS000726');
+    const dm1 = generateClientPrn({ ItemCode: 'DM1' }, 'LS000726');
+    const dm01 = generateClientPrn({ ItemCode: 'DM01' }, 'LS000726');
+    const dm0002 = generateClientPrn({ ItemCode: 'DM0002' }, 'LS000726');
+    const longCode = generateClientPrn({ ItemCode: 'DM0000000007' }, 'LS000726');
 
-    expect(shortCode).toContain('^RFW,H,1,2,1^FD1800^FS');
-    expect(shortCode).toContain('^RFW,H,2,6,1^FD0000444d3031^FS');
-    expect(shortCode).not.toContain('^FD1000^FS');
+    expect(dm).toContain('^RFW,H,1,2,1^FD0800^FS');
+    expect(dm).toContain('^RFW,H,2,2,1^FD444d^FS');
 
-    expect(exactCode).toContain('^RFW,H,1,2,1^FD2000^FS');
-    expect(exactCode).toContain('^RFW,H,2,8,1^FD0000444d30303032^FS');
-    expect(exactCode).not.toContain('^FD444d30303032^FS');
+    expect(dm1).toContain('^RFW,H,1,2,1^FD1000^FS');
+    expect(dm1).toContain('^RFW,H,2,4,1^FD00444d31^FS');
+
+    expect(dm01).toContain('^RFW,H,1,2,1^FD1000^FS');
+    expect(dm01).toContain('^RFW,H,2,4,1^FD444d3031^FS');
+
+    expect(dm0002).toContain('^RFW,H,1,2,1^FD1800^FS');
+    expect(dm0002).toContain('^RFW,H,2,6,1^FD444d30303032^FS');
+
+    expect(longCode).toContain('^RFW,H,1,2,1^FD3000^FS');
+    expect(longCode).toContain('^RFW,H,2,12,1^FD444d30303030303030303037^FS');
   });
 });
 
