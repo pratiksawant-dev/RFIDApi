@@ -333,6 +333,84 @@ describe('LS000680 PRN generation', () => {
   });
 });
 
+describe('LS000726 PRN generation', () => {
+  it('fills the Diamour label from the stock columns', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'DM0001',
+        ProductCode: 'DA-34',
+        DiamondWt: '4',
+        DiamondColour: 'E',
+        DiamondClarity: 'VVS2',
+        DiamondCertificate: 'LG7000786434',
+        PurityName: 'PT-950',
+        StoneWt: '0.05',
+        MRP: '4000',
+      },
+      'LS000726'
+    );
+
+    expect(prn).toContain('^PW791');
+    expect(prn).toContain('^LL484');
+    expect(prn).toContain('^FT538,223^A0N,29,28^FH\\^CI28^FDDM0001^FS^CI27');
+    expect(prn).toContain('^FT642,223^A0N,29,28^FH\\^CI28^FDDA-34^FS^CI27');
+    expect(prn).toContain('^FT538,259^A0N,29,28^FH\\^CI28^FD4.00ct^FS^CI27');
+    expect(prn).toContain('^FT642,259^A0N,29,28^FH\\^CI28^FDE-VVS2^FS^CI27');
+    expect(prn).toContain('^FT538,298^A0N,29,28^FH\\^CI28^FDLG7000786434^FS^CI27');
+    expect(prn).toContain('^FT547,376^A0N,29,28^FH\\^CI28^FDPT-950^FS^CI27');
+    expect(prn).toContain('^FT545,416^A0N,29,28^FH\\^CI28^FDS/D^FS^CI27');
+    expect(prn).toContain('^FT597,416^A0N,29,28^FH\\^CI28^FD0.05 ct^FS^CI27');
+    expect(prn).toContain(`^FT544,452^A0N,29,28^FH\\^CI28^FD${'\u00C2\u00A3'} 4000.00^FS^CI27`);
+    expect(prn).toContain('^RFW,H,1,2,1^FD2000^FS');
+    expect(prn).toContain('^RFW,H,2,8,1^FD0000444d30303031^FS');
+  });
+
+  it('uses the centre diamond row and pads a short item code to 48 bits', () => {
+    const prn = generateClientPrn(
+      {
+        ItemCode: 'DM001',
+        DesignName: 'DA-48',
+        PurityName: 'Pt-950',
+        MRP: '4000.5',
+        Diamonds: [
+          {
+            DiamondWeight: '4.02',
+            DiamondColour: 'E',
+            DiamondClarity: 'VVS2',
+            DiamondCertificate: 'LG799607688',
+          },
+          { DiamondWeight: '0.5' },
+        ],
+      },
+      'LS000726'
+    );
+
+    expect(prn).toContain('^FDDM001^FS');
+    expect(prn).toContain('^FDDA-48^FS');
+    expect(prn).toContain('^FD4.02ct^FS');
+    expect(prn).toContain('^FDE-VVS2^FS');
+    expect(prn).toContain('^FDLG799607688^FS');
+    expect(prn).toContain('^FDPt-950^FS');
+    expect(prn).toContain('^FD0.50 ct^FS');
+    expect(prn).toContain(`${'\u00C2\u00A3'} 4000.50`);
+    expect(prn).toContain('^RFW,H,1,2,1^FD1800^FS');
+    expect(prn).toContain('^RFW,H,2,6,1^FD00444d303031^FS');
+  });
+
+  it('pads DM01 and DM0002 so the EPC starts with 00', () => {
+    const shortCode = generateClientPrn({ ItemCode: 'DM01' }, 'LS000726');
+    const exactCode = generateClientPrn({ ItemCode: 'DM0002' }, 'LS000726');
+
+    expect(shortCode).toContain('^RFW,H,1,2,1^FD1800^FS');
+    expect(shortCode).toContain('^RFW,H,2,6,1^FD0000444d3031^FS');
+    expect(shortCode).not.toContain('^FD1000^FS');
+
+    expect(exactCode).toContain('^RFW,H,1,2,1^FD2000^FS');
+    expect(exactCode).toContain('^RFW,H,2,8,1^FD0000444d30303032^FS');
+    expect(exactCode).not.toContain('^FD444d30303032^FS');
+  });
+});
+
 describe('LS000736 PRN generation', () => {
   it('matches the Amira sample label for NS-001A', () => {
     const prn = generateClientPrn(

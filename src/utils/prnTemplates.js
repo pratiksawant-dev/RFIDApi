@@ -1609,6 +1609,150 @@ END
 `;
 };
 
+// prnToBytes stores one byte per character. ^CI28 reads UTF-8, and £ is C2 A3.
+const ZEBRA_UTF8_POUND = '\u00C2\u00A3';
+
+const zplText = (value) =>
+  String(value ?? '')
+    .replace(/[\r\n^~\\]/g, ' ')
+    .trim();
+
+const pickText = (item, keys) => {
+  for (const key of keys) {
+    const text = zplText(item?.[key]);
+    if (text) return text;
+  }
+  return '';
+};
+
+const diamourDiamondRows = (item) => {
+  if (Array.isArray(item?.Diamonds) && item.Diamonds.length) return item.Diamonds;
+  if (Array.isArray(item?.diamonds) && item.diamonds.length) return item.diamonds;
+  return [];
+};
+
+const diamourRowWeight = (row) =>
+  row?.DiamondWeight ?? row?.TotalDiamondWeight ?? row?.diamondWeight ?? '';
+
+const formatDiamourCt = (value, withSpace) => {
+  const n = parseFloat(value);
+  const amount = Number.isNaN(n) ? '0.00' : n.toFixed(2);
+  return withSpace ? `${amount} ct` : `${amount}ct`;
+};
+
+const formatDiamourPrice = (value) => {
+  const n = parseFloat(value);
+  const amount = Number.isNaN(n) ? '0.00' : n.toFixed(2);
+  return `${ZEBRA_UTF8_POUND} ${amount}`;
+};
+
+const resolveDiamourCentreWeight = (item) => {
+  const row = diamourDiamondRows(item)[0];
+  const fromRow = row ? diamourRowWeight(row) : '';
+  if (String(fromRow ?? '').trim()) return fromRow;
+  return item?.DiamondWt ?? item?.TotalDiamondWeight ?? item?.DiamondWeight ?? item?.diamondweight ?? 0;
+};
+
+const resolveDiamourSideWeight = (item) => {
+  const rows = diamourDiamondRows(item);
+  if (rows.length > 1) {
+    return rows.slice(1).reduce((total, row) => total + (parseFloat(diamourRowWeight(row)) || 0), 0);
+  }
+  const named = pickText(item, ['SideDiamondWt', 'SideDiamondWeight', 'sideDiamondWt', 'SmallDiamondWt']);
+  if (named) return named;
+  return item?.StoneWt ?? item?.TotalStoneWeight ?? item?.stonewt ?? item?.StoneWeight ?? 0;
+};
+
+const resolveDiamourColourClarity = (item) => {
+  const row = diamourDiamondRows(item)[0];
+  const colour = pickText(item, ['DiamondColour', 'DiamondColor', 'diamondColour'])
+    || zplText(row?.DiamondColour || row?.DiamondColor);
+  const clarity = pickText(item, ['DiamondClarity', 'diamondClarity'])
+    || zplText(row?.DiamondClarity);
+  if (colour && clarity && !colour.toUpperCase().includes(clarity.toUpperCase())) {
+    return `${colour}-${clarity}`;
+  }
+  return colour || clarity;
+};
+
+const resolveDiamourCertificate = (item) => {
+  const row = diamourDiamondRows(item)[0];
+  return pickText(item, ['DiamondCertificate', 'CertificateNumber', 'CertificateNo', 'CertNo', 'Certificate'])
+    || zplText(row?.DiamondCertificate || row?.CertificateNo);
+};
+
+// Zebra ^RFW hex. Tags whose EPC does not start with 00 are not inventoried:
+// DM01 is only 32 bits, and DM0002 is an exact 48-bit value with no leading 00.
+// DM002 and DM00004 scan because padding already produced that leading 00.
+const resolveDiamourEpc = (itemCode) => {
+  const rawHex = stringToHex(zplText(itemCode)).toLowerCase();
+  if (!rawHex) {
+    return { pcHex: '1800', byteCount: 6, epcHex: '000000000000' };
+  }
+  const withLead = rawHex.startsWith('00') ? rawHex : `00${rawHex}`;
+  const words = Math.max(3, Math.ceil(withLead.length / 4));
+  const epcHex = withLead.padStart(words * 4, '0');
+  return {
+    pcHex: (words << 11).toString(16).padStart(4, '0'),
+    byteCount: words * 2,
+    epcHex,
+  };
+};
+
+// LS000726 (Diamour) — layout from public/Diamour01 1.prn.
+// ItemCode, ProductCode, DiamondWt, DiamondColour + DiamondClarity,
+// DiamondCertificate, PurityName, StoneWt (side diamonds), MRP.
+const generateLS000726Prn = (item) => {
+  const itemCode = pickText(item, ['ItemCode', 'Itemcode', 'RFIDCode']);
+  const priceTag = pickText(item, ['ProductCode', 'product_code', 'productCode', 'DesignName', 'Design', 'SKU', 'sku']);
+  const diamondWt = formatDiamourCt(resolveDiamourCentreWeight(item), false);
+  const colourClarity = resolveDiamourColourClarity(item);
+  const certificate = resolveDiamourCertificate(item);
+  const metal = pickText(item, ['PurityName', 'Purity', 'purity', 'MetalName', 'metalName']);
+  const sideDiamond = formatDiamourCt(resolveDiamourSideWeight(item), true);
+  const sellingPrice = formatDiamourPrice(
+    item?.MRP ?? item?.Mrp ?? item?.mrp ?? item?.Price ?? item?.SellingPrice ?? item?.TagPrice ?? 0
+  );
+  const { pcHex, byteCount, epcHex } = resolveDiamourEpc(itemCode);
+
+  return `^XA
+~TA000
+~JSN
+^LT0
+^MNW
+^MTT
+^PON
+^PMN
+^LH0,0
+^JMA
+^PR4,4
+~SD25
+^JUS
+^LRN
+^CI27
+^PA0,1,1,0
+^XZ
+^XA
+^MMT
+^PW791
+^LL484
+^LS0
+^FT642,223^A0N,29,28^FH\\^CI28^FD${priceTag}^FS^CI27
+^FT538,259^A0N,29,28^FH\\^CI28^FD${diamondWt}^FS^CI27
+^FT642,259^A0N,29,28^FH\\^CI28^FD${colourClarity}^FS^CI27
+^FT538,298^A0N,29,28^FH\\^CI28^FD${certificate}^FS^CI27
+^FT547,376^A0N,29,28^FH\\^CI28^FD${metal}^FS^CI27
+^FT545,416^A0N,29,28^FH\\^CI28^FDS/D^FS^CI27
+^FT597,416^A0N,29,28^FH\\^CI28^FD${sideDiamond}^FS^CI27
+^FT544,452^A0N,29,28^FH\\^CI28^FD${sellingPrice}^FS^CI27
+^FT538,223^A0N,29,28^FH\\^CI28^FD${itemCode}^FS^CI27
+^RFW,H,1,2,1^FD${pcHex}^FS
+^RFW,H,2,${byteCount},1^FD${epcHex}^FS
+^PQ1,0,1,Y
+^XZ
+`;
+};
+
 export const prnBytesToString = (bytes) => {
   const hasUtf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
   let content = '';
@@ -1660,6 +1804,8 @@ export const generateClientPrn = (item, clientCode) => {
       return generateLS000680Prn(item);
     case 'LS000677':
       return generateLS000677Prn(item);
+    case 'LS000726':
+      return generateLS000726Prn(item);
     case 'LS000736':
       return generateLS000736Prn(item);
     case 'LS000443':
